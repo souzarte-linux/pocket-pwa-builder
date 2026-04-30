@@ -3,8 +3,17 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { RequireAuth } from "@/components/RequireAuth";
+import Auth from "./pages/Auth";
+import Home from "./pages/Home";
+import Painel from "./pages/Painel";
+import Apps from "./pages/Apps";
+import Historico from "./pages/Historico";
+import NovaRota from "./pages/NovaRota";
+import TotalDia from "./pages/TotalDia";
+import Despesa from "./pages/Despesa";
+import Plataforma from "./pages/Plataforma";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -12,11 +21,18 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner />
+      <Sonner theme="dark" position="top-center" />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+          <Route path="/painel" element={<RequireAuth><Painel /></RequireAuth>} />
+          <Route path="/apps" element={<RequireAuth><Apps /></RequireAuth>} />
+          <Route path="/historico" element={<RequireAuth><Historico /></RequireAuth>} />
+          <Route path="/rota/nova" element={<RequireAuth><NovaRota /></RequireAuth>} />
+          <Route path="/total-dia" element={<RequireAuth><TotalDia /></RequireAuth>} />
+          <Route path="/despesa/:categoria" element={<RequireAuth><Despesa /></RequireAuth>} />
+          <Route path="/plataforma/:id" element={<RequireAuth><Plataforma /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

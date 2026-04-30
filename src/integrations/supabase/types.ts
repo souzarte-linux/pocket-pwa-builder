@@ -1,0 +1,408 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  public: {
+    Tables: {
+      daily_totals: {
+        Row: {
+          amount: number
+          created_at: string
+          distance_km: number | null
+          id: string
+          notes: string | null
+          occurred_at: string
+          platform_id: string | null
+          product_type: Database["public"]["Enums"]["product_type"] | null
+          subtract_routes: boolean | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          distance_km?: number | null
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          platform_id?: string | null
+          product_type?: Database["public"]["Enums"]["product_type"] | null
+          subtract_routes?: boolean | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          distance_km?: number | null
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          platform_id?: string | null
+          product_type?: Database["public"]["Enums"]["product_type"] | null
+          subtract_routes?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_totals_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "platforms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          amount: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at: string
+          description: string | null
+          fuel_type: string | null
+          id: string
+          liters: number | null
+          occurred_at: string
+          odometer_km: number | null
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
+          price_per_liter: number | null
+          title: string
+          user_id: string
+          vendor: string | null
+        }
+        Insert: {
+          amount: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          description?: string | null
+          fuel_type?: string | null
+          id?: string
+          liters?: number | null
+          occurred_at?: string
+          odometer_km?: number | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          price_per_liter?: number | null
+          title: string
+          user_id: string
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          description?: string | null
+          fuel_type?: string | null
+          id?: string
+          liters?: number | null
+          occurred_at?: string
+          odometer_km?: number | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          price_per_liter?: number | null
+          title?: string
+          user_id?: string
+          vendor?: string | null
+        }
+        Relationships: []
+      }
+      platforms: {
+        Row: {
+          active: boolean
+          bank_account: string | null
+          bank_agency: string | null
+          bank_name: string | null
+          created_at: string
+          cycle: Database["public"]["Enums"]["payment_cycle"]
+          id: string
+          name: string
+          payment_day: string | null
+          pix_bank: string | null
+          pix_key: string | null
+          pix_key_type: string | null
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          bank_account?: string | null
+          bank_agency?: string | null
+          bank_name?: string | null
+          created_at?: string
+          cycle?: Database["public"]["Enums"]["payment_cycle"]
+          id?: string
+          name: string
+          payment_day?: string | null
+          pix_bank?: string | null
+          pix_key?: string | null
+          pix_key_type?: string | null
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          bank_account?: string | null
+          bank_agency?: string | null
+          bank_name?: string | null
+          created_at?: string
+          cycle?: Database["public"]["Enums"]["payment_cycle"]
+          id?: string
+          name?: string
+          payment_day?: string | null
+          pix_bank?: string | null
+          pix_key?: string | null
+          pix_key_type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          daily_goal: number | null
+          email: string | null
+          full_name: string | null
+          id: string
+          monthly_goal: number | null
+          phone: string | null
+          plate: string | null
+          social_handle: string | null
+          updated_at: string
+          vehicle: Database["public"]["Enums"]["vehicle_type"] | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          daily_goal?: number | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          monthly_goal?: number | null
+          phone?: string | null
+          plate?: string | null
+          social_handle?: string | null
+          updated_at?: string
+          vehicle?: Database["public"]["Enums"]["vehicle_type"] | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          daily_goal?: number | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          monthly_goal?: number | null
+          phone?: string | null
+          plate?: string | null
+          social_handle?: string | null
+          updated_at?: string
+          vehicle?: Database["public"]["Enums"]["vehicle_type"] | null
+        }
+        Relationships: []
+      }
+      routes: {
+        Row: {
+          amount: number
+          created_at: string
+          destination: string | null
+          distance_km: number
+          id: string
+          notes: string | null
+          occurred_at: string
+          origin: string | null
+          platform_id: string | null
+          product_type: Database["public"]["Enums"]["product_type"]
+          tip: number
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          destination?: string | null
+          distance_km?: number
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          origin?: string | null
+          platform_id?: string | null
+          product_type?: Database["public"]["Enums"]["product_type"]
+          tip?: number
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          destination?: string | null
+          distance_km?: number
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          origin?: string | null
+          platform_id?: string | null
+          product_type?: Database["public"]["Enums"]["product_type"]
+          tip?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "platforms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      expense_category: "combustivel" | "manutencao" | "alimentacao"
+      payment_cycle: "semanal" | "quinzenal" | "mensal"
+      payment_method: "dinheiro" | "pix" | "cartao" | "carteira"
+      product_type: "alimento" | "pacote" | "documento" | "outro"
+      vehicle_type: "moto" | "carro" | "bike" | "patinete"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      expense_category: ["combustivel", "manutencao", "alimentacao"],
+      payment_cycle: ["semanal", "quinzenal", "mensal"],
+      payment_method: ["dinheiro", "pix", "cartao", "carteira"],
+      product_type: ["alimento", "pacote", "documento", "outro"],
+      vehicle_type: ["moto", "carro", "bike", "patinete"],
+    },
+  },
+} as const

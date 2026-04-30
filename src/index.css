@@ -1,105 +1,133 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Driver Hub — High Velocity Logistics design system. All HSL. */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Surfaces (dark by default) */
+    --background: 0 0% 7.5%;          /* #131313 */
+    --foreground: 18 11% 89%;         /* #e5e2e1 */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --surface-low: 0 2% 11%;          /* #1c1b1b */
+    --surface: 0 0% 12.5%;            /* #201f1f */
+    --surface-high: 0 0% 16.5%;       /* #2a2a2a */
+    --surface-highest: 60 1% 21%;     /* #353534 */
+    --surface-bright: 0 0% 22.5%;     /* #393939 */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 12.5%;
+    --card-foreground: 18 11% 89%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --popover: 0 0% 12.5%;
+    --popover-foreground: 18 11% 89%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --primary: 19 100% 50%;           /* Driver orange #ff5f00 */
+    --primary-foreground: 0 0% 7%;
+    --primary-glow: 18 100% 79%;      /* #ffb599 */
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --secondary: 0 100% 41%;          /* danger red #d30000 */
+    --secondary-foreground: 0 0% 100%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 41 100% 50%;            /* yellow accent */
+    --accent-foreground: 0 0% 7%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --muted: 0 0% 16.5%;
+    --muted-foreground: 22 36% 79%;   /* #e4bfb1 */
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --radius: 0.5rem;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
 
-    --sidebar-background: 0 0% 98%;
+    --warning: 41 100% 50%;
+    --warning-foreground: 0 0% 7%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    --border: 21 17% 28%;             /* #5b4137 */
+    --input: 0 0% 16.5%;
+    --ring: 19 100% 50%;
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    --radius: 0.875rem;
 
-    --sidebar-accent: 240 4.8% 95.9%;
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(19 100% 50%) 0%, hsl(18 100% 79%) 100%);
+    --gradient-surface: linear-gradient(180deg, hsl(0 0% 16.5%) 0%, hsl(0 0% 12.5%) 100%);
+    --gradient-glow: radial-gradient(circle at 50% 0%, hsl(19 100% 50% / 0.25), transparent 60%);
 
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    /* Shadows */
+    --shadow-card: 0 1px 0 0 hsl(0 0% 100% / 0.04) inset, 0 8px 24px -12px hsl(0 0% 0% / 0.6);
+    --shadow-glow: 0 0 0 1px hsl(19 100% 50% / 0.4), 0 8px 32px -8px hsl(19 100% 50% / 0.45);
+    --shadow-fab: 0 12px 28px -8px hsl(19 100% 50% / 0.55);
 
-    --sidebar-border: 220 13% 91%;
+    --transition-base: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar (unused but keep tokens defined) */
+    --sidebar-background: 0 0% 7.5%;
+    --sidebar-foreground: 18 11% 89%;
+    --sidebar-primary: 19 100% 50%;
+    --sidebar-primary-foreground: 0 0% 7%;
+    --sidebar-accent: 0 0% 16.5%;
+    --sidebar-accent-foreground: 18 11% 89%;
+    --sidebar-border: 21 17% 28%;
+    --sidebar-ring: 19 100% 50%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body, #root {
+    @apply h-full;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Lexend', system-ui, sans-serif;
+    overscroll-behavior-y: none;
   }
+
+  /* Mobile-first: clamp main app width to a phone-sized viewport on desktop */
+  .app-shell {
+    @apply mx-auto w-full max-w-[480px] min-h-screen relative;
+    background: hsl(var(--background));
+  }
+
+  /* Headline / display */
+  .display {
+    font-family: 'Lexend', sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-style: italic;
+  }
+
+  .label-up {
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
+}
+
+@layer utilities {
+  .bg-gradient-primary { background-image: var(--gradient-primary); }
+  .bg-gradient-surface { background-image: var(--gradient-surface); }
+  .bg-gradient-glow { background-image: var(--gradient-glow); }
+  .shadow-card { box-shadow: var(--shadow-card); }
+  .shadow-glow { box-shadow: var(--shadow-glow); }
+  .shadow-fab { box-shadow: var(--shadow-fab); }
+
+  .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 1rem); }
+  .safe-top { padding-top: max(env(safe-area-inset-top), 0.5rem); }
 }
