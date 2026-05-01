@@ -7,6 +7,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import Painel from "./pages/Painel";
+import Relatorios from "./pages/Relatorios";
 import Apps from "./pages/Apps";
 import Historico from "./pages/Historico";
 import NovaRota from "./pages/NovaRota";
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
           <Route path="/painel" element={<RequireAuth><Painel /></RequireAuth>} />
+          <Route path="/relatorios" element={<RequireAuth><Relatorios /></RequireAuth>} />
           <Route path="/apps" element={<RequireAuth><Apps /></RequireAuth>} />
           <Route path="/historico" element={<RequireAuth><Historico /></RequireAuth>} />
           <Route path="/rota/nova" element={<RequireAuth><NovaRota /></RequireAuth>} />
