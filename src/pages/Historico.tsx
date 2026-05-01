@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
-import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, TrendingUp } from 'lucide-react';
+import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, TrendingUp, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, formatTime, todayBoundaries } from '@/lib/format';
+import { EditTransactionDialog, EditTarget } from '@/components/EditTransactionDialog';
 
 type Tab = 'todos' | 'ganhos' | 'despesas';
 
