@@ -275,6 +275,16 @@ const Historico = () => {
                         </span>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditTarget({ table: x.table, id: x.raw_id, positive: x.positive })
+                      }
+                      aria-label="Editar"
+                      className="size-9 shrink-0 rounded-lg grid place-items-center bg-surface-high text-muted-foreground hover:text-primary hover:bg-primary/10 transition active:scale-95"
+                    >
+                      <Settings className="size-4" />
+                    </button>
                   </li>
                 );
               })}
@@ -282,6 +292,12 @@ const Historico = () => {
           </section>
         ))}
       </div>
+
+      <EditTransactionDialog
+        target={editTarget}
+        onClose={() => setEditTarget(null)}
+        onSaved={load}
+      />
     </AppShell>
   );
 };
