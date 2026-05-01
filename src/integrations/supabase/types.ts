@@ -258,6 +258,33 @@ export type Database = {
           },
         ]
       }
+      work_sessions: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          id: string
+          notes: string | null
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          notes?: string | null
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          notes?: string | null
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
