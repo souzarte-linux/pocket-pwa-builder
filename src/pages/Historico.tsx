@@ -43,90 +43,98 @@ const Historico = () => {
   const [todayBalance, setTodayBalance] = useState(0);
   const [todayExp, setTodayExp] = useState(0);
   const [goal, setGoal] = useState(300);
+  const [editTarget, setEditTarget] = useState<EditTarget>(null);
+
+  const load = async () => {
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    const [routesRes, expRes, dailyRes, plats, prof] = await Promise.all([
+      supabase
+        .from('routes')
+        .select('id, amount, tip, distance_km, product_type, occurred_at, platform_id, origin, destination')
+        .gte('occurred_at', since.toISOString())
+        .order('occurred_at', { ascending: false }),
+      supabase
+        .from('expenses')
+        .select('id, category, title, vendor, amount, occurred_at, payment_method')
+        .gte('occurred_at', since.toISOString())
+        .order('occurred_at', { ascending: false }),
+      supabase
+        .from('daily_totals')
+        .select('id, amount, occurred_at, platform_id, product_type')
+        .gte('occurred_at', since.toISOString())
+        .order('occurred_at', { ascending: false }),
+      supabase.from('platforms').select('id, name'),
+      supabase.from('profiles').select('daily_goal').maybeSingle(),
+    ]);
+
+    if (prof.data?.daily_goal) setGoal(Number(prof.data.daily_goal));
+
+    const platMap = new Map((plats.data ?? []).map((p: any) => [p.id, p.name]));
+
+    const txs: Tx[] = [];
+    (routesRes.data ?? []).forEach((r: any) => {
+      txs.push({
+        id: 'r' + r.id,
+        raw_id: r.id,
+        table: 'routes',
+        kind: 'route',
+        title: r.product_type === 'pacote' ? 'Entrega Expressa' : r.product_type === 'documento' ? 'Entrega de Docs' : 'Delivery Comida',
+        subtitle: `${platMap.get(r.platform_id) ?? 'AVULSO'} • ${formatTime(r.occurred_at)}`,
+        amount: Number(r.amount) + Number(r.tip),
+        positive: true,
+        tag: 'PAGO',
+        iconKey: r.product_type === 'pacote' ? 'package' : r.product_type === 'documento' ? 'doc' : 'food',
+        occurred_at: r.occurred_at,
+      });
+    });
+    (dailyRes.data ?? []).forEach((d: any) => {
+      txs.push({
+        id: 'd' + d.id,
+        raw_id: d.id,
+        table: 'daily_totals',
+        kind: 'daily',
+        title: 'Total do dia',
+        subtitle: `${platMap.get(d.platform_id) ?? 'AVULSO'} • ${formatTime(d.occurred_at)}`,
+        amount: Number(d.amount),
+        positive: true,
+        tag: 'TOTAL',
+        iconKey: 'package',
+        occurred_at: d.occurred_at,
+      });
+    });
+    (expRes.data ?? []).forEach((e: any) => {
+      const ic =
+        e.category === 'combustivel' ? 'fuel' : e.category === 'manutencao' ? 'wrench' : 'food';
+      txs.push({
+        id: 'e' + e.id,
+        raw_id: e.id,
+        table: 'expenses',
+        kind: 'expense',
+        title: e.title.toUpperCase(),
+        subtitle: `${e.vendor ?? '—'} • ${formatTime(e.occurred_at)}`,
+        amount: Number(e.amount),
+        positive: false,
+        tag: e.category.toUpperCase(),
+        iconKey: ic,
+        occurred_at: e.occurred_at,
+      });
+    });
+    txs.sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
+    setItems(txs);
+
+    const t = todayBoundaries();
+    const todayTx = txs.filter(
+      (x) => x.occurred_at >= t.start && x.occurred_at <= t.end
+    );
+    setTodayBalance(
+      todayTx.reduce((s, x) => s + (x.positive ? x.amount : -x.amount), 0)
+    );
+    setTodayExp(todayTx.filter((x) => !x.positive).reduce((s, x) => s + x.amount, 0));
+  };
 
   useEffect(() => {
-    const load = async () => {
-      const since = new Date();
-      since.setDate(since.getDate() - 30);
-
-      const [routesRes, expRes, dailyRes, plats, prof] = await Promise.all([
-        supabase
-          .from('routes')
-          .select('id, amount, tip, distance_km, product_type, occurred_at, platform_id, origin, destination')
-          .gte('occurred_at', since.toISOString())
-          .order('occurred_at', { ascending: false }),
-        supabase
-          .from('expenses')
-          .select('id, category, title, vendor, amount, occurred_at, payment_method')
-          .gte('occurred_at', since.toISOString())
-          .order('occurred_at', { ascending: false }),
-        supabase
-          .from('daily_totals')
-          .select('id, amount, occurred_at, platform_id, product_type')
-          .gte('occurred_at', since.toISOString())
-          .order('occurred_at', { ascending: false }),
-        supabase.from('platforms').select('id, name'),
-        supabase.from('profiles').select('daily_goal').maybeSingle(),
-      ]);
-
-      if (prof.data?.daily_goal) setGoal(Number(prof.data.daily_goal));
-
-      const platMap = new Map((plats.data ?? []).map((p: any) => [p.id, p.name]));
-
-      const txs: Tx[] = [];
-      (routesRes.data ?? []).forEach((r: any) => {
-        txs.push({
-          id: 'r' + r.id,
-          kind: 'route',
-          title: r.product_type === 'pacote' ? 'Entrega Expressa' : r.product_type === 'documento' ? 'Entrega de Docs' : 'Delivery Comida',
-          subtitle: `${platMap.get(r.platform_id) ?? 'AVULSO'} • ${formatTime(r.occurred_at)}`,
-          amount: Number(r.amount) + Number(r.tip),
-          positive: true,
-          tag: 'PAGO',
-          iconKey: r.product_type === 'pacote' ? 'package' : r.product_type === 'documento' ? 'doc' : 'food',
-          occurred_at: r.occurred_at,
-        });
-      });
-      (dailyRes.data ?? []).forEach((d: any) => {
-        txs.push({
-          id: 'd' + d.id,
-          kind: 'daily',
-          title: 'Total do dia',
-          subtitle: `${platMap.get(d.platform_id) ?? 'AVULSO'} • ${formatTime(d.occurred_at)}`,
-          amount: Number(d.amount),
-          positive: true,
-          tag: 'TOTAL',
-          iconKey: 'package',
-          occurred_at: d.occurred_at,
-        });
-      });
-      (expRes.data ?? []).forEach((e: any) => {
-        const ic =
-          e.category === 'combustivel' ? 'fuel' : e.category === 'manutencao' ? 'wrench' : 'food';
-        txs.push({
-          id: 'e' + e.id,
-          kind: 'expense',
-          title: e.title.toUpperCase(),
-          subtitle: `${e.vendor ?? '—'} • ${formatTime(e.occurred_at)}`,
-          amount: Number(e.amount),
-          positive: false,
-          tag: e.category.toUpperCase(),
-          iconKey: ic,
-          occurred_at: e.occurred_at,
-        });
-      });
-      txs.sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
-      setItems(txs);
-
-      const t = todayBoundaries();
-      const todayTx = txs.filter(
-        (x) => x.occurred_at >= t.start && x.occurred_at <= t.end
-      );
-      setTodayBalance(
-        todayTx.reduce((s, x) => s + (x.positive ? x.amount : -x.amount), 0)
-      );
-      setTodayExp(todayTx.filter((x) => !x.positive).reduce((s, x) => s + x.amount, 0));
-    };
     load();
   }, []);
 
