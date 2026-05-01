@@ -9,6 +9,8 @@ type Tab = 'todos' | 'ganhos' | 'despesas';
 
 interface Tx {
   id: string;
+  raw_id: string;
+  table: 'routes' | 'daily_totals' | 'expenses';
   kind: 'route' | 'daily' | 'expense';
   title: string;
   subtitle: string;
