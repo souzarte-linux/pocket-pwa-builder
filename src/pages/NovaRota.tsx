@@ -103,14 +103,26 @@ const NovaRota = () => {
             <Field label="Distância (km)">
               <Input inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="0.00" />
             </Field>
-            <Field label="Valor (R$)">
-              <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
+            <Field label="Gorjeta (R$)">
+              <Input inputMode="decimal" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="0,00" />
             </Field>
           </div>
 
-          <Field label="Gorjeta (R$)">
-            <Input inputMode="decimal" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="0,00" />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Quantidade Pacotes">
+              <Input inputMode="numeric" value={packageCount} onChange={(e) => setPackageCount(e.target.value)} placeholder="0" />
+            </Field>
+            <Field label="Valor Pacote (R$)">
+              <Input inputMode="decimal" value={packageUnitPrice} onChange={(e) => setPackageUnitPrice(e.target.value)} placeholder="0,00" />
+            </Field>
+          </div>
+
+          <div className="rounded-xl bg-surface-high p-3 flex items-center justify-between">
+            <span className="label-up text-xs text-muted-foreground">Valor total</span>
+            <span className="display text-xl text-primary">
+              {amountNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </span>
+          </div>
 
           <Field label="Tipo de produto">
             <div className="grid grid-cols-3 gap-2">
