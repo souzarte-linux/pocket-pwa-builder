@@ -369,6 +369,8 @@ const Relatorios = () => {
             tone="destructive"
           />
           <Kpi Icon={Package} label="Rotas" value={String(stats.routeCount)} />
+          <Kpi Icon={Package} label="Pacotes" value={String(stats.totalPackages)} tone="accent" />
+          <Kpi Icon={Banknote} label="R$ / Pacote" value={formatBRL(stats.avgPackagePrice)} tone="info" />
         </div>
 
         {/* Revenue x Expense x Profit timeline */}
