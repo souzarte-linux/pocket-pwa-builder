@@ -123,6 +123,8 @@ const COLORS = [
 
 const Relatorios = () => {
   const [period, setPeriod] = useState<Period>('semana');
+  const [customStart, setCustomStart] = useState<string>(daysAgoISO(7));
+  const [customEnd, setCustomEnd] = useState<string>(todayISO());
   const [routes, setRoutes] = useState<Route[]>([]);
   const [dailies, setDailies] = useState<DailyTotal[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -130,21 +132,35 @@ const Relatorios = () => {
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const range = useMemo(() => {
+    if (period === 'custom') {
+      const s = new Date(`${customStart}T00:00:00`);
+      const e = new Date(`${customEnd}T23:59:59.999`);
+      return { since: s, until: e };
+    }
+    return { since: startOf(period), until: new Date() };
+  }, [period, customStart, customEnd]);
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const since = startOf(period).toISOString();
+      const sinceISO = range.since.toISOString();
+      const untilISO = range.until.toISOString();
       const [r, d, e, s, p] = await Promise.all([
         supabase
           .from('routes')
           .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price')
-          .gte('occurred_at', since),
+          .gte('occurred_at', sinceISO)
+          .lte('occurred_at', untilISO),
         supabase
           .from('daily_totals')
           .select('amount, distance_km, platform_id, product_type, occurred_at, subtract_routes')
-          .gte('occurred_at', since),
-        supabase.from('expenses').select('amount, category, occurred_at').gte('occurred_at', since),
-        supabase.from('work_sessions').select('started_at, ended_at').gte('started_at', since),
+          .gte('occurred_at', sinceISO)
+          .lte('occurred_at', untilISO),
+        supabase.from('expenses').select('amount, category, occurred_at')
+          .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
+        supabase.from('work_sessions').select('started_at, ended_at')
+          .gte('started_at', sinceISO).lte('started_at', untilISO),
         supabase.from('platforms').select('id, name'),
       ]);
       setRoutes((r.data ?? []) as Route[]);
@@ -155,7 +171,7 @@ const Relatorios = () => {
       setLoading(false);
     };
     load();
-  }, [period]);
+  }, [range]);
 
   const platformName = (id: string | null) =>
     (id && platforms.find((p) => p.id === id)?.name) || 'Sem plataforma';
