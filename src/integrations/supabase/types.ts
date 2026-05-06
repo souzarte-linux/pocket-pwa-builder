@@ -270,6 +270,8 @@ export type Database = {
           ended_at: string | null
           id: string
           notes: string | null
+          platform_id: string | null
+          product_type: Database["public"]["Enums"]["product_type"] | null
           started_at: string
           user_id: string
         }
@@ -278,6 +280,8 @@ export type Database = {
           ended_at?: string | null
           id?: string
           notes?: string | null
+          platform_id?: string | null
+          product_type?: Database["public"]["Enums"]["product_type"] | null
           started_at?: string
           user_id: string
         }
@@ -286,6 +290,8 @@ export type Database = {
           ended_at?: string | null
           id?: string
           notes?: string | null
+          platform_id?: string | null
+          product_type?: Database["public"]["Enums"]["product_type"] | null
           started_at?: string
           user_id?: string
         }
