@@ -76,12 +76,23 @@ const NovaRota = () => {
             </div>
           </Field>
 
+          </Field>
+
+          <Field label="Data e hora">
+            <Input
+              type="datetime-local"
+              value={occurredAt}
+              onChange={(e) => setOccurredAt(e.target.value)}
+            />
+          </Field>
+
           <Field label="Origem">
             <Input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Endereço de coleta" />
           </Field>
           <Field label="Destino">
             <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Endereço de entrega" />
           </Field>
+
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Distância (km)">
