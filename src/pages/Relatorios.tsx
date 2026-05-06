@@ -121,7 +121,7 @@ const Relatorios = () => {
       const [r, d, e, s, p] = await Promise.all([
         supabase
           .from('routes')
-          .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at')
+          .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price')
           .gte('occurred_at', since),
         supabase
           .from('daily_totals')
