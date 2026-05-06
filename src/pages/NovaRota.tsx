@@ -13,8 +13,12 @@ const NovaRota = () => {
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [distance, setDistance] = useState('');
-  const [amount, setAmount] = useState('');
+  const [packageCount, setPackageCount] = useState('1');
+  const [packageUnitPrice, setPackageUnitPrice] = useState('');
   const [tip, setTip] = useState('');
+  const amountNum =
+    (Number(packageCount.replace(',', '.')) || 0) *
+    (Number(packageUnitPrice.replace(',', '.')) || 0);
   const [type, setType] = useState<'alimento' | 'pacote' | 'documento'>('alimento');
   const [loading, setLoading] = useState(false);
   const nowLocal = () => {
