@@ -71,6 +71,8 @@ interface Route {
   origin: string | null;
   destination: string | null;
   occurred_at: string;
+  package_count: number | null;
+  package_unit_price: number | null;
 }
 interface DailyTotal {
   amount: number;
