@@ -158,12 +158,14 @@ const Relatorios = () => {
       return s + Math.max(0, end - new Date(ses.started_at).getTime());
     }, 0);
     const hours = totalMs / 3600000;
+    const totalPackages = routes.reduce((s, r) => s + Number(r.package_count ?? 0), 0);
     return {
       totalRevenue,
       totalKm,
       totalExpense,
       profit,
       hours,
+      totalPackages,
       revPerKm: totalKm > 0 ? totalRevenue / totalKm : 0,
       costPerKm: totalKm > 0 ? totalExpense / totalKm : 0,
       profitPerKm: totalKm > 0 ? profit / totalKm : 0,
@@ -171,6 +173,9 @@ const Relatorios = () => {
       profitPerHour: hours > 0 ? profit / hours : 0,
       routeCount: routes.length,
       avgTicket: routes.length > 0 ? totalRevenue / routes.length : 0,
+      avgPackagePrice: totalPackages > 0
+        ? routes.reduce((s, r) => s + Number(r.amount), 0) / totalPackages
+        : 0,
     };
   }, [routes, dailies, expenses, sessions]);
 
