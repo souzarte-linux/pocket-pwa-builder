@@ -12,6 +12,7 @@ import Apps from "./pages/Apps";
 import Historico from "./pages/Historico";
 import NovaRota from "./pages/NovaRota";
 import TotalDia from "./pages/TotalDia";
+import HorasTrabalhadas from "./pages/HorasTrabalhadas";
 import Despesa from "./pages/Despesa";
 import Plataforma from "./pages/Plataforma";
 import NotFound from "./pages/NotFound";
