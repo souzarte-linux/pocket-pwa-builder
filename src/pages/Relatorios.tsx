@@ -30,7 +30,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 
-type Period = 'dia' | 'semana' | 'quinzena' | 'mes' | 'ano';
+type Period = 'dia' | 'semana' | 'quinzena' | 'mes' | 'ano' | 'custom';
 
 const PERIODS: { id: Period; label: string }[] = [
   { id: 'dia', label: 'Dia' },
@@ -38,6 +38,7 @@ const PERIODS: { id: Period; label: string }[] = [
   { id: 'quinzena', label: 'Quinzena' },
   { id: 'mes', label: 'Mês' },
   { id: 'ano', label: 'Ano' },
+  { id: 'custom', label: 'Intervalo' },
 ];
 
 const startOf = (p: Period): Date => {
@@ -56,10 +57,25 @@ const startOf = (p: Period): Date => {
     d.setDate(1);
     return d;
   }
-  const y = new Date();
-  y.setMonth(0, 1);
-  y.setHours(0, 0, 0, 0);
-  return y;
+  if (p === 'ano') {
+    const y = new Date();
+    y.setMonth(0, 1);
+    y.setHours(0, 0, 0, 0);
+    return y;
+  }
+  return d;
+};
+
+const todayISO = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+};
+const daysAgoISO = (n: number) => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
 };
 
 interface Route {
