@@ -286,15 +286,12 @@ const Relatorios = () => {
 
   // Daily series (revenue, expense, profit)
   const series = useMemo(() => {
-    const since = startOf(period);
-    const days =
-      period === 'dia'
-        ? 1
-        : Math.max(
-            1,
-            Math.ceil((Date.now() - since.getTime()) / 86400000) + 1
-          );
-    const granularity: 'day' | 'month' = period === 'ano' ? 'month' : 'day';
+    const since = new Date(range.since);
+    since.setHours(0, 0, 0, 0);
+    const until = new Date(range.until);
+    const spanDays = Math.max(1, Math.ceil((until.getTime() - since.getTime()) / 86400000) + 1);
+    const granularity: 'day' | 'month' =
+      period === 'ano' || (period === 'custom' && spanDays > 90) ? 'month' : 'day';
     const buckets = new Map<string, { label: string; receita: number; despesa: number }>();
 
     const keyFor = (iso: string) => {
@@ -313,17 +310,18 @@ const Relatorios = () => {
       return `${d}/${m}`;
     };
 
-    // Pre-fill buckets so chart shows continuity
     if (granularity === 'day') {
-      for (let i = 0; i < Math.min(days, 60); i++) {
+      for (let i = 0; i < Math.min(spanDays, 90); i++) {
         const d = new Date(since);
         d.setDate(d.getDate() + i);
+        if (d > until) break;
         const k = keyFor(d.toISOString());
         buckets.set(k, { label: label(k), receita: 0, despesa: 0 });
       }
     } else {
       const cur = new Date(since);
-      while (cur <= new Date()) {
+      cur.setDate(1);
+      while (cur <= until) {
         const k = keyFor(cur.toISOString());
         buckets.set(k, { label: label(k), receita: 0, despesa: 0 });
         cur.setMonth(cur.getMonth() + 1);
@@ -352,7 +350,7 @@ const Relatorios = () => {
     return Array.from(buckets.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([, v]) => ({ ...v, lucro: Number((v.receita - v.despesa).toFixed(2)) }));
-  }, [routes, dailies, expenses, period]);
+  }, [routes, dailies, expenses, period, range]);
 
   return (
     <AppShell title={'RELATÓRIOS\nINSIGHTS'}>
