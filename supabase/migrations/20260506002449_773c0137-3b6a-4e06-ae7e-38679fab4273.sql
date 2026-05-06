@@ -1,0 +1,1 @@
+ALTER TABLE public.routes ADD COLUMN package_count integer NOT NULL DEFAULT 1, ADD COLUMN package_unit_price numeric NOT NULL DEFAULT 0;

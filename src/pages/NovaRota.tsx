@@ -13,8 +13,12 @@ const NovaRota = () => {
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [distance, setDistance] = useState('');
-  const [amount, setAmount] = useState('');
+  const [packageCount, setPackageCount] = useState('1');
+  const [packageUnitPrice, setPackageUnitPrice] = useState('');
   const [tip, setTip] = useState('');
+  const amountNum =
+    (Number(packageCount.replace(',', '.')) || 0) *
+    (Number(packageUnitPrice.replace(',', '.')) || 0);
   const [type, setType] = useState<'alimento' | 'pacote' | 'documento'>('alimento');
   const [loading, setLoading] = useState(false);
   const nowLocal = () => {
@@ -42,7 +46,9 @@ const NovaRota = () => {
       origin: origin || null,
       destination: destination || null,
       distance_km: Number(distance.replace(',', '.')) || 0,
-      amount: Number(amount.replace(',', '.')) || 0,
+      amount: amountNum,
+      package_count: Number(packageCount.replace(',', '.')) || 0,
+      package_unit_price: Number(packageUnitPrice.replace(',', '.')) || 0,
       tip: Number(tip.replace(',', '.')) || 0,
       product_type: type,
       occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
@@ -97,14 +103,26 @@ const NovaRota = () => {
             <Field label="Distância (km)">
               <Input inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="0.00" />
             </Field>
-            <Field label="Valor (R$)">
-              <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
+            <Field label="Gorjeta (R$)">
+              <Input inputMode="decimal" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="0,00" />
             </Field>
           </div>
 
-          <Field label="Gorjeta (R$)">
-            <Input inputMode="decimal" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="0,00" />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Quantidade Pacotes">
+              <Input inputMode="numeric" value={packageCount} onChange={(e) => setPackageCount(e.target.value)} placeholder="0" />
+            </Field>
+            <Field label="Valor Pacote (R$)">
+              <Input inputMode="decimal" value={packageUnitPrice} onChange={(e) => setPackageUnitPrice(e.target.value)} placeholder="0,00" />
+            </Field>
+          </div>
+
+          <div className="rounded-xl bg-surface-high p-3 flex items-center justify-between">
+            <span className="label-up text-xs text-muted-foreground">Valor total</span>
+            <span className="display text-xl text-primary">
+              {amountNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </span>
+          </div>
 
           <Field label="Tipo de produto">
             <div className="grid grid-cols-3 gap-2">

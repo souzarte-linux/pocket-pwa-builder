@@ -215,6 +215,8 @@ export type Database = {
           notes: string | null
           occurred_at: string
           origin: string | null
+          package_count: number
+          package_unit_price: number
           platform_id: string | null
           product_type: Database["public"]["Enums"]["product_type"]
           tip: number
@@ -229,6 +231,8 @@ export type Database = {
           notes?: string | null
           occurred_at?: string
           origin?: string | null
+          package_count?: number
+          package_unit_price?: number
           platform_id?: string | null
           product_type?: Database["public"]["Enums"]["product_type"]
           tip?: number
@@ -243,6 +247,8 @@ export type Database = {
           notes?: string | null
           occurred_at?: string
           origin?: string | null
+          package_count?: number
+          package_unit_price?: number
           platform_id?: string | null
           product_type?: Database["public"]["Enums"]["product_type"]
           tip?: number

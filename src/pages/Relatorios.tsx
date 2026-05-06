@@ -71,6 +71,8 @@ interface Route {
   origin: string | null;
   destination: string | null;
   occurred_at: string;
+  package_count: number | null;
+  package_unit_price: number | null;
 }
 interface DailyTotal {
   amount: number;
@@ -119,7 +121,7 @@ const Relatorios = () => {
       const [r, d, e, s, p] = await Promise.all([
         supabase
           .from('routes')
-          .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at')
+          .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price')
           .gte('occurred_at', since),
         supabase
           .from('daily_totals')
@@ -156,12 +158,14 @@ const Relatorios = () => {
       return s + Math.max(0, end - new Date(ses.started_at).getTime());
     }, 0);
     const hours = totalMs / 3600000;
+    const totalPackages = routes.reduce((s, r) => s + Number(r.package_count ?? 0), 0);
     return {
       totalRevenue,
       totalKm,
       totalExpense,
       profit,
       hours,
+      totalPackages,
       revPerKm: totalKm > 0 ? totalRevenue / totalKm : 0,
       costPerKm: totalKm > 0 ? totalExpense / totalKm : 0,
       profitPerKm: totalKm > 0 ? profit / totalKm : 0,
@@ -169,6 +173,9 @@ const Relatorios = () => {
       profitPerHour: hours > 0 ? profit / hours : 0,
       routeCount: routes.length,
       avgTicket: routes.length > 0 ? totalRevenue / routes.length : 0,
+      avgPackagePrice: totalPackages > 0
+        ? routes.reduce((s, r) => s + Number(r.amount), 0) / totalPackages
+        : 0,
     };
   }, [routes, dailies, expenses, sessions]);
 
@@ -362,6 +369,8 @@ const Relatorios = () => {
             tone="destructive"
           />
           <Kpi Icon={Package} label="Rotas" value={String(stats.routeCount)} />
+          <Kpi Icon={Package} label="Pacotes" value={String(stats.totalPackages)} tone="accent" />
+          <Kpi Icon={Banknote} label="R$ / Pacote" value={formatBRL(stats.avgPackagePrice)} tone="info" />
         </div>
 
         {/* Revenue x Expense x Profit timeline */}
