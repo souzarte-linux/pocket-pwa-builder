@@ -17,6 +17,12 @@ const NovaRota = () => {
   const [tip, setTip] = useState('');
   const [type, setType] = useState<'alimento' | 'pacote' | 'documento'>('alimento');
   const [loading, setLoading] = useState(false);
+  const nowLocal = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  };
+  const [occurredAt, setOccurredAt] = useState<string>(nowLocal());
 
   useEffect(() => {
     supabase.from('platforms').select('id, name').eq('active', true).then(({ data }) => {
