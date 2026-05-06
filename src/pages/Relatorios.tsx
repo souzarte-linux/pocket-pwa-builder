@@ -374,6 +374,31 @@ const Relatorios = () => {
           ))}
         </div>
 
+        {period === 'custom' && (
+          <div className="rounded-2xl bg-surface border border-border/40 p-3 grid grid-cols-2 gap-3">
+            <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              De
+              <input
+                type="date"
+                value={customStart}
+                max={customEnd}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="mt-1 w-full h-11 px-3 rounded-xl bg-surface-high border border-transparent focus:border-primary outline-none text-foreground text-sm normal-case font-normal"
+              />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Até
+              <input
+                type="date"
+                value={customEnd}
+                min={customStart}
+                max={todayISO()}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="mt-1 w-full h-11 px-3 rounded-xl bg-surface-high border border-transparent focus:border-primary outline-none text-foreground text-sm normal-case font-normal"
+              />
+            </label>
+          </div>
+        )}
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-3">
           <Kpi
