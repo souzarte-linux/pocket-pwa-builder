@@ -45,6 +45,7 @@ const NovaRota = () => {
       amount: Number(amount.replace(',', '.')) || 0,
       tip: Number(tip.replace(',', '.')) || 0,
       product_type: type,
+      occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
     });
     setLoading(false);
     if (error) return toast.error(error.message);
