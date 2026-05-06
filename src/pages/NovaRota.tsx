@@ -17,6 +17,12 @@ const NovaRota = () => {
   const [tip, setTip] = useState('');
   const [type, setType] = useState<'alimento' | 'pacote' | 'documento'>('alimento');
   const [loading, setLoading] = useState(false);
+  const nowLocal = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  };
+  const [occurredAt, setOccurredAt] = useState<string>(nowLocal());
 
   useEffect(() => {
     supabase.from('platforms').select('id, name').eq('active', true).then(({ data }) => {
@@ -39,6 +45,7 @@ const NovaRota = () => {
       amount: Number(amount.replace(',', '.')) || 0,
       tip: Number(tip.replace(',', '.')) || 0,
       product_type: type,
+      occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
     });
     setLoading(false);
     if (error) return toast.error(error.message);
@@ -69,12 +76,22 @@ const NovaRota = () => {
             </div>
           </Field>
 
+
+          <Field label="Data e hora">
+            <Input
+              type="datetime-local"
+              value={occurredAt}
+              onChange={(e) => setOccurredAt(e.target.value)}
+            />
+          </Field>
+
           <Field label="Origem">
             <Input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Endereço de coleta" />
           </Field>
           <Field label="Destino">
             <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Endereço de entrega" />
           </Field>
+
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Distância (km)">
