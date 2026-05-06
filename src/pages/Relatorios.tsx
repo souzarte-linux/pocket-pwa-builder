@@ -30,7 +30,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 
-type Period = 'dia' | 'semana' | 'quinzena' | 'mes' | 'ano';
+type Period = 'dia' | 'semana' | 'quinzena' | 'mes' | 'ano' | 'custom';
 
 const PERIODS: { id: Period; label: string }[] = [
   { id: 'dia', label: 'Dia' },
@@ -38,6 +38,7 @@ const PERIODS: { id: Period; label: string }[] = [
   { id: 'quinzena', label: 'Quinzena' },
   { id: 'mes', label: 'Mês' },
   { id: 'ano', label: 'Ano' },
+  { id: 'custom', label: 'Intervalo' },
 ];
 
 const startOf = (p: Period): Date => {
@@ -56,10 +57,25 @@ const startOf = (p: Period): Date => {
     d.setDate(1);
     return d;
   }
-  const y = new Date();
-  y.setMonth(0, 1);
-  y.setHours(0, 0, 0, 0);
-  return y;
+  if (p === 'ano') {
+    const y = new Date();
+    y.setMonth(0, 1);
+    y.setHours(0, 0, 0, 0);
+    return y;
+  }
+  return d;
+};
+
+const todayISO = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+};
+const daysAgoISO = (n: number) => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
 };
 
 interface Route {
@@ -107,6 +123,8 @@ const COLORS = [
 
 const Relatorios = () => {
   const [period, setPeriod] = useState<Period>('semana');
+  const [customStart, setCustomStart] = useState<string>(daysAgoISO(7));
+  const [customEnd, setCustomEnd] = useState<string>(todayISO());
   const [routes, setRoutes] = useState<Route[]>([]);
   const [dailies, setDailies] = useState<DailyTotal[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -114,21 +132,35 @@ const Relatorios = () => {
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const range = useMemo(() => {
+    if (period === 'custom') {
+      const s = new Date(`${customStart}T00:00:00`);
+      const e = new Date(`${customEnd}T23:59:59.999`);
+      return { since: s, until: e };
+    }
+    return { since: startOf(period), until: new Date() };
+  }, [period, customStart, customEnd]);
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const since = startOf(period).toISOString();
+      const sinceISO = range.since.toISOString();
+      const untilISO = range.until.toISOString();
       const [r, d, e, s, p] = await Promise.all([
         supabase
           .from('routes')
           .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price')
-          .gte('occurred_at', since),
+          .gte('occurred_at', sinceISO)
+          .lte('occurred_at', untilISO),
         supabase
           .from('daily_totals')
           .select('amount, distance_km, platform_id, product_type, occurred_at, subtract_routes')
-          .gte('occurred_at', since),
-        supabase.from('expenses').select('amount, category, occurred_at').gte('occurred_at', since),
-        supabase.from('work_sessions').select('started_at, ended_at').gte('started_at', since),
+          .gte('occurred_at', sinceISO)
+          .lte('occurred_at', untilISO),
+        supabase.from('expenses').select('amount, category, occurred_at')
+          .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
+        supabase.from('work_sessions').select('started_at, ended_at')
+          .gte('started_at', sinceISO).lte('started_at', untilISO),
         supabase.from('platforms').select('id, name'),
       ]);
       setRoutes((r.data ?? []) as Route[]);
@@ -139,7 +171,7 @@ const Relatorios = () => {
       setLoading(false);
     };
     load();
-  }, [period]);
+  }, [range]);
 
   const platformName = (id: string | null) =>
     (id && platforms.find((p) => p.id === id)?.name) || 'Sem plataforma';
@@ -254,15 +286,12 @@ const Relatorios = () => {
 
   // Daily series (revenue, expense, profit)
   const series = useMemo(() => {
-    const since = startOf(period);
-    const days =
-      period === 'dia'
-        ? 1
-        : Math.max(
-            1,
-            Math.ceil((Date.now() - since.getTime()) / 86400000) + 1
-          );
-    const granularity: 'day' | 'month' = period === 'ano' ? 'month' : 'day';
+    const since = new Date(range.since);
+    since.setHours(0, 0, 0, 0);
+    const until = new Date(range.until);
+    const spanDays = Math.max(1, Math.ceil((until.getTime() - since.getTime()) / 86400000) + 1);
+    const granularity: 'day' | 'month' =
+      period === 'ano' || (period === 'custom' && spanDays > 90) ? 'month' : 'day';
     const buckets = new Map<string, { label: string; receita: number; despesa: number }>();
 
     const keyFor = (iso: string) => {
@@ -281,17 +310,18 @@ const Relatorios = () => {
       return `${d}/${m}`;
     };
 
-    // Pre-fill buckets so chart shows continuity
     if (granularity === 'day') {
-      for (let i = 0; i < Math.min(days, 60); i++) {
+      for (let i = 0; i < Math.min(spanDays, 90); i++) {
         const d = new Date(since);
         d.setDate(d.getDate() + i);
+        if (d > until) break;
         const k = keyFor(d.toISOString());
         buckets.set(k, { label: label(k), receita: 0, despesa: 0 });
       }
     } else {
       const cur = new Date(since);
-      while (cur <= new Date()) {
+      cur.setDate(1);
+      while (cur <= until) {
         const k = keyFor(cur.toISOString());
         buckets.set(k, { label: label(k), receita: 0, despesa: 0 });
         cur.setMonth(cur.getMonth() + 1);
@@ -320,7 +350,7 @@ const Relatorios = () => {
     return Array.from(buckets.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([, v]) => ({ ...v, lucro: Number((v.receita - v.despesa).toFixed(2)) }));
-  }, [routes, dailies, expenses, period]);
+  }, [routes, dailies, expenses, period, range]);
 
   return (
     <AppShell title={'RELATÓRIOS\nINSIGHTS'}>
@@ -344,6 +374,31 @@ const Relatorios = () => {
           ))}
         </div>
 
+        {period === 'custom' && (
+          <div className="rounded-2xl bg-surface border border-border/40 p-3 grid grid-cols-2 gap-3">
+            <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              De
+              <input
+                type="date"
+                value={customStart}
+                max={customEnd}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="mt-1 w-full h-11 px-3 rounded-xl bg-surface-high border border-transparent focus:border-primary outline-none text-foreground text-sm normal-case font-normal"
+              />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Até
+              <input
+                type="date"
+                value={customEnd}
+                min={customStart}
+                max={todayISO()}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="mt-1 w-full h-11 px-3 rounded-xl bg-surface-high border border-transparent focus:border-primary outline-none text-foreground text-sm normal-case font-normal"
+              />
+            </label>
+          </div>
+        )}
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-3">
           <Kpi

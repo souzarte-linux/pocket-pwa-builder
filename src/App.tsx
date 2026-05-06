@@ -12,6 +12,7 @@ import Apps from "./pages/Apps";
 import Historico from "./pages/Historico";
 import NovaRota from "./pages/NovaRota";
 import TotalDia from "./pages/TotalDia";
+import HorasTrabalhadas from "./pages/HorasTrabalhadas";
 import Despesa from "./pages/Despesa";
 import Plataforma from "./pages/Plataforma";
 import NotFound from "./pages/NotFound";
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/historico" element={<RequireAuth><Historico /></RequireAuth>} />
           <Route path="/rota/nova" element={<RequireAuth><NovaRota /></RequireAuth>} />
           <Route path="/total-dia" element={<RequireAuth><TotalDia /></RequireAuth>} />
+          <Route path="/horas-trabalhadas" element={<RequireAuth><HorasTrabalhadas /></RequireAuth>} />
           <Route path="/despesa/:categoria" element={<RequireAuth><Despesa /></RequireAuth>} />
           <Route path="/plataforma/:id" element={<RequireAuth><Plataforma /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />

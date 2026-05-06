@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Route, Calendar, Fuel, Wrench, UtensilsCrossed, Package, FileText, LogOut } from 'lucide-react';
+import { Route, Calendar, Clock, Fuel, Wrench, UtensilsCrossed, Package, FileText, LogOut } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { QuickActionsFab } from '@/components/QuickActionsFab';
 import { supabase } from '@/integrations/supabase/client';
@@ -151,6 +151,19 @@ const Home = () => {
             </p>
           </div>
           <Calendar className="size-8 text-primary" strokeWidth={2.4} />
+        </button>
+
+        <button
+          onClick={() => navigate('/horas-trabalhadas')}
+          className="w-full p-5 rounded-2xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center gap-4"
+        >
+          <div className="flex-1">
+            <h2 className="display text-xl text-primary leading-tight">HORAS TRABALHADAS</h2>
+            <p className="mt-1 text-xs label-up text-muted-foreground">
+              Registrar jornada por plataforma
+            </p>
+          </div>
+          <Clock className="size-8 text-primary" strokeWidth={2.4} />
         </button>
       </section>
 
