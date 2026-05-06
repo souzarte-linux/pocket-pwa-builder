@@ -76,7 +76,6 @@ const NovaRota = () => {
             </div>
           </Field>
 
-          </Field>
 
           <Field label="Data e hora">
             <Input
