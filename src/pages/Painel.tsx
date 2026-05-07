@@ -206,14 +206,27 @@ const Painel = () => {
             </div>
           </div>
           <div className="h-40 flex items-end gap-1.5">
-            {trend.map((v, i) => (
-              <div
-                key={i}
-                className="flex-1 rounded-t-md bg-gradient-to-t from-primary/40 to-primary transition-all"
-                style={{ height: `${(v / maxTrend) * 100}%`, minHeight: '4px' }}
-                title={formatBRL(v)}
-              />
-            ))}
+            {trend.map((v, i) => {
+              const days = range === '7d' ? 7 : 30;
+              const d = new Date();
+              d.setHours(0, 0, 0, 0);
+              d.setDate(d.getDate() - (days - 1) + i);
+              const weekdays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+              // Monday-first ordering: shift so Monday=0..Sunday=6
+              const jsDay = d.getDay();
+              const mondayIdx = (jsDay + 6) % 7;
+              const orderedNames = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+              const weekdayLabel = orderedNames[mondayIdx];
+              const dateLabel = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+              return (
+                <div
+                  key={i}
+                  className="flex-1 rounded-t-md bg-gradient-to-t from-primary/40 to-primary transition-all"
+                  style={{ height: `${(v / maxTrend) * 100}%`, minHeight: '4px' }}
+                  title={`${weekdayLabel} (${dateLabel}) — ${formatBRL(v)}`}
+                />
+              );
+            })}
           </div>
         </section>
       </div>
