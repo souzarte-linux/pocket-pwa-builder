@@ -46,7 +46,10 @@ const startOf = (p: Period): Date => {
   d.setHours(0, 0, 0, 0);
   if (p === 'dia') return d;
   if (p === 'semana') {
-    d.setDate(d.getDate() - d.getDay());
+    // Week starts on Monday
+    const day = d.getDay(); // 0 = Sun, 1 = Mon, ...
+    const diff = (day + 6) % 7;
+    d.setDate(d.getDate() - diff);
     return d;
   }
   if (p === 'quinzena') {
@@ -358,12 +361,12 @@ const Relatorios = () => {
         <SessionToggle />
 
         {/* Period selector */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 py-1">
+        <div className="rounded-2xl bg-surface border border-border/40 p-1.5 grid grid-cols-3 sm:grid-cols-6 gap-1.5">
           {PERIODS.map((p) => (
             <button
               key={p.id}
               onClick={() => setPeriod(p.id)}
-              className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wide transition ${
+              className={`rounded-xl px-2 py-2 text-[11px] font-bold uppercase tracking-wide transition text-center ${
                 period === p.id
                   ? 'bg-primary text-primary-foreground shadow-fab'
                   : 'bg-surface-high text-muted-foreground hover:text-foreground'
