@@ -69,6 +69,24 @@ const startOf = (p: Period): Date => {
   return d;
 };
 
+const endOf = (p: Period): Date => {
+  const start = startOf(p);
+  const e = new Date(start);
+  if (p === 'dia') {
+    e.setDate(e.getDate() + 1);
+  } else if (p === 'semana') {
+    e.setDate(e.getDate() + 7); // Mon + 7 = next Mon (covers through Sunday 23:59)
+  } else if (p === 'quinzena') {
+    e.setDate(e.getDate() + 15);
+  } else if (p === 'mes') {
+    e.setMonth(e.getMonth() + 1);
+  } else if (p === 'ano') {
+    e.setFullYear(e.getFullYear() + 1);
+  }
+  e.setMilliseconds(e.getMilliseconds() - 1);
+  return e;
+};
+
 const todayISO = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -141,7 +159,7 @@ const Relatorios = () => {
       const e = new Date(`${customEnd}T23:59:59.999`);
       return { since: s, until: e };
     }
-    return { since: startOf(period), until: new Date() };
+    return { since: startOf(period), until: endOf(period) };
   }, [period, customStart, customEnd]);
 
   useEffect(() => {
