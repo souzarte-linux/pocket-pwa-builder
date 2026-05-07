@@ -1,0 +1,4 @@
+ALTER TABLE public.work_sessions
+  ADD COLUMN IF NOT EXISTS break_minutes integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS start_km numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS end_km numeric NOT NULL DEFAULT 0;

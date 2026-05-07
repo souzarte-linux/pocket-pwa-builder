@@ -266,32 +266,41 @@ export type Database = {
       }
       work_sessions: {
         Row: {
+          break_minutes: number
           created_at: string
+          end_km: number
           ended_at: string | null
           id: string
           notes: string | null
           platform_id: string | null
           product_type: Database["public"]["Enums"]["product_type"] | null
+          start_km: number
           started_at: string
           user_id: string
         }
         Insert: {
+          break_minutes?: number
           created_at?: string
+          end_km?: number
           ended_at?: string | null
           id?: string
           notes?: string | null
           platform_id?: string | null
           product_type?: Database["public"]["Enums"]["product_type"] | null
+          start_km?: number
           started_at?: string
           user_id: string
         }
         Update: {
+          break_minutes?: number
           created_at?: string
+          end_km?: number
           ended_at?: string | null
           id?: string
           notes?: string | null
           platform_id?: string | null
           product_type?: Database["public"]["Enums"]["product_type"] | null
+          start_km?: number
           started_at?: string
           user_id?: string
         }
