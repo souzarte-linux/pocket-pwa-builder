@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
-import { AppHeader } from '@/components/layout/AppHeader';
 import { Field, FormShell, Input, Select, SubmitButton } from '@/components/forms/Form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
