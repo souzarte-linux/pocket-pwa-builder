@@ -465,11 +465,14 @@ const Relatorios = () => {
                   <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
                   <Tooltip
                     contentStyle={{
-                      background: 'hsl(var(--surface))',
-                      border: '1px solid hsl(var(--border))',
+                      backgroundColor: '#f3f4f6',
+                      border: '1px solid #d1d5db',
                       borderRadius: 12,
                       fontSize: 12,
+                      color: '#111827',
                     }}
+                    labelStyle={{ color: '#111827' }}
+                    itemStyle={{ color: '#111827' }}
                     formatter={(v: number) => formatBRL(v)}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -496,11 +499,14 @@ const Relatorios = () => {
                     <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
                     <Tooltip
                       contentStyle={{
-                        background: 'hsl(var(--surface))',
-                        border: '1px solid hsl(var(--border))',
+                        backgroundColor: '#f3f4f6',
+                        border: '1px solid #d1d5db',
                         borderRadius: 12,
                         fontSize: 12,
+                        color: '#111827',
                       }}
+                      labelStyle={{ color: '#111827' }}
+                      itemStyle={{ color: '#111827' }}
                       formatter={(v: number) => formatBRL(v)}
                     />
                     <Bar dataKey="revenue" radius={[8, 8, 0, 0]}>
@@ -555,11 +561,14 @@ const Relatorios = () => {
                     </Pie>
                     <Tooltip
                       contentStyle={{
-                        background: 'hsl(var(--surface))',
-                        border: '1px solid hsl(var(--border))',
+                        backgroundColor: '#f3f4f6',
+                        border: '1px solid #d1d5db',
                         borderRadius: 12,
                         fontSize: 12,
+                        color: '#111827',
                       }}
+                      labelStyle={{ color: '#111827' }}
+                      itemStyle={{ color: '#111827' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
