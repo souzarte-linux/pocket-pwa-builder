@@ -157,6 +157,9 @@ const Relatorios = () => {
     if (period === 'custom') {
       const s = new Date(`${customStart}T00:00:00`);
       const e = new Date(`${customEnd}T23:59:59.999`);
+      if (isNaN(s.getTime()) || isNaN(e.getTime())) {
+        return { since: startOf('semana'), until: endOf('semana') };
+      }
       return { since: s, until: e };
     }
     return { since: startOf(period), until: endOf(period) };
