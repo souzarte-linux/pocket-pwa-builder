@@ -473,7 +473,7 @@ const Relatorios = () => {
                     formatter={(v: number) => formatBRL(v)}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Line type="monotone" dataKey="receita" stroke="hsl(19 100% 50%)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="receita" stroke="hsl(48 100% 50%)" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="despesa" stroke="hsl(0 84% 60%)" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="lucro" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={false} />
                 </LineChart>
