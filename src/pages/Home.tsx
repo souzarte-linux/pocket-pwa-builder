@@ -128,6 +128,8 @@ const Home = () => {
         </div>
       </motion.section>
 
+      <OilChangeAlert />
+
       {/* Big actions */}
       <section className="mt-5 space-y-4">
         <button
