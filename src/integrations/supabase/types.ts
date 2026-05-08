@@ -171,6 +171,7 @@ export type Database = {
           gender: string | null
           has_bag: boolean | null
           id: string
+          last_oil_change_at: string | null
           monthly_goal: number | null
           oil_change_km: number | null
           phone: string | null
@@ -196,6 +197,7 @@ export type Database = {
           gender?: string | null
           has_bag?: boolean | null
           id: string
+          last_oil_change_at?: string | null
           monthly_goal?: number | null
           oil_change_km?: number | null
           phone?: string | null
@@ -221,6 +223,7 @@ export type Database = {
           gender?: string | null
           has_bag?: boolean | null
           id?: string
+          last_oil_change_at?: string | null
           monthly_goal?: number | null
           oil_change_km?: number | null
           phone?: string | null
