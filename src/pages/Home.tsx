@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Route, Calendar, Clock, Fuel, Wrench, UtensilsCrossed, Package, FileText, LogOut } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { QuickActionsFab } from '@/components/QuickActionsFab';
+import { OilChangeAlert } from '@/components/OilChangeAlert';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, todayBoundaries, relativeFromNow } from '@/lib/format';
 import { toast } from 'sonner';
