@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Wrench, CheckCircle2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, Wrench, CheckCircle2, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
