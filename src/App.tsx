@@ -15,6 +15,7 @@ import TotalDia from "./pages/TotalDia";
 import HorasTrabalhadas from "./pages/HorasTrabalhadas";
 import Despesa from "./pages/Despesa";
 import Plataforma from "./pages/Plataforma";
+import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
