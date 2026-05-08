@@ -40,6 +40,7 @@ const App = () => (
           <Route path="/despesa/:categoria" element={<RequireAuth><Despesa /></RequireAuth>} />
           <Route path="/plataforma/:id" element={<RequireAuth><Plataforma /></RequireAuth>} />
           <Route path="/configuracoes" element={<RequireAuth><Configuracoes /></RequireAuth>} />
+          <Route path="/trocas-oleo" element={<RequireAuth><TrocasOleo /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
