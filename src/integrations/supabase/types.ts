@@ -163,45 +163,78 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          avg_consumption_kml: number | null
           created_at: string
           daily_goal: number | null
           email: string | null
           full_name: string | null
+          gender: string | null
+          has_bag: boolean | null
           id: string
           monthly_goal: number | null
+          oil_change_km: number | null
           phone: string | null
           plate: string | null
           social_handle: string | null
+          tank_size_l: number | null
+          tire_size_front: string | null
+          tire_size_rear: string | null
           updated_at: string
           vehicle: Database["public"]["Enums"]["vehicle_type"] | null
+          vehicle_brand: string | null
+          vehicle_model: string | null
+          vehicle_year: number | null
+          weekly_goal: number | null
         }
         Insert: {
           avatar_url?: string | null
+          avg_consumption_kml?: number | null
           created_at?: string
           daily_goal?: number | null
           email?: string | null
           full_name?: string | null
+          gender?: string | null
+          has_bag?: boolean | null
           id: string
           monthly_goal?: number | null
+          oil_change_km?: number | null
           phone?: string | null
           plate?: string | null
           social_handle?: string | null
+          tank_size_l?: number | null
+          tire_size_front?: string | null
+          tire_size_rear?: string | null
           updated_at?: string
           vehicle?: Database["public"]["Enums"]["vehicle_type"] | null
+          vehicle_brand?: string | null
+          vehicle_model?: string | null
+          vehicle_year?: number | null
+          weekly_goal?: number | null
         }
         Update: {
           avatar_url?: string | null
+          avg_consumption_kml?: number | null
           created_at?: string
           daily_goal?: number | null
           email?: string | null
           full_name?: string | null
+          gender?: string | null
+          has_bag?: boolean | null
           id?: string
           monthly_goal?: number | null
+          oil_change_km?: number | null
           phone?: string | null
           plate?: string | null
           social_handle?: string | null
+          tank_size_l?: number | null
+          tire_size_front?: string | null
+          tire_size_rear?: string | null
           updated_at?: string
           vehicle?: Database["public"]["Enums"]["vehicle_type"] | null
+          vehicle_brand?: string | null
+          vehicle_model?: string | null
+          vehicle_year?: number | null
+          weekly_goal?: number | null
         }
         Relationships: []
       }

@@ -45,7 +45,11 @@ export const AppHeader = ({ title = 'CENTRAL DO\nMOTORISTA', subtitle, back, rig
               <ChevronLeft className="size-6" />
             </button>
           ) : (
-            <div className="relative size-11 shrink-0">
+            <button
+              onClick={() => navigate('/configuracoes')}
+              className="relative size-11 shrink-0"
+              aria-label="Configurações"
+            >
               <div className="size-11 rounded-full border-2 border-primary p-[2px] bg-surface">
                 {avatar ? (
                   <img
@@ -59,7 +63,7 @@ export const AppHeader = ({ title = 'CENTRAL DO\nMOTORISTA', subtitle, back, rig
                   </div>
                 )}
               </div>
-            </div>
+            </button>
           )}
           <div className="min-w-0">
             <h1 className="display text-primary text-lg leading-[1.05] whitespace-pre-line">

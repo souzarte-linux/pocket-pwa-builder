@@ -15,6 +15,7 @@ import TotalDia from "./pages/TotalDia";
 import HorasTrabalhadas from "./pages/HorasTrabalhadas";
 import Despesa from "./pages/Despesa";
 import Plataforma from "./pages/Plataforma";
+import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/horas-trabalhadas" element={<RequireAuth><HorasTrabalhadas /></RequireAuth>} />
           <Route path="/despesa/:categoria" element={<RequireAuth><Despesa /></RequireAuth>} />
           <Route path="/plataforma/:id" element={<RequireAuth><Plataforma /></RequireAuth>} />
+          <Route path="/configuracoes" element={<RequireAuth><Configuracoes /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
