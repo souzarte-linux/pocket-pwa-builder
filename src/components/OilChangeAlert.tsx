@@ -65,13 +65,19 @@ export const OilChangeAlert = () => {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
     setResetting(true);
+    const now = new Date().toISOString();
+    const { error: insErr } = await supabase.from('oil_changes' as any).insert({
+      user_id: u.user.id,
+      changed_at: now,
+      km_at_change: Math.round(s!.driven),
+    } as any);
     const { error } = await supabase
       .from('profiles')
-      .update({ last_oil_change_at: new Date().toISOString() } as any)
+      .update({ last_oil_change_at: now } as any)
       .eq('id', u.user.id);
     setResetting(false);
-    if (error) {
-      toast.error(error.message);
+    if (error || insErr) {
+      toast.error((error || insErr)!.message);
       return;
     }
     toast.success('Troca de óleo registrada');
