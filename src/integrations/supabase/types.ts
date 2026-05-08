@@ -112,6 +112,33 @@ export type Database = {
         }
         Relationships: []
       }
+      oil_changes: {
+        Row: {
+          changed_at: string
+          created_at: string
+          id: string
+          km_at_change: number
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          changed_at?: string
+          created_at?: string
+          id?: string
+          km_at_change?: number
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          changed_at?: string
+          created_at?: string
+          id?: string
+          km_at_change?: number
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       platforms: {
         Row: {
           active: boolean

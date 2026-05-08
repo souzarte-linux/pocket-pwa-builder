@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Wrench, CheckCircle2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, Wrench, CheckCircle2, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -65,13 +66,19 @@ export const OilChangeAlert = () => {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
     setResetting(true);
+    const now = new Date().toISOString();
+    const { error: insErr } = await supabase.from('oil_changes' as any).insert({
+      user_id: u.user.id,
+      changed_at: now,
+      km_at_change: Math.round(s!.driven),
+    } as any);
     const { error } = await supabase
       .from('profiles')
-      .update({ last_oil_change_at: new Date().toISOString() } as any)
+      .update({ last_oil_change_at: now } as any)
       .eq('id', u.user.id);
     setResetting(false);
-    if (error) {
-      toast.error(error.message);
+    if (error || insErr) {
+      toast.error((error || insErr)!.message);
       return;
     }
     toast.success('Troca de óleo registrada');
@@ -109,14 +116,23 @@ export const OilChangeAlert = () => {
               style={{ width: `${Math.min(100, pct)}%` }}
             />
           </div>
-          <button
-            onClick={reset}
-            disabled={resetting}
-            className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-1.5 rounded-lg bg-foreground text-background disabled:opacity-50"
-          >
-            <CheckCircle2 className="size-3.5" />
-            {resetting ? 'Salvando...' : 'Marquei a troca'}
-          </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={reset}
+              disabled={resetting}
+              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-1.5 rounded-lg bg-foreground text-background disabled:opacity-50"
+            >
+              <CheckCircle2 className="size-3.5" />
+              {resetting ? 'Salvando...' : 'Marquei a troca'}
+            </button>
+            <Link
+              to="/trocas-oleo"
+              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-1.5 rounded-lg bg-background/40 text-current"
+            >
+              <History className="size-3.5" />
+              Histórico
+            </Link>
+          </div>
         </div>
       </div>
     </section>
