@@ -95,7 +95,7 @@ const Configuracoes = () => {
   };
 
   return (
-    <AppShell header={<AppHeader title={'CONFIGURAÇÕES'} back />}>
+    <AppShell title={'CONFIGURAÇÕES'} back>
       <form onSubmit={onSubmit}>
         <FormShell footer={<SubmitButton loading={loading}>SALVAR</SubmitButton>}>
           <h3 className="display text-primary text-lg">PERFIL</h3>
