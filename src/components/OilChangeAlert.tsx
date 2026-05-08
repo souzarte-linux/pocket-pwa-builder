@@ -116,14 +116,23 @@ export const OilChangeAlert = () => {
               style={{ width: `${Math.min(100, pct)}%` }}
             />
           </div>
-          <button
-            onClick={reset}
-            disabled={resetting}
-            className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-1.5 rounded-lg bg-foreground text-background disabled:opacity-50"
-          >
-            <CheckCircle2 className="size-3.5" />
-            {resetting ? 'Salvando...' : 'Marquei a troca'}
-          </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={reset}
+              disabled={resetting}
+              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-1.5 rounded-lg bg-foreground text-background disabled:opacity-50"
+            >
+              <CheckCircle2 className="size-3.5" />
+              {resetting ? 'Salvando...' : 'Marquei a troca'}
+            </button>
+            <Link
+              to="/trocas-oleo"
+              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-1.5 rounded-lg bg-background/40 text-current"
+            >
+              <History className="size-3.5" />
+              Histórico
+            </Link>
+          </div>
         </div>
       </div>
     </section>
