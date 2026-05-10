@@ -131,7 +131,7 @@ export default {
         "on-background": "#e5e2e1",
         "on-error-container": "#ffdad6",
         "surface": "#131313",
-        "on-primary-container": "#531a00",
+        "on-primary-container": "#070707",
         "error": "#ffb4ab",
       },
       borderRadius: {
