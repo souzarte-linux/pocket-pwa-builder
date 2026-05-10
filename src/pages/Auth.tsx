@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, LogIn, User, Lock, Apple } from 'lucide-react';
+import { Eye, EyeOff, LogIn, User, Lock, Apple, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
 import { toast } from 'sonner';
@@ -178,6 +178,7 @@ const Auth = () => {
             <button
               onClick={signInWithGoogle}
               disabled={oauthLoading !== null}
+              aria-busy={oauthLoading === 'google'}
               className="h-touch-target-min border-2 border-surface-variant rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group disabled:cursor-not-allowed disabled:opacity-60"
             >
               <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
@@ -193,17 +194,20 @@ const Auth = () => {
                   G
                 </span>
               </div>
-              <span className="font-label-md text-label-md">
+              <span className="font-label-md text-label-md flex items-center gap-2" aria-live="polite" aria-atomic="true">
+                {oauthLoading === 'google' && <Loader2 className="animate-spin" size={18} />}
                 {oauthLoading === 'google' ? 'Entrando...' : 'Google'}
               </span>
             </button>
             <button
               onClick={signInWithApple}
               disabled={oauthLoading !== null}
+              aria-busy={oauthLoading === 'apple'}
               className="h-touch-target-min border-2 border-surface-variant rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Apple className="text-2xl" />
-              <span className="font-label-md text-label-md">
+              <span className="font-label-md text-label-md flex items-center gap-2" aria-live="polite" aria-atomic="true">
+                {oauthLoading === 'apple' && <Loader2 className="animate-spin" size={18} />}
                 {oauthLoading === 'apple' ? 'Entrando...' : 'Apple'}
               </span>
             </button>
