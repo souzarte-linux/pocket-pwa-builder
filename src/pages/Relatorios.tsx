@@ -267,11 +267,11 @@ const Relatorios = () => {
     return Array.from(map.values())
       .map((v) => ({
         name: v.name,
-        revenue: Number(v.revenue.toFixed(2)),
+        receita: Number(v.revenue.toFixed(2)),
         revPerKm: v.km > 0 ? Number((v.revenue / v.km).toFixed(2)) : 0,
         revPerHour: v.ms > 0 ? Number((v.revenue / (v.ms / 3600000)).toFixed(2)) : 0,
       }))
-      .sort((a, b) => b.revenue - a.revenue);
+      .sort((a, b) => b.receita - a.receita);
   }, [routes, dailies, sessions, platforms]);
 
   // Categories (product type)
@@ -507,9 +507,10 @@ const Relatorios = () => {
                       }}
                       labelStyle={{ color: '#111827' }}
                       itemStyle={{ color: '#111827' }}
+                      label="Receita Bruta"
                       formatter={(v: number) => formatBRL(v)}
                     />
-                    <Bar dataKey="revenue" radius={[8, 8, 0, 0]}>
+                    <Bar dataKey="receita" radius={[8, 8, 0, 0]}>
                       {byPlatform.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
@@ -530,7 +531,7 @@ const Relatorios = () => {
                         {formatBRL(p.revPerKm)}/km · {formatBRL(p.revPerHour)}/h
                       </p>
                     </div>
-                    <span className="text-primary font-bold text-sm">{formatBRL(p.revenue)}</span>
+                    <span className="text-primary font-bold text-sm">{formatBRL(p.receita)}</span>
                   </li>
                 ))}
               </ul>
