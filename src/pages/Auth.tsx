@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn, User, Lock, Apple } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { lovable } from '@/integrations/lovable/index';
 import { toast } from 'sonner';
 
 const Auth = () => {
@@ -11,6 +12,7 @@ const Auth = () => {
   const [showPwd, setShowPwd] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -38,30 +40,38 @@ const Auth = () => {
   };
 
   const signInWithGoogle = async () => {
+    setOauthLoading('google');
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`,
-        },
+      const result = await lovable.auth.signInWithOAuth('google', {
+        redirect_uri: window.location.origin,
       });
-      if (error) throw error;
+      if (result.error) throw result.error;
+      if (!result.redirected) {
+        toast.success('Login com Google realizado com sucesso.');
+        navigate('/', { replace: true });
+      }
     } catch (err: any) {
-      toast.error('Erro ao fazer login com Google: ' + err.message);
+      toast.error('Erro ao fazer login com Google: ' + (err?.message ?? String(err)));
+    } finally {
+      setOauthLoading(null);
     }
   };
 
   const signInWithApple = async () => {
+    setOauthLoading('apple');
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: {
-          redirectTo: `${window.location.origin}/`,
-        },
+      const result = await lovable.auth.signInWithOAuth('apple', {
+        redirect_uri: window.location.origin,
       });
-      if (error) throw error;
+      if (result.error) throw result.error;
+      if (!result.redirected) {
+        toast.success('Login com Apple realizado com sucesso.');
+        navigate('/', { replace: true });
+      }
     } catch (err: any) {
-      toast.error('Erro ao fazer login com Apple: ' + err.message);
+      toast.error('Erro ao fazer login com Apple: ' + (err?.message ?? String(err)));
+    } finally {
+      setOauthLoading(null);
     }
   };
 
@@ -167,21 +177,35 @@ const Auth = () => {
           <div className="grid grid-cols-2 gap-stack-md">
             <button
               onClick={signInWithGoogle}
-              className="h-touch-target-min border-2 border-surface-variant rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group"
+              disabled={oauthLoading !== null}
+              className="h-touch-target-min border-2 border-surface-variant rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <img
-                alt="Google"
-                className="w-6 h-6 grayscale group-hover:grayscale-0 transition-all"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCygiX6BT6xpQTkT8GVW4E96reLnVHjhhhAwjsKPYNxxd5XenNKilm4UHFlBsfU_Nlai_j7pRhsXEGDpZBi7ukKQbNGrWJaTsEZ8XvM01BAwmBGxp2Lc9czAXU-xK-TWgl5X0gzg-X8gZPfVB0FE_eDWUt1td9KberXCpQHBgkGLgEAkevXs0XC-bYl8gPdokxjX3wDSA4byCV05O56NdoMv2dVPWPaQ2ciFcaWL2Y_DmA162cu-U5AbuXwwDgN5gZYkufKLAn2A80"
-              />
-              <span className="font-label-md text-label-md">Google</span>
+              <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+                <span
+                  className="font-bold"
+                  style={{
+                    fontSize: '18px',
+                    background: 'linear-gradient(90deg, #4285F4 0%, #34A853 33%, #FBBC05 66%, #EA4335 100%)',
+                    WebkitBackgroundClip: 'text',
+                    color: 'transparent',
+                  }}
+                >
+                  G
+                </span>
+              </div>
+              <span className="font-label-md text-label-md">
+                {oauthLoading === 'google' ? 'Entrando...' : 'Google'}
+              </span>
             </button>
             <button
               onClick={signInWithApple}
-              className="h-touch-target-min border-2 border-surface-variant rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group"
+              disabled={oauthLoading !== null}
+              className="h-touch-target-min border-2 border-surface-variant rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Apple className="text-2xl" />
-              <span className="font-label-md text-label-md">Apple</span>
+              <span className="font-label-md text-label-md">
+                {oauthLoading === 'apple' ? 'Entrando...' : 'Apple'}
+              </span>
             </button>
           </div>
         </div>
