@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Lexend', sans-serif;
+            background-color: #000000;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#393939",
+                        "surface-container": "#201f1f",
+                        "primary-fixed-dim": "#ffb599",
+                        "primary": "#ffb599",
+                        "tertiary": "#00daf3",
+                        "on-tertiary-fixed": "#001f24",
+                        "tertiary-fixed-dim": "#00daf3",
+                        "inverse-surface": "#e5e2e1",
+                        "outline": "#ab8a7d",
+                        "on-primary": "#5a1c00",
+                        "error-container": "#93000a",
+                        "surface-container-highest": "#353534",
+                        "on-surface-variant": "#e4bfb1",
+                        "secondary-container": "#474746",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "on-error": "#690005",
+                        "inverse-on-surface": "#313030",
+                        "surface-container-lowest": "#0e0e0e",
+                        "secondary": "#c8c6c5",
+                        "on-primary-fixed": "#370e00",
+                        "error": "#ffb4ab",
+                        "on-secondary-container": "#b7b5b4",
+                        "surface-variant": "#353534",
+                        "on-tertiary": "#00363d",
+                        "on-primary-container": "#531a00",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-high": "#2a2a2a",
+                        "on-background": "#e5e2e1",
+                        "inverse-primary": "#a63b00",
+                        "surface-tint": "#ffb599",
+                        "primary-fixed": "#ffdbce",
+                        "outline-variant": "#5b4137",
+                        "on-secondary": "#303030",
+                        "secondary-fixed": "#e5e2e1",
+                        "tertiary-container": "#00a3b6",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "surface-container-low": "#1c1b1b",
+                        "on-secondary-fixed-variant": "#474746",
+                        "background": "#131313",
+                        "surface": "#131313",
+                        "primary-container": "#ff5f00",
+                        "on-tertiary-fixed-variant": "#004f58",
+                        "on-primary-fixed-variant": "#7f2b00",
+                        "on-surface": "#e5e2e1",
+                        "tertiary-fixed": "#9cf0ff",
+                        "on-tertiary-container": "#003239",
+                        "surface-dim": "#131313"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "gutter": "24px",
+                        "unit": "4px",
+                        "md": "16px",
+                        "margin": "32px",
+                        "lg": "24px",
+                        "xl": "40px",
+                        "sm": "8px"
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen">
+<!-- Mock Background Content (Dashboard View) -->
+<div class="fixed inset-0 z-0 overflow-hidden filter blur-md opacity-50 select-none pointer-events-none">
+<header class="bg-[#000000]/80 backdrop-blur-lg flex justify-between items-center w-full px-6 py-4 border-b border-[#333333]">
+<div class="text-[#FF5F00] font-black text-xl uppercase tracking-tighter">Velocity Log</div>
+<div class="w-10 h-10 rounded-full bg-surface-container border border-outline-variant"></div>
+</header>
+<main class="p-gutter grid grid-cols-12 gap-lg">
+<div class="col-span-8 bg-surface-container rounded-lg h-64 p-md"></div>
+<div class="col-span-4 bg-surface-container rounded-lg h-64 p-md"></div>
+<div class="col-span-12 bg-surface-container rounded-lg h-96 p-md"></div>
+</main>
+</div>
+<!-- Modal Overlay -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-md bg-[#000000]/80 backdrop-blur-md">
+<!-- Modal Card -->
+<div class="w-full max-w-lg bg-[#121212] rounded-lg border border-[#333333] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+<!-- Modal Header -->
+<div class="px-xl pt-xl pb-md">
+<div class="flex items-center gap-md mb-xs">
+<span class="material-symbols-outlined text-[#FF5F00] text-[32px]" data-icon="track_changes">track_changes</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Metas Financeiras</h2>
+</div>
+<p class="font-body-md text-on-surface-variant/70">Ajuste seus objetivos de faturamento para otimizar sua performance logística.</p>
+</div>
+<!-- Modal Content (Form Fields) -->
+<form class="px-xl pb-xl space-y-lg">
+<!-- Daily Goal -->
+<div class="space-y-sm">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest block" for="meta-diaria">Meta Diária</label>
+<div class="relative group">
+<span class="absolute left-md top-1/2 -translate-y-1/2 font-headline-md text-on-surface-variant/40">R$</span>
+<input class="w-full bg-[#1c1b1b] border border-[#333333] rounded-full pl-xl pr-md py-md font-headline-md text-headline-md text-on-surface focus:outline-none focus:border-[#FF5F00] focus:ring-1 focus:ring-[#FF5F00] transition-all" id="meta-diaria" placeholder="0,00" type="text" value="350,00"/>
+</div>
+</div>
+<!-- Weekly Goal -->
+<div class="space-y-sm">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest block" for="meta-semanal">Meta Semanal</label>
+<div class="relative group">
+<span class="absolute left-md top-1/2 -translate-y-1/2 font-headline-md text-on-surface-variant/40">R$</span>
+<input class="w-full bg-[#1c1b1b] border border-[#333333] rounded-full pl-xl pr-md py-md font-headline-md text-headline-md text-on-surface focus:outline-none focus:border-[#FF5F00] focus:ring-1 focus:ring-[#FF5F00] transition-all" id="meta-semanal" placeholder="0,00" type="text" value="2.100,00"/>
+</div>
+</div>
+<!-- Monthly Goal -->
+<div class="space-y-sm">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest block" for="meta-mensal">Meta Mensal</label>
+<div class="relative group">
+<span class="absolute left-md top-1/2 -translate-y-1/2 font-headline-md text-on-surface-variant/40">R$</span>
+<input class="w-full bg-[#1c1b1b] border border-[#333333] rounded-full pl-xl pr-md py-md font-headline-md text-headline-md text-on-surface focus:outline-none focus:border-[#FF5F00] focus:ring-1 focus:ring-[#FF5F00] transition-all" id="meta-mensal" placeholder="0,00" type="text" value="8.500,00"/>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex flex-col sm:flex-row gap-md pt-md">
+<button class="flex-1 px-lg py-md border-2 border-[#FF5F00] text-[#FF5F00] font-headline-md text-body-lg rounded-full hover:bg-[#FF5F00]/5 active:scale-95 transition-all" type="button">
+                        Cancelar
+                    </button>
+<button class="flex-1 px-lg py-md bg-[#FF5F00] text-white font-headline-md text-body-lg rounded-full shadow-lg shadow-orange-900/40 hover:brightness-110 active:scale-95 transition-all" type="submit">
+                        Salvar
+                    </button>
+</div>
+</form>
+<!-- Progress Insight Overlay (Glassmorphism subtle hint) -->
+<div class="bg-surface-container-low/50 px-xl py-md border-t border-[#333333] flex items-center justify-between">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-tertiary text-md" data-icon="auto_awesome">auto_awesome</span>
+<span class="font-label-sm text-on-surface-variant">Sugestão baseada no histórico: R$ 420,00/dia</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant/40 cursor-help" data-icon="info">info</span>
+</div>
+</div>
+</div>
+<!-- Hidden Elements to maintain JSON data consistency if required by shell rules -->
+<div class="hidden">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="material-symbols-outlined" data-icon="speed">speed</span>
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</div>
+</body></html>

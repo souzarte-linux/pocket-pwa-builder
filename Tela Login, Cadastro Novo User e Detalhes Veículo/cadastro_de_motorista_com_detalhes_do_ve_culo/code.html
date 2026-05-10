@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#ffb599",
+                        "tertiary-fixed": "#ffdea8",
+                        "on-primary-container": "#531a00",
+                        "on-secondary-fixed": "#410000",
+                        "background": "#131313",
+                        "secondary-fixed": "#ffdad4",
+                        "outline": "#ab8a7d",
+                        "surface-container-low": "#1c1b1b",
+                        "primary-fixed": "#ffdbce",
+                        "on-surface": "#e5e2e1",
+                        "tertiary-fixed-dim": "#ffba20",
+                        "on-primary-fixed-variant": "#7f2b00",
+                        "error": "#ffb4ab",
+                        "surface-variant": "#353534",
+                        "on-tertiary-fixed-variant": "#5e4200",
+                        "on-tertiary-container": "#3c2900",
+                        "surface-container-highest": "#353534",
+                        "tertiary-container": "#c08a00",
+                        "on-error": "#690005",
+                        "on-primary-fixed": "#370e00",
+                        "inverse-surface": "#e5e2e1",
+                        "on-tertiary": "#412d00",
+                        "on-secondary-fixed-variant": "#930000",
+                        "surface-container-lowest": "#0e0e0e",
+                        "primary-fixed-dim": "#ffb599",
+                        "on-tertiary-fixed": "#271900",
+                        "surface": "#131313",
+                        "secondary-container": "#d30000",
+                        "on-background": "#e5e2e1",
+                        "surface-container-high": "#2a2a2a",
+                        "on-secondary-container": "#ffe2dd",
+                        "primary": "#ffb599",
+                        "surface-container": "#201f1f",
+                        "on-surface-variant": "#e4bfb1",
+                        "tertiary": "#ffba20",
+                        "secondary-fixed-dim": "#ffb4a8",
+                        "surface-bright": "#393939",
+                        "on-error-container": "#ffdad6",
+                        "secondary": "#ffb4a8",
+                        "outline-variant": "#5b4137",
+                        "on-secondary": "#690000",
+                        "error-container": "#93000a",
+                        "on-primary": "#5a1c00",
+                        "inverse-primary": "#a63b00",
+                        "inverse-on-surface": "#313030",
+                        "surface-dim": "#131313",
+                        "primary-container": "#ff5f00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "touch-target-min": "56px",
+                        "margin-main": "20px",
+                        "unit": "4px",
+                        "stack-sm": "8px",
+                        "stack-lg": "32px",
+                        "gutter-card": "16px",
+                        "stack-md": "16px"
+                    },
+                    "fontFamily": {
+                        "label-xl": ["Lexend"],
+                        "body-lg": ["Lexend"],
+                        "headline-md": ["Lexend"],
+                        "label-md": ["Lexend"],
+                        "headline-xl": ["Lexend"],
+                        "headline-lg": ["Lexend"],
+                        "body-md": ["Lexend"]
+                    },
+                    "fontSize": {
+                        "label-xl": ["20px", {"lineHeight": "24px", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "26px", "fontWeight": "500"}],
+                        "headline-md": ["22px", {"lineHeight": "28px", "fontWeight": "700"}],
+                        "label-md": ["14px", {"lineHeight": "18px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #131313; }
+        ::-webkit-scrollbar-thumb { background: #ff5f00; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<header class="bg-zinc-950 text-[#FF5F00] font-['Lexend'] font-black uppercase tracking-tighter docked full-width top-0 border-b-2 border-zinc-800 flex justify-between items-center w-full px-5 h-20 fixed z-50">
+<div class="flex items-center gap-4">
+<button class="hover:bg-zinc-800 transition-colors active:scale-95 duration-150 p-2 flex items-center justify-center rounded-full">
+<span class="material-symbols-outlined text-2xl" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="text-xl">CADASTRO MOTORISTA</h1>
+</div>
+<div class="w-10"></div> <!-- Spacer for balance -->
+</header>
+<main class="pt-24 pb-28 px-margin-main max-w-md mx-auto">
+<!-- Profile Picture Section -->
+<section class="mb-stack-lg text-center">
+<div class="relative inline-block group">
+<div class="w-32 h-32 rounded-full border-4 border-[#FF5F00] overflow-hidden bg-surface-container-high flex items-center justify-center">
+<img alt="Avatar" class="w-full h-full object-cover opacity-60" data-alt="professional headshot of a smiling young man in a leather jacket against a neutral dark urban background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC46Ydr8SwBDbRtDRGuQa_D_X0O1z3HBiHHFmn2qUqcrQaMG949CraDsgDbhBF9y6vD9C9bjC9pHX0FHFR4eHAm0r-280TEvzUZjr9qAO7bon0nXFp85KsUeSKelCHYnpYNltBHpum8Jfoo3f8Qfi3rTaO0qUdWvb6YqdIDFl4GFhC6qH2xcf4myY0k1QsTN00Q6l-hwrMr4vtX997jk77_hZALrAAgJfjyevMiWq4Oit8US1Gh4RG1jyNMpKs3yxAVnIvE5kxQvos"/>
+<span class="material-symbols-outlined absolute text-4xl text-on-surface/50" data-icon="add_a_photo">add_a_photo</span>
+</div>
+<div class="mt-4 flex justify-center gap-4">
+<button class="flex flex-col items-center gap-1 group">
+<div class="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center border-2 border-transparent group-active:border-primary-container transition-all">
+<span class="material-symbols-outlined text-xl text-primary" data-icon="camera_alt">camera_alt</span>
+</div>
+<span class="font-label-md text-[10px] uppercase text-zinc-400">Câmera</span>
+</button>
+<button class="flex flex-col items-center gap-1 group">
+<div class="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center border-2 border-transparent group-active:border-primary-container transition-all">
+<span class="material-symbols-outlined text-xl text-primary" data-icon="photo_library">photo_library</span>
+</div>
+<span class="font-label-md text-[10px] uppercase text-zinc-400">Galeria</span>
+</button>
+<button class="flex flex-col items-center gap-1 group">
+<div class="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center border-2 border-transparent group-active:border-primary-container transition-all">
+<span class="material-symbols-outlined text-xl text-primary" data-icon="face">face</span>
+</div>
+<span class="font-label-md text-[10px] uppercase text-zinc-400">Avatares</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Form Section -->
+<form class="flex flex-col gap-stack-md">
+<!-- Nome Completo -->
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-zinc-400 uppercase text-[10px] ml-1">Nome Completo</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-zinc-500" data-icon="person">person</span>
+<input class="w-full h-touch-target-min bg-surface-container border-2 border-zinc-800 focus:border-[#FF5F00] outline-none px-12 font-label-md text-on-surface placeholder:text-zinc-600 transition-colors" placeholder="EX: JOÃO DA SILVA" type="text"/>
+</div>
+</div>
+<!-- E-mail -->
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-zinc-400 uppercase text-[10px] ml-1">E-mail</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-zinc-500" data-icon="mail">mail</span>
+<input class="w-full h-touch-target-min bg-surface-container border-2 border-zinc-800 focus:border-[#FF5F00] outline-none px-12 font-label-md text-on-surface placeholder:text-zinc-600 transition-colors" placeholder="EXEMPLO@EMAIL.COM" type="email"/>
+</div>
+</div>
+<!-- Celular + WhatsApp -->
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-zinc-400 uppercase text-[10px] ml-1">Celular</label>
+<div class="flex gap-2">
+<div class="relative flex-1 flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-zinc-500" data-icon="smartphone">smartphone</span>
+<input class="w-full h-touch-target-min bg-surface-container border-2 border-zinc-800 focus:border-[#FF5F00] outline-none px-12 font-label-md text-on-surface placeholder:text-zinc-600 transition-colors" placeholder="(00) 00000-0000" type="tel"/>
+</div>
+<label class="flex items-center gap-2 bg-surface-container border-2 border-zinc-800 px-3 cursor-pointer hover:bg-zinc-800 transition-colors">
+<input class="w-5 h-5 rounded-none accent-[#FF5F00] bg-zinc-900 border-zinc-700" type="checkbox"/>
+<svg class="w-6 h-6 fill-[#25D366]" viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.1 0-65.6-8.9-93.9-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-5.5-2.8-23.2-8.5-44.2-27.1-16.4-14.6-27.4-32.7-30.6-38.1-3.2-5.5-.3-8.5 2.5-11.2 2.5-2.5 5.5-6.5 8.3-9.7 2.8-3.2 3.7-5.5 5.6-9.2 1.9-3.7 .9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 13.2 5.8 23.5 9.2 31.6 11.8 13.3 4.2 25.4 3.6 35 2.2 10.7-1.5 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"></path></svg>
+</label>
+</div>
+</div>
+<!-- Rede Social -->
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-zinc-400 uppercase text-[10px] ml-1">Rede Social (Opcional)</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-zinc-500" data-icon="share">share</span>
+<input class="w-full h-touch-target-min bg-surface-container border-2 border-zinc-800 focus:border-[#FF5F00] outline-none px-12 font-label-md text-on-surface placeholder:text-zinc-600 transition-colors" placeholder="@SEUUSUARIO" type="text"/>
+</div>
+</div>
+<!-- Veículo Grid -->
+<div class="grid grid-cols-2 gap-2">
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-zinc-400 uppercase text-[10px] ml-1">Veículo</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-zinc-500" data-icon="directions_bike">directions_bike</span>
+<select class="w-full h-touch-target-min bg-surface-container border-2 border-zinc-800 focus:border-[#FF5F00] outline-none px-12 font-label-md text-on-surface appearance-none transition-colors">
+<option value="moto">Moto</option>
+<option value="carro">Carro</option>
+<option value="bike">Bike</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 text-zinc-500 pointer-events-none" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-zinc-400 uppercase text-[10px] ml-1">Placa</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-zinc-500" data-icon="pin">pin</span>
+<input class="w-full h-touch-target-min bg-surface-container border-2 border-zinc-800 focus:border-[#FF5F00] outline-none px-12 font-label-md text-on-surface placeholder:text-zinc-600 transition-colors uppercase" placeholder="ABC-1234" type="text"/>
+</div>
+</div>
+</div><div class="flex justify-end mt-1">
+<button class="flex items-center gap-2 text-primary hover:text-[#FF7A00] transition-colors group" type="button">
+<span class="font-label-md text-[10px] uppercase tracking-wider">Configurações Detalhadas</span>
+<span class="material-symbols-outlined text-sm" data-icon="settings">settings</span>
+</button>
+</div>
+<!-- Senhas Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-zinc-400 uppercase text-[10px] ml-1">Senha</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-zinc-500" data-icon="lock">lock</span>
+<input class="w-full h-touch-target-min bg-surface-container border-2 border-zinc-800 focus:border-[#FF5F00] outline-none px-12 font-label-md text-on-surface placeholder:text-zinc-600 transition-colors" placeholder="********" type="password"/>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-zinc-400 uppercase text-[10px] ml-1">Confirmar Senha</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-zinc-500" data-icon="verified_user">verified_user</span>
+<input class="w-full h-touch-target-min bg-surface-container border-2 border-zinc-800 focus:border-[#FF5F00] outline-none px-12 font-label-md text-on-surface placeholder:text-zinc-600 transition-colors" placeholder="********" type="password"/>
+</div>
+</div>
+</div>
+<!-- Botão Finalizar -->
+<button class="mt-4 bg-primary-container hover:bg-[#FF7A00] text-on-primary-container h-16 font-headline-md uppercase tracking-widest active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3" type="submit">
+<span class="">FINALIZAR CADASTRO</span>
+<span class="material-symbols-outlined" data-icon="check_circle">check_circle</span>
+</button>
+</form>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 bg-zinc-950 px-4 pb-safe border-t-2 border-zinc-800">
+<button class="flex flex-col items-center justify-center text-zinc-500 pt-2 pb-safe hover:text-white transition-all active:bg-zinc-900 group">
+<span class="material-symbols-outlined text-2xl" data-icon="arrow_back">arrow_back</span>
+<span class="font-['Lexend'] font-bold text-[12px] uppercase">Voltar</span>
+</button>
+<button class="flex flex-col items-center justify-center text-zinc-500 pt-2 pb-safe hover:text-white transition-all active:bg-zinc-900 group">
+<span class="material-symbols-outlined text-2xl" data-icon="help">help</span>
+<span class="font-['Lexend'] font-bold text-[12px] uppercase">Ajuda</span>
+</button>
+</nav>
+</body></html>

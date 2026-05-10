@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-container": "#3c2900",
+                      "on-primary-fixed-variant": "#7f2b00",
+                      "surface-container": "#201f1f",
+                      "inverse-on-surface": "#313030",
+                      "on-tertiary": "#412d00",
+                      "tertiary-container": "#c08a00",
+                      "primary-fixed-dim": "#ffb599",
+                      "secondary-container": "#d30000",
+                      "outline": "#ab8a7d",
+                      "on-primary-fixed": "#370e00",
+                      "error-container": "#93000a",
+                      "surface-container-lowest": "#0e0e0e",
+                      "surface-tint": "#ffb599",
+                      "on-tertiary-fixed": "#271900",
+                      "on-secondary-container": "#ffe2dd",
+                      "tertiary-fixed-dim": "#ffba20",
+                      "tertiary-fixed": "#ffdea8",
+                      "inverse-primary": "#a63b00",
+                      "surface-bright": "#393939",
+                      "on-primary": "#5a1c00",
+                      "surface-container-low": "#1c1b1b",
+                      "surface-container-high": "#2a2a2a",
+                      "inverse-surface": "#e5e2e1",
+                      "on-surface-variant": "#e4bfb1",
+                      "secondary-fixed-dim": "#ffb4a8",
+                      "on-tertiary-fixed-variant": "#5e4200",
+                      "on-secondary-fixed-variant": "#930000",
+                      "surface-container-highest": "#353534",
+                      "on-error": "#690005",
+                      "outline-variant": "#5b4137",
+                      "surface-dim": "#131313",
+                      "on-secondary": "#690000",
+                      "secondary": "#ffb4a8",
+                      "tertiary": "#ffba20",
+                      "primary-fixed": "#ffdbce",
+                      "primary": "#ffb599",
+                      "on-secondary-fixed": "#410000",
+                      "background": "#131313",
+                      "surface-variant": "#353534",
+                      "secondary-fixed": "#ffdad4",
+                      "primary-container": "#ff5f00",
+                      "on-surface": "#e5e2e1",
+                      "on-background": "#e5e2e1",
+                      "on-error-container": "#ffdad6",
+                      "surface": "#131313",
+                      "on-primary-container": "#531a00",
+                      "error": "#ffb4ab"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "touch-target-min": "56px",
+                      "unit": "4px",
+                      "stack-lg": "32px",
+                      "margin-main": "20px",
+                      "gutter-card": "16px",
+                      "stack-md": "16px",
+                      "stack-sm": "8px"
+              },
+              "fontFamily": {
+                      "label-xl": ["Lexend"],
+                      "body-md": ["Lexend"],
+                      "headline-lg": ["Lexend"],
+                      "headline-xl": ["Lexend"],
+                      "label-md": ["Lexend"],
+                      "headline-md": ["Lexend"],
+                      "body-lg": ["Lexend"]
+              },
+              "fontSize": {
+                      "label-xl": ["20px", {"lineHeight": "24px", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                      "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                      "label-md": ["14px", {"lineHeight": "18px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "headline-md": ["22px", {"lineHeight": "28px", "fontWeight": "700"}],
+                      "body-lg": ["18px", {"lineHeight": "26px", "fontWeight": "500"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .form-input-focus:focus-within {
+            border-color: #ff5f00;
+            box-shadow: 0 0 0 1px #ff5f00;
+        }
+        .brutalist-border {
+            border: 2px solid #353534;
+        }
+        .brutalist-border-active {
+            border: 2px solid #ff5f00;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col selection:bg-primary-container selection:text-white">
+<!-- Hero Brand Section -->
+<header class="relative h-[309px] flex flex-col items-center justify-center overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img alt="Motorcycle headlight in the dark" class="w-full h-full object-cover opacity-40 grayscale" data-alt="Close-up of a powerful motorcycle headlight illuminating a dark urban street at night with high contrast and bokeh lights" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtq3wpdjLV9vP9YFvP-Cx8NVCw6XacAt1ULFOg7J7NZj2P2LrwmOAKjG0LEhC-QwIMFiTslxbasoh9_4lTBX4GrtIKz6GFFIJ36yBhnVNyJ2NoovFLi1j1h2BRWhPjMIp8YzzMDvG70nWCZ9ihxe7NBvXlEMWMU0CpQuhmYD0GU5VevBSDhNB0zdDE-AYnLkpzNihPRCRRXgffuZiDHpn9chuE83CqrOo4Ehr63QQRuaNE5S9-DALE4Tp5dIcTFVbozW9bXR7nLUM"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent"></div>
+</div>
+<div class="relative z-10 text-center px-margin-main">
+<h1 class="font-headline-xl text-headline-xl italic text-primary-container tracking-tighter uppercase mb-stack-sm">
+                DRIVER HUB
+            </h1>
+<p class="font-headline-md text-headline-md text-on-surface tracking-tight">
+                Bem-vindo de volta, motorista!
+            </p>
+</div>
+</header>
+<!-- Login Form Section -->
+<main class="flex-grow px-margin-main -mt-stack-lg relative z-20">
+<div class="max-w-md mx-auto">
+<form action="#" class="space-y-stack-md" method="POST">
+<!-- Email Field -->
+<div class="space-y-unit">
+<label class="font-label-md text-label-md text-on-surface-variant ml-unit" for="login">E-mail ou Usuário</label>
+<div class="relative flex items-center bg-surface-container-high brutalist-border rounded-lg overflow-hidden h-touch-target-min transition-all focus-within:border-primary-container">
+<span class="material-symbols-outlined px-stack-md text-outline" data-icon="person">person</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-on-surface font-body-md placeholder:text-outline/50" id="login" name="login" placeholder="motorista@logica.com" type="text"/>
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-unit">
+<label class="font-label-md text-label-md text-on-surface-variant ml-unit" for="password">Senha</label>
+<div class="relative flex items-center bg-surface-container-high brutalist-border rounded-lg overflow-hidden h-touch-target-min transition-all focus-within:border-primary-container">
+<span class="material-symbols-outlined px-stack-md text-outline" data-icon="lock">lock</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-on-surface font-body-md placeholder:text-outline/50" id="password" name="password" placeholder="••••••••" type="password"/>
+<button class="px-stack-md text-outline hover:text-primary-container transition-colors" type="button">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+</button>
+</div>
+</div>
+<!-- Additional Options -->
+<div class="flex items-center justify-between pt-unit">
+<label class="flex items-center space-x-stack-sm cursor-pointer group">
+<div class="relative flex items-center">
+<input class="peer appearance-none w-6 h-6 brutalist-border rounded bg-surface-container-highest checked:bg-primary-container checked:border-primary-container transition-all" type="checkbox"/>
+<span class="material-symbols-outlined absolute text-on-primary-container opacity-0 peer-checked:opacity-100 left-0 right-0 text-center text-sm pointer-events-none" data-icon="check" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-on-surface transition-colors">Lembrar de mim</span>
+</label>
+<a class="font-label-md text-label-md text-primary-container hover:underline decoration-2 underline-offset-4 transition-all" href="#">Esqueceu a senha?</a>
+</div>
+<!-- Action Button -->
+<button class="w-full h-touch-target-min bg-primary-container text-on-primary-container rounded-lg font-label-xl text-label-xl flex items-center justify-center space-x-stack-sm active:scale-[0.98] transition-transform shadow-[0_4px_0_0_#7f2b00] hover:shadow-[0_2px_0_0_#7f2b00] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px]" type="submit">
+<span>ENTRAR</span>
+<span class="material-symbols-outlined" data-icon="login">login</span>
+</button>
+</form>
+<!-- Social Login Separator -->
+<div class="my-stack-lg flex items-center space-x-stack-md">
+<div class="h-[2px] flex-grow bg-surface-container-highest"></div>
+<span class="font-label-md text-label-md text-outline uppercase tracking-widest">ou entre com</span>
+<div class="h-[2px] flex-grow bg-surface-container-highest"></div>
+</div>
+<!-- Social Buttons Grid -->
+<div class="grid grid-cols-2 gap-stack-md">
+<button class="h-touch-target-min brutalist-border rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group">
+<img alt="Google" class="w-6 h-6 grayscale group-hover:grayscale-0 transition-all" data-alt="Google colorful logo icon on a transparent background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCygiX6BT6xpQTkT8GVW4E96reLnVHjhhhAwjsKPYNxxd5XenNKilm4UHFlBsfU_Nlai_j7pRhsXEGDpZBi7ukKQbNGrWJaTsEZ8XvM01BAwmBGxp2Lc9czAXU-xK-TWgl5X0gzg-X8gZPfVB0FE_eDWUt1td9KberXCpQHBgkGLgEAkevXs0XC-bYl8gPdokxjX3wDSA4byCV05O56NdoMv2dVPWPaQ2ciFcaWL2Y_DmA162cu-U5AbuXwwDgN5gZYkufKLAn2A80"/>
+<span class="font-label-md text-label-md">Google</span>
+</button>
+<button class="h-touch-target-min brutalist-border rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group">
+<span class="material-symbols-outlined text-2xl" data-icon="apple" data-weight="fill" style="font-variation-settings: 'FILL' 1;">ios</span>
+<span class="font-label-md text-label-md">Apple</span>
+</button>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="mt-auto py-stack-lg text-center px-margin-main">
+<p class="font-body-md text-on-surface-variant">
+            Não tem uma conta? 
+            <a class="text-primary-container font-label-md hover:underline decoration-2 underline-offset-4 ml-unit" href="#">Cadastre-se</a>
+</p>
+</footer>
+<!-- Bottom Aesthetic Bar (Industrial detail) -->
+<div class="h-1 bg-gradient-to-r from-transparent via-primary-container to-transparent opacity-50"></div>
+</body></html>
