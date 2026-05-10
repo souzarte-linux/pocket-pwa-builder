@@ -122,6 +122,7 @@ export default {
         "tertiary": "#ffba20",
         "primary-fixed": "#ffdbce",
         "primary": "#ffb599",
+        "primary-foreground": "#5a1c00",
         "on-secondary-fixed": "#410000",
         "background": "#131313",
         "surface-variant": "#353534",
@@ -131,7 +132,7 @@ export default {
         "on-background": "#e5e2e1",
         "on-error-container": "#ffdad6",
         "surface": "#131313",
-        "on-primary-container": "#070707",
+        "on-primary-container": "#531a00",
         "error": "#ffb4ab",
       },
       borderRadius: {

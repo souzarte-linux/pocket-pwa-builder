@@ -151,15 +151,15 @@ const Auth = () => {
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                   />
-                  <span className="material-symbols-outlined absolute text-primary-foreground opacity-0 peer-checked:opacity-100 left-0 right-0 text-center text-sm pointer-events-none">check</span>
+                  <span className="material-symbols-outlined absolute text-on-primary-container opacity-0 peer-checked:opacity-100 left-0 right-0 text-center text-sm pointer-events-none">check</span>
                 </div>
                 <span className="font-label-md text-label-md text-on-surface-variant group-hover:text-on-surface transition-colors">Lembrar de mim</span>
               </label>
-              <a className="font-label-md text-label-md text-primary hover:underline decoration-2 underline-offset-4 transition-all" href="#">Esqueceu a senha?</a>
+              <a className="font-label-md text-label-md text-primary-container hover:underline decoration-2 underline-offset-4 transition-all" href="#">Esqueceu a senha?</a>
             </div>
             {/* Action Button */}
             <button
-              className="w-full h-touch-target-min bg-primary text-primary-foreground rounded-lg font-label-xl text-label-xl flex items-center justify-center space-x-stack-sm active:scale-[0.98] transition-transform shadow-[0_4px_0_0_#7f2b00] hover:shadow-[0_2px_0_0_#7f2b00] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px]"
+              className="w-full h-touch-target-min bg-primary-container text-on-primary-container rounded-lg font-label-xl text-label-xl flex items-center justify-center space-x-stack-sm active:scale-[0.98] transition-transform shadow-[0_4px_0_0_#7f2b00] hover:shadow-[0_2px_0_0_#7f2b00] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px]"
               type="submit"
               disabled={loading}
             >
