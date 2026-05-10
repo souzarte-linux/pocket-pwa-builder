@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const CadastroMotorista = () => {
   const navigate = useNavigate();
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
@@ -24,6 +28,29 @@ const CadastroMotorista = () => {
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
+  };
+
+  const handleImageSelect = (file: File | null) => {
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setProfileImage(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCameraClick = () => {
+    cameraInputRef.current?.click();
+  };
+
+  const handleGalleryClick = () => {
+    galleryInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    handleImageSelect(file || null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -55,24 +82,40 @@ const CadastroMotorista = () => {
         <section className="mb-stack-lg text-center">
           <div className="relative inline-block group">
             <div className="w-32 h-32 rounded-full border-4 border-primary-container overflow-hidden bg-surface-container-high flex items-center justify-center">
-              <img
-                alt="Avatar"
-                className="w-full h-full object-cover opacity-60"
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face"
-              />
+              {profileImage ? (
+                <img
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                  src={profileImage}
+                />
+              ) : (
+                <img
+                  alt="Avatar"
+                  className="w-full h-full object-cover opacity-60"
+                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face"
+                />
+              )}
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <Camera className="text-white text-4xl" />
               </div>
             </div>
           </div>
           <div className="mt-4 flex justify-center gap-4">
-            <button className="flex flex-col items-center gap-1 group">
+            <button
+              type="button"
+              onClick={handleCameraClick}
+              className="flex flex-col items-center gap-1 group"
+            >
               <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center border-2 border-transparent group-active:border-primary-container transition-all">
                 <Camera className="text-xl text-primary" />
               </div>
               <span className="font-label-md text-[10px] uppercase text-on-surface-variant">Câmera</span>
             </button>
-            <button className="flex flex-col items-center gap-1 group">
+            <button
+              type="button"
+              onClick={handleGalleryClick}
+              className="flex flex-col items-center gap-1 group"
+            >
               <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center border-2 border-transparent group-active:border-primary-container transition-all">
                 <Image className="text-xl text-primary" />
               </div>
@@ -85,6 +128,23 @@ const CadastroMotorista = () => {
               <span className="font-label-md text-[10px] uppercase text-on-surface-variant">Avatares</span>
             </button>
           </div>
+
+          {/* Hidden file inputs */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
         </section>
 
         {/* Form Section */}
