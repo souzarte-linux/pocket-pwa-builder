@@ -37,6 +37,34 @@ const Auth = () => {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error('Erro ao fazer login com Google: ' + err.message);
+    }
+  };
+
+  const signInWithApple = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error('Erro ao fazer login com Apple: ' + err.message);
+    }
+  };
+
   return (
     <div className="bg-background text-on-background font-body-md min-h-screen flex flex-col selection:bg-primary-container selection:text-white dark">
       {/* Hero Brand Section */}
@@ -137,7 +165,10 @@ const Auth = () => {
           </div>
           {/* Social Buttons Grid */}
           <div className="grid grid-cols-2 gap-stack-md">
-            <button className="h-touch-target-min border-2 border-surface-variant rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group">
+            <button
+              onClick={signInWithGoogle}
+              className="h-touch-target-min border-2 border-surface-variant rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group"
+            >
               <img
                 alt="Google"
                 className="w-6 h-6 grayscale group-hover:grayscale-0 transition-all"
@@ -145,7 +176,10 @@ const Auth = () => {
               />
               <span className="font-label-md text-label-md">Google</span>
             </button>
-            <button className="h-touch-target-min border-2 border-surface-variant rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group">
+            <button
+              onClick={signInWithApple}
+              className="h-touch-target-min border-2 border-surface-variant rounded-lg bg-surface-container-low hover:bg-surface-container-high transition-colors flex items-center justify-center space-x-stack-sm group"
+            >
               <Apple className="text-2xl" />
               <span className="font-label-md text-label-md">Apple</span>
             </button>
