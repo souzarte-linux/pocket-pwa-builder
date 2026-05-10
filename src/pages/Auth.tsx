@@ -218,7 +218,7 @@ const Auth = () => {
       <footer className="mt-auto py-stack-lg text-center px-margin-main">
         <p className="font-body-md text-on-surface-variant">
           Não tem uma conta?
-          <a className="text-primary-container font-label-md hover:underline decoration-2 underline-offset-4 ml-unit" href="#">Cadastre-se</a>
+          <a className="text-primary-container font-label-md hover:underline decoration-2 underline-offset-4 ml-unit" href="/cadastro">Cadastre-se</a>
         </p>
       </footer>
       {/* Bottom Aesthetic Bar */}

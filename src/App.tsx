@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { RequireAuth } from "@/components/RequireAuth";
 import Auth from "./pages/Auth";
+import CadastroMotorista from "./pages/CadastroMotorista";
 import Home from "./pages/Home";
 import Painel from "./pages/Painel";
 import Relatorios from "./pages/Relatorios";
@@ -29,6 +30,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/cadastro" element={<CadastroMotorista />} />
           <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
           <Route path="/painel" element={<RequireAuth><Painel /></RequireAuth>} />
           <Route path="/relatorios" element={<RequireAuth><Relatorios /></RequireAuth>} />
