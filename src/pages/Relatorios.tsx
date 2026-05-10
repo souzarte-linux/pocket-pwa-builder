@@ -510,7 +510,7 @@ const Relatorios = () => {
                       label="Receita Bruta"
                       formatter={(v: number) => formatBRL(v)}
                     />
-                    <Bar dataKey="receita" radius={[8, 8, 0, 0]}>
+                    <Bar dataKey="receita Bruta" radius={[8, 8, 0, 0]}>
                       {byPlatform.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
