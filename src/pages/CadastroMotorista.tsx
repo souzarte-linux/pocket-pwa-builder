@@ -1,13 +1,16 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const CadastroMotorista = () => {
   const navigate = useNavigate();
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -40,8 +43,72 @@ const CadastroMotorista = () => {
     }
   };
 
-  const handleCameraClick = () => {
-    cameraInputRef.current?.click();
+  const handleCameraClick = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      galleryInputRef.current?.click();
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false });
+      setCameraStream(stream);
+      setCameraOpen(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (error) {
+      galleryInputRef.current?.click();
+    }
+  };
+
+  const stopCamera = () => {
+    cameraStream?.getTracks().forEach(track => track.stop());
+    setCameraStream(null);
+    setCameraOpen(false);
+  };
+
+  const switchCamera = async () => {
+    const newFacingMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(newFacingMode);
+    
+    // Stop current stream
+    cameraStream?.getTracks().forEach(track => track.stop());
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: newFacingMode }, audio: false });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (error) {
+      // If switching fails, try to go back to the original
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false });
+        setCameraStream(stream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+      } catch (fallbackError) {
+        stopCamera();
+      }
+    }
+  };
+
+  const handleCapturePhoto = () => {
+    if (!videoRef.current) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth || 640;
+    canvas.height = videoRef.current.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    setProfileImage(canvas.toDataURL('image/jpeg'));
+    stopCamera();
   };
 
   const handleGalleryClick = () => {
@@ -52,6 +119,12 @@ const CadastroMotorista = () => {
     const file = e.target.files?.[0];
     handleImageSelect(file || null);
   };
+
+  useEffect(() => {
+    return () => {
+      cameraStream?.getTracks().forEach(track => track.stop());
+    };
+  }, [cameraStream]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,15 +202,7 @@ const CadastroMotorista = () => {
             </button>
           </div>
 
-          {/* Hidden file inputs */}
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          {/* Hidden gallery input */}
           <input
             ref={galleryInputRef}
             type="file"
@@ -146,6 +211,37 @@ const CadastroMotorista = () => {
             className="hidden"
           />
         </section>
+
+        {cameraOpen && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center px-4">
+            <div className="relative w-full max-w-lg rounded-3xl overflow-hidden border border-primary-container bg-surface p-4">
+              <video ref={videoRef} className="w-full h-[360px] bg-black" playsInline muted />
+              <div className="mt-4 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={handleCapturePhoto}
+                  className="flex-1 rounded-xl bg-primary-container text-on-primary-container py-3 font-semibold transition hover:bg-primary/90"
+                >
+                  Capturar
+                </button>
+                <button
+                  type="button"
+                  onClick={switchCamera}
+                  className="px-4 rounded-xl border border-primary-container text-primary-container py-3 font-semibold transition hover:bg-primary-container/10"
+                >
+                  <RotateCcw className="w-6 h-6" />
+                </button>
+                <button
+                  type="button"
+                  onClick={stopCamera}
+                  className="flex-1 rounded-xl border border-primary-container text-primary-container py-3 font-semibold transition hover:bg-primary-container/10"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Form Section */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-stack-md">
