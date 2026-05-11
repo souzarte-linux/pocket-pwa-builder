@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, RotateCcw, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const CadastroMotorista = () => {
@@ -293,7 +293,7 @@ const CadastroMotorista = () => {
             <label className="font-label-md text-primary-container uppercase text-[10px] ml-1 font-semibold">Celular</label>
             <div className="flex gap-2">
               <div className="relative flex-1 flex items-center">
-                <Smartphone className="absolute left-4 text-primary-container" size={20} />
+                <MessageCircle className="absolute left-4 text-[#25D366]" size={20} />
                 <input
                   name="celular"
                   value={formData.celular}
