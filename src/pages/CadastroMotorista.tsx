@@ -373,6 +373,7 @@ const CadastroMotorista = () => {
 
           <div className="flex justify-end mt-1">
             <Button
+              type="button"
               variant="ghost"
               className="flex items-center gap-2 text-primary-container hover:text-primary transition-colors"
               onClick={() => navigate('/configuracoes')}
