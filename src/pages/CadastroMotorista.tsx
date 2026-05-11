@@ -293,12 +293,11 @@ const CadastroMotorista = () => {
             <label className="font-label-md text-primary-container uppercase text-[10px] ml-1 font-semibold">Celular</label>
             <div className="flex gap-2">
               <div className="relative flex-1 flex items-center">
-                <MessageCircle className="absolute left-4 text-[#25D366]" size={20} />
                 <input
                   name="celular"
                   value={formData.celular}
                   onChange={handleInputChange}
-                  className="w-full h-touch-target-min bg-surface-container border-2 border-primary-container/30 focus:border-primary-container outline-none pl-12 pr-4 font-label-md text-on-surface placeholder:text-on-surface-variant transition-all rounded-lg"
+                  className="w-full h-touch-target-min bg-surface-container border-2 border-primary-container/30 focus:border-primary-container outline-none px-4 font-label-md text-on-surface placeholder:text-on-surface-variant transition-all rounded-lg"
                   placeholder="(00) 00000-0000"
                   type="tel"
                   required
@@ -312,7 +311,8 @@ const CadastroMotorista = () => {
                   className="w-5 h-5 accent-primary-container"
                   type="checkbox"
                 />
-                <span className="text-green-500 text-lg">📱</span>
+                <span className="text-[#25D366] text-xl">🟢</span>
+                <span className="font-label-sm text-sm text-on-surface-variant uppercase">WhatsApp</span>
               </label>
             </div>
           </div>
