@@ -97,55 +97,57 @@ const Configuracoes = () => {
   return (
     <AppShell title={'CONFIGURAÇÕES'} back>
       <form onSubmit={onSubmit}>
-        <FormShell footer={<SubmitButton loading={loading}>SALVAR</SubmitButton>}>
-          <h3 className="display text-primary text-lg">PERFIL</h3>
-          <Field label="Nome completo">
-            <Input value={form.full_name} onChange={(e) => set('full_name', e.target.value)} />
-          </Field>
-          <Field label="Sexo">
-            <Select value={form.gender} onChange={(e) => set('gender', e.target.value)}>
-              <option value="">Selecione</option>
-              <option value="masculino">Masculino</option>
-              <option value="feminino">Feminino</option>
-            </Select>
-          </Field>
+        <div className="rounded-3xl border border-primary-container/30 bg-surface-container p-5 shadow-[0_20px_80px_rgba(255,95,0,0.12)] [&_label]:text-primary-container [&_label]:uppercase [&_label]:font-semibold [&_label]:text-[10px] [&_label]:tracking-[0.18em] [&_input]:!border-primary-container/30 [&_input]:!focus:border-primary-container [&_input]:!bg-surface-container [&_select]:!border-primary-container/30 [&_select]:!focus:border-primary-container [&_select]:!bg-surface-container">
+          <FormShell footer={<SubmitButton loading={loading}>SALVAR</SubmitButton>}>
+            <h3 className="display text-primary-container text-lg">PERFIL</h3>
+            <Field label="Nome completo">
+              <Input value={form.full_name} onChange={(e) => set('full_name', e.target.value)} />
+            </Field>
+            <Field label="Sexo">
+              <Select value={form.gender} onChange={(e) => set('gender', e.target.value)}>
+                <option value="">Selecione</option>
+                <option value="masculino">Masculino</option>
+                <option value="feminino">Feminino</option>
+              </Select>
+            </Field>
 
-          <h3 className="display text-primary text-lg pt-4">METAS</h3>
-          <Field label="Meta diária (R$)">
-            <Input type="number" step="0.01" value={form.daily_goal} onChange={(e) => set('daily_goal', e.target.value)} />
-          </Field>
-          <Field label="Meta semanal (R$)">
-            <Input type="number" step="0.01" value={form.weekly_goal} onChange={(e) => set('weekly_goal', e.target.value)} />
-          </Field>
-          <Field label="Meta mensal (R$)">
-            <Input type="number" step="0.01" value={form.monthly_goal} onChange={(e) => set('monthly_goal', e.target.value)} />
-          </Field>
+            <h3 className="display text-primary-container text-lg pt-4">METAS</h3>
+            <Field label="Meta diária (R$)">
+              <Input type="number" step="0.01" value={form.daily_goal} onChange={(e) => set('daily_goal', e.target.value)} />
+            </Field>
+            <Field label="Meta semanal (R$)">
+              <Input type="number" step="0.01" value={form.weekly_goal} onChange={(e) => set('weekly_goal', e.target.value)} />
+            </Field>
+            <Field label="Meta mensal (R$)">
+              <Input type="number" step="0.01" value={form.monthly_goal} onChange={(e) => set('monthly_goal', e.target.value)} />
+            </Field>
 
-          <h3 className="display text-primary text-lg pt-4">VEÍCULO</h3>
-          <Field label="Tipo">
-            <Select value={form.vehicle} onChange={(e) => set('vehicle', e.target.value)}>
-              <option value="moto">Moto</option>
-              <option value="carro">Carro</option>
-              <option value="bike">Bike</option>
-              <option value="patinete">Patinete</option>
-            </Select>
-          </Field>
-          <Field label="Marca"><Input value={form.vehicle_brand} onChange={(e) => set('vehicle_brand', e.target.value)} /></Field>
-          <Field label="Modelo"><Input value={form.vehicle_model} onChange={(e) => set('vehicle_model', e.target.value)} /></Field>
-          <Field label="Ano de fabricação"><Input type="number" value={form.vehicle_year} onChange={(e) => set('vehicle_year', e.target.value)} /></Field>
-          <Field label="Placa"><Input value={form.plate} onChange={(e) => set('plate', e.target.value.toUpperCase())} /></Field>
-          <Field label="Tamanho do tanque (litros)"><Input type="number" step="0.1" value={form.tank_size_l} onChange={(e) => set('tank_size_l', e.target.value)} /></Field>
-          <Field label="Consumo médio (km/l)"><Input type="number" step="0.1" value={form.avg_consumption_kml} onChange={(e) => set('avg_consumption_kml', e.target.value)} /></Field>
-          <Field label="Troca de óleo a cada (KM)"><Input type="number" value={form.oil_change_km} onChange={(e) => set('oil_change_km', e.target.value)} /></Field>
-          <Field label="Tamanho do pneu dianteiro"><Input value={form.tire_size_front} onChange={(e) => set('tire_size_front', e.target.value)} placeholder="ex: 80/100-18" /></Field>
-          <Field label="Tamanho do pneu traseiro"><Input value={form.tire_size_rear} onChange={(e) => set('tire_size_rear', e.target.value)} placeholder="ex: 90/90-18" /></Field>
-          <Field label="Possui Bag ou Baú?">
-            <Select value={form.has_bag} onChange={(e) => set('has_bag', e.target.value)}>
-              <option value="false">Não</option>
-              <option value="true">Sim</option>
-            </Select>
-          </Field>
-        </FormShell>
+            <h3 className="display text-primary-container text-lg pt-4">VEÍCULO</h3>
+            <Field label="Tipo">
+              <Select value={form.vehicle} onChange={(e) => set('vehicle', e.target.value)}>
+                <option value="moto">Moto</option>
+                <option value="carro">Carro</option>
+                <option value="bike">Bike</option>
+                <option value="patinete">Patinete</option>
+              </Select>
+            </Field>
+            <Field label="Marca"><Input value={form.vehicle_brand} onChange={(e) => set('vehicle_brand', e.target.value)} /></Field>
+            <Field label="Modelo"><Input value={form.vehicle_model} onChange={(e) => set('vehicle_model', e.target.value)} /></Field>
+            <Field label="Ano de fabricação"><Input type="number" value={form.vehicle_year} onChange={(e) => set('vehicle_year', e.target.value)} /></Field>
+            <Field label="Placa"><Input value={form.plate} onChange={(e) => set('plate', e.target.value.toUpperCase())} /></Field>
+            <Field label="Tamanho do tanque (litros)"><Input type="number" step="0.1" value={form.tank_size_l} onChange={(e) => set('tank_size_l', e.target.value)} /></Field>
+            <Field label="Consumo médio (km/l)"><Input type="number" step="0.1" value={form.avg_consumption_kml} onChange={(e) => set('avg_consumption_kml', e.target.value)} /></Field>
+            <Field label="Troca de óleo a cada (KM)"><Input type="number" value={form.oil_change_km} onChange={(e) => set('oil_change_km', e.target.value)} /></Field>
+            <Field label="Tamanho do pneu dianteiro"><Input value={form.tire_size_front} onChange={(e) => set('tire_size_front', e.target.value)} placeholder="ex: 80/100-18" /></Field>
+            <Field label="Tamanho do pneu traseiro"><Input value={form.tire_size_rear} onChange={(e) => set('tire_size_rear', e.target.value)} placeholder="ex: 90/90-18" /></Field>
+            <Field label="Possui Bag ou Baú?">
+              <Select value={form.has_bag} onChange={(e) => set('has_bag', e.target.value)}>
+                <option value="false">Não</option>
+                <option value="true">Sim</option>
+              </Select>
+            </Field>
+          </FormShell>
+        </div>
       </form>
     </AppShell>
   );
