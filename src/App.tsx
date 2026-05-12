@@ -16,6 +16,9 @@ import TotalDia from "./pages/TotalDia";
 import HorasTrabalhadas from "./pages/HorasTrabalhadas";
 import Despesa from "./pages/Despesa";
 import Plataforma from "./pages/Plataforma";
+import PerfilMotorista from "./pages/PerfilMotorista";
+import MetasFinanceiras from "./pages/MetasFinanceiras";
+import CadastroVeiculo from "./pages/CadastroVeiculo";
 import Configuracoes from "./pages/Configuracoes";
 import TrocasOleo from "./pages/TrocasOleo";
 import NotFound from "./pages/NotFound";
@@ -31,6 +34,7 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/cadastro" element={<CadastroMotorista />} />
+          <Route path="/cadastro-veiculo" element={<RequireAuth><CadastroVeiculo /></RequireAuth>} />
           <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
           <Route path="/painel" element={<RequireAuth><Painel /></RequireAuth>} />
           <Route path="/relatorios" element={<RequireAuth><Relatorios /></RequireAuth>} />
@@ -41,6 +45,8 @@ const App = () => (
           <Route path="/horas-trabalhadas" element={<RequireAuth><HorasTrabalhadas /></RequireAuth>} />
           <Route path="/despesa/:categoria" element={<RequireAuth><Despesa /></RequireAuth>} />
           <Route path="/plataforma/:id" element={<RequireAuth><Plataforma /></RequireAuth>} />
+          <Route path="/perfil" element={<RequireAuth><PerfilMotorista /></RequireAuth>} />
+          <Route path="/metas-financeiras" element={<RequireAuth><MetasFinanceiras /></RequireAuth>} />
           <Route path="/configuracoes" element={<Configuracoes />} />
           <Route path="/trocas-oleo" element={<RequireAuth><TrocasOleo /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
