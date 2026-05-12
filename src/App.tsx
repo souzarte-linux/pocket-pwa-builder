@@ -14,6 +14,7 @@ import Historico from "./pages/Historico";
 import NovaRota from "./pages/NovaRota";
 import TotalDia from "./pages/TotalDia";
 import HorasTrabalhadas from "./pages/HorasTrabalhadas";
+import GestaoHoras from "./pages/GestaoHoras";
 import Despesa from "./pages/Despesa";
 import Plataforma from "./pages/Plataforma";
 import PerfilMotorista from "./pages/PerfilMotorista";
@@ -43,6 +44,7 @@ const App = () => (
           <Route path="/rota/nova" element={<RequireAuth><NovaRota /></RequireAuth>} />
           <Route path="/total-dia" element={<RequireAuth><TotalDia /></RequireAuth>} />
           <Route path="/horas-trabalhadas" element={<RequireAuth><HorasTrabalhadas /></RequireAuth>} />
+          <Route path="/horas-trabalhadas/gestao" element={<RequireAuth><GestaoHoras /></RequireAuth>} />
           <Route path="/despesa/:categoria" element={<RequireAuth><Despesa /></RequireAuth>} />
           <Route path="/plataforma/:id" element={<RequireAuth><Plataforma /></RequireAuth>} />
           <Route path="/perfil" element={<RequireAuth><PerfilMotorista /></RequireAuth>} />
