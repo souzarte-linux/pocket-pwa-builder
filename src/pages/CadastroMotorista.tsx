@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, MessageCircle, RotateCcw, } from 'lucide-react';
+import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, MessageCircle, settings, RotateCcw, } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const CadastroMotorista = () => {
@@ -384,8 +384,8 @@ const CadastroMotorista = () => {
               onClick={() => navigate('/configuracoes')}
             >
               <span className="font-label-md text-[10px] uppercase tracking-wider">Configurações Detalhadas</span>
-              <MessageCircle size={20} className="text-[#25D366]" />
-              <span className="material-symbols-outlined text-sm">settings</span>
+              <settings size={20} className="text-[#25D366]" />
+              
             </Button>
           </div>
 
