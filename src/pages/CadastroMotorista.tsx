@@ -312,7 +312,7 @@ const CadastroMotorista = () => {
                   type="checkbox"
                 />
                 
-                <MessageCircle className="text-[#25D366]" size="{20}"/> 
+                <MessageCircle className="text-[#25D366]" size="{2}"/> 
                 
                 <span className="font-label-sm text-sm text-on-surface-variant uppercase">WhatsApp</span>
               </label>
