@@ -127,6 +127,7 @@ interface Expense {
 interface Session {
   started_at: string;
   ended_at: string | null;
+  break_minutes: number;
 }
 interface Platform {
   id: string;
@@ -183,8 +184,8 @@ const Relatorios = () => {
           .lte('occurred_at', untilISO),
         supabase.from('expenses').select('amount, category, occurred_at')
           .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
-        supabase.from('work_sessions').select('started_at, ended_at')
-          .gte('started_at', sinceISO).lte('started_at', untilISO),
+        supabase.from('work_sessions').select('started_at, ended_at, break_minutes')
+          .lte('started_at', untilISO),
         supabase.from('platforms').select('id, name'),
       ]);
       setRoutes((r.data ?? []) as Route[]);
@@ -209,9 +210,19 @@ const Relatorios = () => {
       dailies.reduce((s, d) => s + Number(d.distance_km ?? 0), 0);
     const totalExpense = expenses.reduce((s, e) => s + Number(e.amount), 0);
     const profit = totalRevenue - totalExpense;
-    const totalMs = sessions.reduce((s, ses) => {
+    const overlappingSessions = sessions.filter(ses => {
+      const start = new Date(ses.started_at).getTime();
       const end = ses.ended_at ? new Date(ses.ended_at).getTime() : Date.now();
-      return s + Math.max(0, end - new Date(ses.started_at).getTime());
+      return end > range.since.getTime() && start < range.until.getTime();
+    });
+    const totalMs = overlappingSessions.reduce((s, ses) => {
+      const start = new Date(ses.started_at).getTime();
+      const end = ses.ended_at ? new Date(ses.ended_at).getTime() : Date.now();
+      const effectiveStart = Math.max(start, range.since.getTime());
+      const effectiveEnd = Math.min(end, range.until.getTime());
+      const duration = Math.max(0, effectiveEnd - effectiveStart);
+      const breakMs = (ses.break_minutes ?? 0) * 60000;
+      return s + Math.max(0, duration - breakMs);
     }, 0);
     const hours = totalMs / 3600000;
     const totalPackages = routes.reduce((s, r) => s + Number(r.package_count ?? 0), 0);
@@ -257,9 +268,19 @@ const Relatorios = () => {
     });
     // Distribute hours proportionally to revenue (sessions aren't tagged by platform)
     const totalRev = Array.from(map.values()).reduce((s, v) => s + v.revenue, 0);
-    const totalMs = sessions.reduce((s, ses) => {
+    const overlappingSessions = sessions.filter(ses => {
+      const start = new Date(ses.started_at).getTime();
       const end = ses.ended_at ? new Date(ses.ended_at).getTime() : Date.now();
-      return s + Math.max(0, end - new Date(ses.started_at).getTime());
+      return end > range.since.getTime() && start < range.until.getTime();
+    });
+    const totalMs = overlappingSessions.reduce((s, ses) => {
+      const start = new Date(ses.started_at).getTime();
+      const end = ses.ended_at ? new Date(ses.ended_at).getTime() : Date.now();
+      const effectiveStart = Math.max(start, range.since.getTime());
+      const effectiveEnd = Math.min(end, range.until.getTime());
+      const duration = Math.max(0, effectiveEnd - effectiveStart);
+      const breakMs = (ses.break_minutes ?? 0) * 60000;
+      return s + Math.max(0, duration - breakMs);
     }, 0);
     map.forEach((v) => {
       v.ms = totalRev > 0 ? totalMs * (v.revenue / totalRev) : 0;
