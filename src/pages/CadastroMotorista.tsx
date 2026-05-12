@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, MessageCircle, Settings, RotateCcw, Car } from 'lucide-react';
+import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, MessageCircle, Settings, RotateCcw, Car, Motorbike } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const CadastroMotorista = () => {
@@ -132,7 +132,7 @@ const CadastroMotorista = () => {
     console.log('Registration data:', formData);
   };
 
-  const vehicleIcon = formData.veiculo === 'carro' ? <Car className="absolute left-4 text-primary-container" size={20} /> : <Bike className="absolute left-4 text-primary-container" size={20} />;
+  const vehicleIcon = formData.veiculo === 'carro' ? <Car className="absolute left-4 text-primary-container" size={20} /> : formData.veiculo === 'moto' ? <Motorbike className="absolute left-4 text-primary-container" size={20} /> : <Bike className="absolute left-4 text-primary-container" size={20} />;
 
   return (
     <div className="min-h-screen bg-background text-on-background font-body-md">
