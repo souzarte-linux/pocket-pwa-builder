@@ -373,7 +373,7 @@ const GestaoHoras = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
                 <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                <RTooltip contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                <RTooltip contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 8, color: 'hsl(var(--muted-foreground))' }} labelStyle={{ color: 'hsl(var(--muted-foreground))' }} itemStyle={{ color: 'hsl(var(--muted-foreground))' }} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
                 <Line
                   type="monotone"
                   dataKey="hours"
@@ -397,7 +397,7 @@ const GestaoHoras = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
                 <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                <RTooltip contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                <RTooltip contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 8, color: 'hsl(var(--muted-foreground))' }} labelStyle={{ color: 'hsl(var(--muted-foreground))' }} itemStyle={{ color: 'hsl(var(--muted-foreground))' }} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
                 <Bar dataKey="hours" radius={[8, 8, 0, 0]} animationDuration={700}>
                   {byPlatform.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -428,7 +428,7 @@ const GestaoHoras = () => {
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
-                  <RTooltip contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                  <RTooltip contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 8, color: 'hsl(var(--muted-foreground))' }} labelStyle={{ color: 'hsl(var(--muted-foreground))' }} itemStyle={{ color: 'hsl(var(--muted-foreground))' }} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
                 </PieChart>
               </ResponsiveContainer>
               <ul className="space-y-1.5 pr-2">
