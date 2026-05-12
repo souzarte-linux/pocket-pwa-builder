@@ -303,18 +303,21 @@ const CadastroMotorista = () => {
                   required
                 />
               </div>
-             <label className="flex items-center gap-2 bg-surface-container border-2 border-primary-container/30 px-3 cursor-pointer hover:bg-primary-container/10 transition-colors rounded-lg">
+                <label className="flex items-center gap-2 bg-surface-container border-2 border-primary-container/30 px-3 cursor-pointer hover:bg-primary-container/10 transition-colors rounded-lg h-touch-target-min">
                 <input
                   name="whatsapp"
+                  type="checkbox"
                   checked={formData.whatsapp}
                   onChange={handleInputChange}
-                  className="w-5 h-5 accent-primary-container"
-                  type="checkbox"
+                  className="w-4 h-4 accent-primary-container"
                 />
                 
-                <MessageCircle className="text-[#25D366]" size="{2}"/> 
+                {/* Ícone com tamanho controlado */}
+                <MessageCircle size={20} className="text-[#25D366]" />
                 
-                <span className="font-label-sm text-sm text-on-surface-variant uppercase">WhatsApp</span>
+                <span className="font-label-sm text-[12px] text-on-surface-variant uppercase">
+                  WhatsApp
+                </span>
               </label>
             </div>
           </div>
