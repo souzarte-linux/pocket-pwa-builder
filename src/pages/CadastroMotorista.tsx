@@ -384,7 +384,7 @@ const CadastroMotorista = () => {
               onClick={() => navigate('/configuracoes')}
             >
               <span className="font-label-md text-[10px] uppercase tracking-wider">Configurações Detalhadas</span>
-              <settings size={20} className="text-[#25D366]" />
+              <Settings size={20} className="text-[#25D366]" />
               
             </Button>
           </div>
