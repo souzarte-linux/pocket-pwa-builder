@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, message-circle-check, RotateCcw, } from 'lucide-react';
+import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, MessageCircle, RotateCcw, } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const CadastroMotorista = () => {
@@ -303,7 +303,7 @@ const CadastroMotorista = () => {
                   required
                 />
               </div>
-              <label className="flex items-center gap-2 bg-surface-container border-2 border-primary-container/30 px-3 cursor-pointer hover:bg-primary-container/10 transition-colors rounded-lg">
+             <label className="flex items-center gap-2 bg-surface-container border-2 border-primary-container/30 px-3 cursor-pointer hover:bg-primary-container/10 transition-colors rounded-lg">
                 <input
                   name="whatsapp"
                   checked={formData.whatsapp}
@@ -311,7 +311,8 @@ const CadastroMotorista = () => {
                   className="w-5 h-5 accent-primary-container"
                   type="checkbox"
                 />
-                <span message-circle-check className="text-[#25D366] size="{20}">🟢</span>
+                
+                <MessageCircle className="text-[#25D366]" size="{20}"/> 
                 
                 <span className="font-label-sm text-sm text-on-surface-variant uppercase">WhatsApp</span>
               </label>
