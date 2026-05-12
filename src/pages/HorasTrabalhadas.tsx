@@ -193,7 +193,18 @@ const HorasTrabalhadas = () => {
   };
 
   return (
-    <AppShell back title="HORAS TRABALHADAS">
+    <AppShell
+      back
+      title="HORAS TRABALHADAS"
+      headerRight={
+        <button
+          onClick={() => navigate('/horas-trabalhadas/gestao')}
+          className="h-10 px-3 rounded-xl bg-primary/10 border border-primary/30 text-primary text-[10px] font-bold uppercase"
+        >
+          Gerenciar
+        </button>
+      }
+    >
       <form onSubmit={submit}>
         <FormShell footer={<SubmitButton loading={loading}>{editingId ? 'SALVAR ALTERAÇÕES ✓' : 'SALVAR REGISTRO ✓'}</SubmitButton>}>
           {editingId && (
