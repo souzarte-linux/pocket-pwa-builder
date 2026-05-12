@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, RotateCcw, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, message-circle-check, RotateCcw, } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const CadastroMotorista = () => {
@@ -311,7 +311,8 @@ const CadastroMotorista = () => {
                   className="w-5 h-5 accent-primary-container"
                   type="checkbox"
                 />
-                <span className="text-[#25D366] text-xl">🟢</span>
+                <span message-circle-check className="text-[#25D366] size="{20}">🟢</span>
+                
                 <span className="font-label-sm text-sm text-on-surface-variant uppercase">WhatsApp</span>
               </label>
             </div>
