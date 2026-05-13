@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { SessionToggle } from '@/components/SessionToggle';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +28,8 @@ import {
   Route as RouteIcon,
   TrendingDown,
   TrendingUp,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 type Period = 'dia' | 'semana' | 'quinzena' | 'mes' | 'ano' | 'custom';
@@ -153,6 +155,29 @@ const Relatorios = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showTimeDropdown, setShowTimeDropdown] = useState(false);
+  const [showPlatformDropdown, setShowPlatformDropdown] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
+  
+  const timeDropdownRef = useRef<HTMLDivElement>(null);
+  const platformDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (timeDropdownRef.current && !timeDropdownRef.current.contains(event.target as Node)) {
+        setShowTimeDropdown(false);
+      }
+      if (platformDropdownRef.current && !platformDropdownRef.current.contains(event.target as Node)) {
+        setShowPlatformDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const range = useMemo(() => {
     if (period === 'custom') {
@@ -202,12 +227,21 @@ const Relatorios = () => {
     (id && platforms.find((p) => p.id === id)?.name) || 'Sem plataforma';
 
   const stats = useMemo(() => {
+    // Filter routes and dailies based on selected platform
+    const filteredRoutes = selectedPlatform === 'all' 
+      ? routes 
+      : routes.filter(r => r.platform_id === selectedPlatform);
+    
+    const filteredDailies = selectedPlatform === 'all' 
+      ? dailies 
+      : dailies.filter(d => d.platform_id === selectedPlatform);
+
     const totalRevenue =
-      routes.reduce((s, r) => s + Number(r.amount) + Number(r.tip ?? 0), 0) +
-      dailies.reduce((s, d) => s + Number(d.amount), 0);
+      filteredRoutes.reduce((s, r) => s + Number(r.amount) + Number(r.tip ?? 0), 0) +
+      filteredDailies.reduce((s, d) => s + Number(d.amount), 0);
     const totalKm =
-      routes.reduce((s, r) => s + Number(r.distance_km ?? 0), 0) +
-      dailies.reduce((s, d) => s + Number(d.distance_km ?? 0), 0);
+      filteredRoutes.reduce((s, r) => s + Number(r.distance_km ?? 0), 0) +
+      filteredDailies.reduce((s, d) => s + Number(d.distance_km ?? 0), 0);
     const totalExpense = expenses.reduce((s, e) => s + Number(e.amount), 0);
     const profit = totalRevenue - totalExpense;
     const overlappingSessions = sessions.filter(ses => {
@@ -225,7 +259,7 @@ const Relatorios = () => {
       return s + Math.max(0, duration - breakMs);
     }, 0);
     const hours = totalMs / 3600000;
-    const totalPackages = routes.reduce((s, r) => s + Number(r.package_count ?? 0), 0);
+    const totalPackages = filteredRoutes.reduce((s, r) => s + Number(r.package_count ?? 0), 0);
     return {
       totalRevenue,
       totalKm,
@@ -238,13 +272,13 @@ const Relatorios = () => {
       profitPerKm: totalKm > 0 ? profit / totalKm : 0,
       revPerHour: hours > 0 ? totalRevenue / hours : 0,
       profitPerHour: hours > 0 ? profit / hours : 0,
-      routeCount: routes.length,
-      avgTicket: routes.length > 0 ? totalRevenue / routes.length : 0,
+      routeCount: filteredRoutes.length,
+      avgTicket: filteredRoutes.length > 0 ? totalRevenue / filteredRoutes.length : 0,
       avgPackagePrice: totalPackages > 0
-        ? routes.reduce((s, r) => s + Number(r.amount), 0) / totalPackages
+        ? filteredRoutes.reduce((s, r) => s + Number(r.amount), 0) / totalPackages
         : 0,
     };
-  }, [routes, dailies, expenses, sessions]);
+  }, [routes, dailies, expenses, sessions, selectedPlatform]);
 
   // Per platform aggregates
   const byPlatform = useMemo(() => {
@@ -252,20 +286,31 @@ const Relatorios = () => {
       string,
       { name: string; revenue: number; km: number; ms: number }
     >();
-    routes.forEach((r) => {
+    
+    // Filter routes and dailies based on selected platform
+    const filteredRoutes = selectedPlatform === 'all' 
+      ? routes 
+      : routes.filter(r => r.platform_id === selectedPlatform);
+    
+    const filteredDailies = selectedPlatform === 'all' 
+      ? dailies 
+      : dailies.filter(d => d.platform_id === selectedPlatform);
+
+    filteredRoutes.forEach((r) => {
       const k = r.platform_id ?? '__none__';
       const cur = map.get(k) ?? { name: platformName(r.platform_id), revenue: 0, km: 0, ms: 0 };
       cur.revenue += Number(r.amount) + Number(r.tip ?? 0);
       cur.km += Number(r.distance_km ?? 0);
       map.set(k, cur);
     });
-    dailies.forEach((d) => {
+    filteredDailies.forEach((d) => {
       const k = d.platform_id ?? '__none__';
       const cur = map.get(k) ?? { name: platformName(d.platform_id), revenue: 0, km: 0, ms: 0 };
       cur.revenue += Number(d.amount);
       cur.km += Number(d.distance_km ?? 0);
       map.set(k, cur);
     });
+    
     // Distribute hours proportionally to revenue (sessions aren't tagged by platform)
     const totalRev = Array.from(map.values()).reduce((s, v) => s + v.revenue, 0);
     const overlappingSessions = sessions.filter(ses => {
@@ -285,6 +330,7 @@ const Relatorios = () => {
     map.forEach((v) => {
       v.ms = totalRev > 0 ? totalMs * (v.revenue / totalRev) : 0;
     });
+    
     return Array.from(map.values())
       .map((v) => ({
         name: v.name,
@@ -293,14 +339,22 @@ const Relatorios = () => {
         revPerHour: v.ms > 0 ? Number((v.revenue / (v.ms / 3600000)).toFixed(2)) : 0,
       }))
       .sort((a, b) => b.receita - a.receita);
-  }, [routes, dailies, sessions, platforms]);
+  }, [routes, dailies, sessions, platforms, selectedPlatform, range.since, range.until]);
 
   // Categories (product type)
   const byCategory = useMemo(() => {
+    const filteredRoutes = selectedPlatform === 'all' 
+      ? routes 
+      : routes.filter(r => r.platform_id === selectedPlatform);
+    
+    const filteredDailies = selectedPlatform === 'all' 
+      ? dailies 
+      : dailies.filter(d => d.platform_id === selectedPlatform);
+
     const map = new Map<string, number>();
-    [...routes, ...dailies].forEach((x: any) => {
-      const k = x.product_type || 'alimento';
-      map.set(k, (map.get(k) ?? 0) + 1);
+    [...filteredRoutes, ...filteredDailies].forEach((route) => {
+      const productType = (route as Route | DailyTotal).product_type || 'alimento';
+      map.set(productType, (map.get(productType) ?? 0) + 1);
     });
     const labels: Record<string, string> = {
       alimento: 'Alimento',
@@ -311,13 +365,17 @@ const Relatorios = () => {
       name: labels[k] ?? k,
       value: v,
     }));
-  }, [routes, dailies]);
+  }, [routes, dailies, selectedPlatform, platformName]);
 
   // Top origins / destinations
-  const topPlaces = (key: 'origin' | 'destination') => {
+  const topOrigins = useMemo(() => {
+    const filteredRoutes = selectedPlatform === 'all' 
+      ? routes 
+      : routes.filter(r => r.platform_id === selectedPlatform);
+
     const map = new Map<string, number>();
-    routes.forEach((r) => {
-      const v = (r[key] ?? '').trim();
+    filteredRoutes.forEach((r) => {
+      const v = (r.origin ?? '').trim();
       if (!v) return;
       map.set(v, (map.get(v) ?? 0) + 1);
     });
@@ -325,12 +383,35 @@ const Relatorios = () => {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([name, value]) => ({ name, value }));
-  };
-  const topOrigins = useMemo(() => topPlaces('origin'), [routes]);
-  const topDestinations = useMemo(() => topPlaces('destination'), [routes]);
+  }, [routes, selectedPlatform]);
+
+  const topDestinations = useMemo(() => {
+    const filteredRoutes = selectedPlatform === 'all' 
+      ? routes 
+      : routes.filter(r => r.platform_id === selectedPlatform);
+
+    const map = new Map<string, number>();
+    filteredRoutes.forEach((r) => {
+      const v = (r.destination ?? '').trim();
+      if (!v) return;
+      map.set(v, (map.get(v) ?? 0) + 1);
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, value]) => ({ name, value }));
+  }, [routes, selectedPlatform]);
 
   // Daily series (revenue, expense, profit)
   const series = useMemo(() => {
+    const filteredRoutes = selectedPlatform === 'all' 
+      ? routes 
+      : routes.filter(r => r.platform_id === selectedPlatform);
+    
+    const filteredDailies = selectedPlatform === 'all' 
+      ? dailies 
+      : dailies.filter(d => d.platform_id === selectedPlatform);
+
     const since = new Date(range.since);
     since.setHours(0, 0, 0, 0);
     const until = new Date(range.until);
@@ -373,13 +454,13 @@ const Relatorios = () => {
       }
     }
 
-    routes.forEach((r) => {
+    filteredRoutes.forEach((r) => {
       const k = keyFor(r.occurred_at);
       const b = buckets.get(k) ?? { label: label(k), receita: 0, despesa: 0 };
       b.receita += Number(r.amount) + Number(r.tip ?? 0);
       buckets.set(k, b);
     });
-    dailies.forEach((d) => {
+    filteredDailies.forEach((d) => {
       const k = keyFor(d.occurred_at);
       const b = buckets.get(k) ?? { label: label(k), receita: 0, despesa: 0 };
       b.receita += Number(d.amount);
@@ -395,15 +476,117 @@ const Relatorios = () => {
     return Array.from(buckets.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([, v]) => ({ ...v, lucro: Number((v.receita - v.despesa).toFixed(2)) }));
-  }, [routes, dailies, expenses, period, range]);
+  }, [routes, dailies, expenses, period, selectedPlatform, range]);
 
   return (
     <AppShell title={'RELATÓRIOS\nINSIGHTS'}>
       <div className="space-y-4">
         <SessionToggle />
 
-        {/* Period selector */}
-        <div className="rounded-2xl bg-surface border border-border/40 p-1.5 grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+        {/* Time Filter */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-muted-foreground">FILTROS</h2>
+          </div>
+          
+          {/* Time Filter Dropdown */}
+          <div className="relative" ref={timeDropdownRef}>
+            <button
+              onClick={() => {
+                setShowTimeDropdown(!showTimeDropdown);
+                setShowPlatformDropdown(false);
+              }}
+              className="w-full rounded-2xl bg-surface border border-border/40 p-3 flex items-center justify-between hover:bg-surface-high transition-colors"
+            >
+              <span className="font-semibold text-sm">
+                {PERIODS.find(p => p.id === period)?.label}
+              </span>
+              {showTimeDropdown ? (
+                <ChevronUp className="size-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="size-4 text-muted-foreground" />
+              )}
+            </button>
+            
+            {showTimeDropdown && (
+              <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl bg-surface border border-border/40 shadow-lg z-10 overflow-hidden">
+                {PERIODS.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setPeriod(p.id);
+                      setShowTimeDropdown(false);
+                    }}
+                    className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors ${
+                      period === p.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-surface-high'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Platform Filter Dropdown */}
+          <div className="relative" ref={platformDropdownRef}>
+            <button
+              onClick={() => {
+                setShowPlatformDropdown(!showPlatformDropdown);
+                setShowTimeDropdown(false);
+              }}
+              className="w-full rounded-2xl bg-surface border border-border/40 p-3 flex items-center justify-between hover:bg-surface-high transition-colors"
+            >
+              <span className="font-semibold text-sm">
+                {selectedPlatform === 'all' ? 'Todas as Plataformas' : platforms.find(p => p.id === selectedPlatform)?.name || 'Todas as Plataformas'}
+              </span>
+              {showPlatformDropdown ? (
+                <ChevronUp className="size-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="size-4 text-muted-foreground" />
+              )}
+            </button>
+            
+            {showPlatformDropdown && (
+              <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl bg-surface border border-border/40 shadow-lg z-10 overflow-hidden">
+                <button
+                  onClick={() => {
+                    setSelectedPlatform('all');
+                    setShowPlatformDropdown(false);
+                  }}
+                  className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors ${
+                    selectedPlatform === 'all'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-surface-high'
+                  }`}
+                >
+                  Todas as Plataformas
+                </button>
+                {platforms.map((platform) => (
+                  <button
+                    key={platform.id}
+                    onClick={() => {
+                      setSelectedPlatform(platform.id);
+                      setShowPlatformDropdown(false);
+                    }}
+                    className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors ${
+                      selectedPlatform === platform.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-surface-high'
+                    }`}
+                  >
+                    {platform.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Period selector - hidden as it's now in dropdown */}
+        {/* <div className="rounded-2xl bg-surface border border-border/40 p-1.5 grid grid-cols-3 sm:grid-cols-6 gap-1.5">
           {PERIODS.map((p) => (
             <button
               key={p.id}
@@ -417,7 +600,7 @@ const Relatorios = () => {
               {p.label}
             </button>
           ))}
-        </div>
+        </div> */}
 
         {period === 'custom' && (
           <div className="rounded-2xl bg-surface border border-border/40 p-3 grid grid-cols-2 gap-3">
@@ -631,7 +814,7 @@ const Kpi = ({
   value,
   tone = 'foreground',
 }: {
-  Icon: any;
+  Icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   tone?: 'primary' | 'success' | 'destructive' | 'accent' | 'info' | 'foreground';
