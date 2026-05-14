@@ -100,7 +100,7 @@ const Home = () => {
       <motion.section
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-surface border border-border/40 p-5 shadow-card"
+        className="rounded-xl bg-surface border border-border/40 p-5 shadow-card"
       >
         <div className="flex items-center justify-between">
           <span className="label-up text-xs text-muted-foreground">Lucro líquido hoje</span>
@@ -134,7 +134,7 @@ const Home = () => {
       <section className="mt-5 space-y-4">
         <button
           onClick={() => navigate('/rota/nova')}
-          className="w-full p-5 rounded-2xl bg-primary text-primary-foreground text-left shadow-fab active:scale-[0.98] transition flex items-center gap-4"
+          className="w-full p-5 rounded-xl bg-primary text-primary-foreground text-left shadow-fab active:scale-[0.98] transition flex items-center gap-4"
         >
           <div className="flex-1">
             <h2 className="display text-xl leading-tight">LANÇAR GANHOS POR ROTA</h2>
@@ -145,7 +145,7 @@ const Home = () => {
 
         <button
           onClick={() => navigate('/total-dia')}
-          className="w-full p-5 rounded-2xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center gap-4"
+          className="w-full p-5 rounded-xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center gap-4"
         >
           <div className="flex-1">
             <h2 className="display text-xl text-primary leading-tight">LANÇAR TOTAL DO DIA</h2>
@@ -189,7 +189,7 @@ const Home = () => {
           </button>
         </div>
         {recent.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8 rounded-2xl bg-surface border border-dashed border-border/40">
+          <p className="text-sm text-muted-foreground text-center py-8 rounded-xl bg-surface border border-dashed border-border/40">
             Nenhuma rota registrada ainda.
             <br />
             <span className="text-primary font-semibold">Toque em "Lançar Ganhos por Rota".</span>
@@ -251,7 +251,7 @@ const QuickExp = ({
   return (
     <button
       onClick={() => navigate(to)}
-      className="rounded-2xl bg-surface border border-border/40 p-3 flex flex-col items-center gap-2 hover:bg-surface-high active:scale-95 transition"
+      className="rounded-xl bg-surface border border-border/40 p-3 flex flex-col items-center gap-2 hover:bg-surface-high active:scale-95 transition"
     >
       <Icon className={`size-7 ${color}`} strokeWidth={2.2} />
       <span className="text-[11px] label-up text-muted-foreground">{label}</span>

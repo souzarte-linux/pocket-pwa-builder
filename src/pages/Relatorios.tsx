@@ -475,7 +475,7 @@ const Relatorios = () => {
                 setShowTimeDropdown(!showTimeDropdown);
                 setShowPlatformDropdown(false);
               }}
-              className="w-full rounded-2xl bg-surface border border-border/40 p-3 flex items-center justify-between hover:bg-surface-high transition-colors"
+              className="w-full rounded-xl bg-surface border border-border/40 p-3 flex items-center justify-between hover:bg-surface-high transition-colors"
             >
               <span className="font-semibold text-sm">
                 {PERIODS.find(p => p.id === period)?.label}
@@ -488,7 +488,7 @@ const Relatorios = () => {
             </button>
             
             {showTimeDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl bg-surface border border-border/40 shadow-lg z-10 overflow-hidden">
+              <div className="absolute top-full left-0 right-0 mt-1 rounded-xl bg-surface border border-border/40 shadow-lg z-10 overflow-hidden">
                 {PERIODS.map((p) => (
                   <button
                     key={p.id}
@@ -516,7 +516,7 @@ const Relatorios = () => {
                 setShowPlatformDropdown(!showPlatformDropdown);
                 setShowTimeDropdown(false);
               }}
-              className="w-full rounded-2xl bg-surface border border-border/40 p-3 flex items-center justify-between hover:bg-surface-high transition-colors"
+              className="w-full rounded-xl bg-surface border border-border/40 p-3 flex items-center justify-between hover:bg-surface-high transition-colors"
             >
               <span className="font-semibold text-sm">
                 {selectedPlatform === 'all' ? 'Todas as Plataformas' : platforms.find(p => p.id === selectedPlatform)?.name || 'Todas as Plataformas'}
@@ -529,7 +529,7 @@ const Relatorios = () => {
             </button>
             
             {showPlatformDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl bg-surface border border-border/40 shadow-lg z-10 overflow-hidden">
+              <div className="absolute top-full left-0 right-0 mt-1 rounded-xl bg-surface border border-border/40 shadow-lg z-10 overflow-hidden">
                 <button
                   onClick={() => {
                     setSelectedPlatform('all');
@@ -565,7 +565,7 @@ const Relatorios = () => {
         </div>
 
         {/* Period selector - hidden as it's now in dropdown */}
-        {/* <div className="rounded-2xl bg-surface border border-border/40 p-1.5 grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+        {/* <div className="rounded-xl bg-surface border border-border/40 p-1.5 grid grid-cols-3 sm:grid-cols-6 gap-1.5">
           {PERIODS.map((p) => (
             <button
               key={p.id}
@@ -582,7 +582,7 @@ const Relatorios = () => {
         </div> */}
 
         {period === 'custom' && (
-          <div className="rounded-2xl bg-surface border border-border/40 p-3 grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-surface border border-border/40 p-3 grid grid-cols-2 gap-3">
             <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
               De
               <input
@@ -807,7 +807,7 @@ const Kpi = ({
     foreground: 'text-foreground',
   };
   return (
-    <div className="rounded-2xl bg-surface border border-border/40 p-3 shadow-card">
+    <div className="rounded-xl bg-surface border border-border/40 p-3 shadow-card">
       <div className="flex items-center gap-2 mb-1">
         <Icon className={`size-4 ${toneCls[tone]}`} />
         <span className="label-up text-[10px] text-muted-foreground">{label}</span>
@@ -818,7 +818,7 @@ const Kpi = ({
 };
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="rounded-2xl bg-surface border border-border/40 p-4 shadow-card">
+  <section className="rounded-xl bg-surface border border-border/40 p-4 shadow-card">
     <h3 className="display text-base mb-3">{title}</h3>
     {children}
   </section>

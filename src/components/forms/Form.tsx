@@ -18,7 +18,7 @@ export const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     {...props}
     className={
-      'w-full h-12 px-4 rounded-xl bg-surface-high border border-transparent focus:border-primary outline-none text-foreground placeholder:text-muted-foreground/70 transition ' +
+      'w-full h-14 px-4 rounded-lg bg-surface-high border-2 border-transparent focus:border-primary outline-none text-foreground placeholder:text-muted-foreground/70 transition ' +
       (props.className ?? '')
     }
   />
@@ -28,7 +28,7 @@ export const TextArea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   <textarea
     {...props}
     className={
-      'w-full min-h-[88px] p-4 rounded-xl bg-surface-high border border-transparent focus:border-primary outline-none text-foreground placeholder:text-muted-foreground/70 transition ' +
+      'w-full min-h-[88px] p-4 rounded-lg bg-surface-high border-2 border-transparent focus:border-primary outline-none text-foreground placeholder:text-muted-foreground/70 transition ' +
       (props.className ?? '')
     }
   />
@@ -38,7 +38,7 @@ export const Select = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => 
   <select
     {...props}
     className={
-      'w-full h-12 px-4 rounded-xl bg-surface-high border border-transparent focus:border-primary outline-none text-foreground transition appearance-none ' +
+      'w-full h-14 px-4 rounded-lg bg-surface-high border-2 border-transparent focus:border-primary outline-none text-foreground transition appearance-none ' +
       (props.className ?? '')
     }
   />
@@ -59,7 +59,7 @@ export const SegButton = ({
     type="button"
     onClick={onClick}
     className={
-      'h-12 px-4 rounded-xl font-bold text-sm transition ' +
+      'min-h-[56px] px-4 rounded-lg font-bold text-sm transition ' +
       (active
         ? 'bg-primary/15 text-primary border-2 border-primary'
         : 'bg-surface-high text-foreground border-2 border-transparent') +
@@ -81,7 +81,7 @@ export const SubmitButton = ({
   <button
     type="submit"
     disabled={loading}
-    className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-lg shadow-fab active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-2"
+    className="w-full min-h-[64px] rounded-lg bg-primary text-primary-foreground font-extrabold text-lg shadow-fab active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-2 uppercase"
   >
     {loading ? 'SALVANDO…' : children}
   </button>
