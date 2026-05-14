@@ -48,3 +48,8 @@ export const relativeFromNow = (iso: string) => {
   if (days === 1) return 'ontem';
   return `${days}d atrás`;
 };
+
+export const formatHours = (ms: number) => {
+  const h = ms / 3600000;
+  return `${h.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}h`;
+};

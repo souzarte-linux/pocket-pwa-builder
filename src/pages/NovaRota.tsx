@@ -21,12 +21,16 @@ const NovaRota = () => {
     (Number(packageUnitPrice.replace(',', '.')) || 0);
   const [type, setType] = useState<'alimento' | 'pacote' | 'documento'>('alimento');
   const [loading, setLoading] = useState(false);
-  const nowLocal = () => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  const nowLocal = (offsetMin = 0) => {
+    const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000 + offsetMin * 60000);
     return d.toISOString().slice(0, 16);
   };
   const [occurredAt, setOccurredAt] = useState<string>(nowLocal());
+  const [startAt, setStartAt] = useState<string>(nowLocal(-60));
+  const [endAt, setEndAt] = useState<string>(nowLocal());
+  const [breakMin, setBreakMin] = useState<string>('0');
+  const [startKm, setStartKm] = useState<string>('0');
+  const [endKm, setEndKm] = useState<string>('0');
 
   useEffect(() => {
     supabase.from('platforms').select('id, name').eq('active', true).then(({ data }) => {
@@ -37,9 +41,22 @@ const NovaRota = () => {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!startAt || !endAt) return toast.error('Informe início e fim da jornada.');
+    const startedISO = new Date(startAt).toISOString();
+    const endedISO = new Date(endAt).toISOString();
+    if (new Date(endedISO) <= new Date(startedISO)) {
+      return toast.error('A hora final deve ser maior que a inicial.');
+    }
+    const sKm = Number(startKm.replace(',', '.')) || 0;
+    const eKm = Number(endKm.replace(',', '.')) || 0;
+    if (eKm > 0 && eKm < sKm) return toast.error('KM final deve ser ≥ KM inicial.');
+
     setLoading(true);
     const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
+    if (!u.user) {
+      setLoading(false);
+      return;
+    }
     const { error } = await supabase.from('routes').insert({
       user_id: u.user.id,
       platform_id: platformId || null,
@@ -52,6 +69,11 @@ const NovaRota = () => {
       tip: Number(tip.replace(',', '.')) || 0,
       product_type: type,
       occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
+      started_at: startedISO,
+      ended_at: endedISO,
+      break_minutes: Number(breakMin) || 0,
+      start_km: sKm,
+      end_km: eKm,
     });
     setLoading(false);
     if (error) return toast.error(error.message);
@@ -83,13 +105,69 @@ const NovaRota = () => {
           </Field>
 
 
-          <Field label="Data e hora">
+          <Field label="Data do registro">
             <Input
               type="datetime-local"
               value={occurredAt}
               onChange={(e) => setOccurredAt(e.target.value)}
             />
           </Field>
+
+          <div className="grid grid-cols-1 gap-3 mt-4 pt-4 border-t border-border/40">
+            <h3 className="text-sm font-semibold text-primary uppercase">Jornada de Trabalho</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Início (data e hora)">
+                <Input
+                  type="datetime-local"
+                  value={startAt}
+                  onChange={(e) => setStartAt(e.target.value)}
+                  required
+                />
+              </Field>
+              <Field label="Fim (data e hora)">
+                <Input
+                  type="datetime-local"
+                  value={endAt}
+                  onChange={(e) => setEndAt(e.target.value)}
+                  required
+                />
+              </Field>
+            </div>
+            
+            <Field label="Intervalo / descanso (minutos)">
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={breakMin}
+                onChange={(e) => setBreakMin(e.target.value)}
+                placeholder="0"
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3 mb-4 border-b border-border/40 pb-4">
+              <Field label="KM inicial">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={startKm}
+                  onChange={(e) => setStartKm(e.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+              <Field label="KM final">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={endKm}
+                  onChange={(e) => setEndKm(e.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+            </div>
+          </div>
 
           <Field label="Origem">
             <Input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Endereço de coleta" />

@@ -284,6 +284,11 @@ export type Database = {
           product_type: Database["public"]["Enums"]["product_type"]
           tip: number
           user_id: string
+          started_at: string | null
+          ended_at: string | null
+          break_minutes: number
+          start_km: number
+          end_km: number
         }
         Insert: {
           amount?: number
@@ -300,6 +305,11 @@ export type Database = {
           product_type?: Database["public"]["Enums"]["product_type"]
           tip?: number
           user_id: string
+          started_at?: string | null
+          ended_at?: string | null
+          break_minutes?: number
+          start_km?: number
+          end_km?: number
         }
         Update: {
           amount?: number
@@ -316,6 +326,11 @@ export type Database = {
           product_type?: Database["public"]["Enums"]["product_type"]
           tip?: number
           user_id?: string
+          started_at?: string | null
+          ended_at?: string | null
+          break_minutes?: number
+          start_km?: number
+          end_km?: number
         }
         Relationships: [
           {

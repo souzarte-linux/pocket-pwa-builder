@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const actions = [
   { to: '/rota/nova', label: 'Lançar Ganhos por Rota', Icon: Route, group: 'RECEITA' },
   { to: '/total-dia', label: 'Lançar Ganho Total do Dia', Icon: Calendar, group: 'RECEITA' },
-  { to: '/horas-trabalhadas', label: 'Horas Trabalhadas', Icon: Clock, group: 'RECEITA' },
+
   { to: '/despesa/combustivel', label: 'Combustível', Icon: Fuel, group: 'DESPESAS' },
   { to: '/despesa/manutencao', label: 'Manutenção', Icon: Wrench, group: 'DESPESAS' },
   { to: '/despesa/alimentacao', label: 'Alimentação', Icon: UtensilsCrossed, group: 'DESPESAS' },

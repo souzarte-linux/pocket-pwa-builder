@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
-import { SessionToggle } from '@/components/SessionToggle';
 import { supabase } from '@/integrations/supabase/client';
-import { formatBRL, formatKm } from '@/lib/format';
-import { formatHours } from '@/hooks/useWorkSession';
+import { formatBRL, formatKm, formatHours } from '@/lib/format';
 import {
   Bar,
   BarChart,
@@ -110,6 +108,9 @@ interface Route {
   origin: string | null;
   destination: string | null;
   occurred_at: string;
+  started_at: string | null;
+  ended_at: string | null;
+  break_minutes: number;
   package_count: number | null;
   package_unit_price: number | null;
 }
@@ -125,11 +126,6 @@ interface Expense {
   amount: number;
   category: string;
   occurred_at: string;
-}
-interface Session {
-  started_at: string;
-  ended_at: string | null;
-  break_minutes: number;
 }
 interface Platform {
   id: string;
@@ -152,7 +148,6 @@ const Relatorios = () => {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [dailies, setDailies] = useState<DailyTotal[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [sessions, setSessions] = useState<Session[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
@@ -209,14 +204,11 @@ const Relatorios = () => {
           .lte('occurred_at', untilISO),
         supabase.from('expenses').select('amount, category, occurred_at')
           .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
-        supabase.from('work_sessions').select('started_at, ended_at, break_minutes')
-          .lte('started_at', untilISO),
         supabase.from('platforms').select('id, name'),
       ]);
       setRoutes((r.data ?? []) as Route[]);
       setDailies((d.data ?? []) as DailyTotal[]);
       setExpenses((e.data ?? []) as Expense[]);
-      setSessions((s.data ?? []) as Session[]);
       setPlatforms((p.data ?? []) as Platform[]);
       setLoading(false);
     };
@@ -244,18 +236,15 @@ const Relatorios = () => {
       filteredDailies.reduce((s, d) => s + Number(d.distance_km ?? 0), 0);
     const totalExpense = expenses.reduce((s, e) => s + Number(e.amount), 0);
     const profit = totalRevenue - totalExpense;
-    const overlappingSessions = sessions.filter(ses => {
-      const start = new Date(ses.started_at).getTime();
-      const end = ses.ended_at ? new Date(ses.ended_at).getTime() : Date.now();
-      return end > range.since.getTime() && start < range.until.getTime();
-    });
-    const totalMs = overlappingSessions.reduce((s, ses) => {
-      const start = new Date(ses.started_at).getTime();
-      const end = ses.ended_at ? new Date(ses.ended_at).getTime() : Date.now();
+    
+    const totalMs = filteredRoutes.reduce((s, r) => {
+      if (!r.started_at) return s;
+      const start = new Date(r.started_at).getTime();
+      const end = r.ended_at ? new Date(r.ended_at).getTime() : start;
       const effectiveStart = Math.max(start, range.since.getTime());
       const effectiveEnd = Math.min(end, range.until.getTime());
       const duration = Math.max(0, effectiveEnd - effectiveStart);
-      const breakMs = (ses.break_minutes ?? 0) * 60000;
+      const breakMs = (r.break_minutes ?? 0) * 60000;
       return s + Math.max(0, duration - breakMs);
     }, 0);
     const hours = totalMs / 3600000;
@@ -278,7 +267,7 @@ const Relatorios = () => {
         ? filteredRoutes.reduce((s, r) => s + Number(r.amount), 0) / totalPackages
         : 0,
     };
-  }, [routes, dailies, expenses, sessions, selectedPlatform]);
+  }, [routes, dailies, expenses, selectedPlatform, range.since, range.until]);
 
   // Per platform aggregates
   const byPlatform = useMemo(() => {
@@ -301,6 +290,17 @@ const Relatorios = () => {
       const cur = map.get(k) ?? { name: platformName(r.platform_id), revenue: 0, km: 0, ms: 0 };
       cur.revenue += Number(r.amount) + Number(r.tip ?? 0);
       cur.km += Number(r.distance_km ?? 0);
+      
+      if (r.started_at) {
+        const start = new Date(r.started_at).getTime();
+        const end = r.ended_at ? new Date(r.ended_at).getTime() : start;
+        const effectiveStart = Math.max(start, range.since.getTime());
+        const effectiveEnd = Math.min(end, range.until.getTime());
+        const duration = Math.max(0, effectiveEnd - effectiveStart);
+        const breakMs = (r.break_minutes ?? 0) * 60000;
+        cur.ms += Math.max(0, duration - breakMs);
+      }
+      
       map.set(k, cur);
     });
     filteredDailies.forEach((d) => {
@@ -311,26 +311,6 @@ const Relatorios = () => {
       map.set(k, cur);
     });
     
-    // Distribute hours proportionally to revenue (sessions aren't tagged by platform)
-    const totalRev = Array.from(map.values()).reduce((s, v) => s + v.revenue, 0);
-    const overlappingSessions = sessions.filter(ses => {
-      const start = new Date(ses.started_at).getTime();
-      const end = ses.ended_at ? new Date(ses.ended_at).getTime() : Date.now();
-      return end > range.since.getTime() && start < range.until.getTime();
-    });
-    const totalMs = overlappingSessions.reduce((s, ses) => {
-      const start = new Date(ses.started_at).getTime();
-      const end = ses.ended_at ? new Date(ses.ended_at).getTime() : Date.now();
-      const effectiveStart = Math.max(start, range.since.getTime());
-      const effectiveEnd = Math.min(end, range.until.getTime());
-      const duration = Math.max(0, effectiveEnd - effectiveStart);
-      const breakMs = (ses.break_minutes ?? 0) * 60000;
-      return s + Math.max(0, duration - breakMs);
-    }, 0);
-    map.forEach((v) => {
-      v.ms = totalRev > 0 ? totalMs * (v.revenue / totalRev) : 0;
-    });
-    
     return Array.from(map.values())
       .map((v) => ({
         name: v.name,
@@ -339,7 +319,7 @@ const Relatorios = () => {
         revPerHour: v.ms > 0 ? Number((v.revenue / (v.ms / 3600000)).toFixed(2)) : 0,
       }))
       .sort((a, b) => b.receita - a.receita);
-  }, [routes, dailies, sessions, platforms, selectedPlatform, range.since, range.until]);
+  }, [routes, dailies, platforms, selectedPlatform, range.since, range.until]);
 
   // Categories (product type)
   const byCategory = useMemo(() => {
@@ -481,7 +461,6 @@ const Relatorios = () => {
   return (
     <AppShell title={'RELATÓRIOS\nINSIGHTS'}>
       <div className="space-y-4">
-        <SessionToggle />
 
         {/* Time Filter */}
         <div className="space-y-3">
