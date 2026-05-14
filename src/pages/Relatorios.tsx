@@ -191,10 +191,10 @@ const Relatorios = () => {
       setLoading(true);
       const sinceISO = range.since.toISOString();
       const untilISO = range.until.toISOString();
-      const [r, d, e, s, p] = await Promise.all([
+      const [r, d, e, p] = await Promise.all([
         supabase
           .from('routes')
-          .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price')
+          .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price, started_at, ended_at, break_minutes')
           .gte('occurred_at', sinceISO)
           .lte('occurred_at', untilISO),
         supabase
