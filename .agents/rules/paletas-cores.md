@@ -3,6 +3,8 @@ trigger: always_on
 ---
 
 ---
+Paleta de Cores e Tema Aplicação:
+
 name: High-Velocity Logistics
 colors:
   surface: '#131313'
