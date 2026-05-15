@@ -8,17 +8,24 @@ import { UtensilsCrossed, Package, FileText, Plus } from 'lucide-react';
 
 const NovaRota = () => {
   const navigate = useNavigate();
-  const [platforms, setPlatforms] = useState<{ id: string; name: string }[]>([]);
+  const [platforms, setPlatforms] = useState<{ id: string; name: string, segment: string, payment_model: string }[]>([]);
   const [platformId, setPlatformId] = useState('');
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [distance, setDistance] = useState('');
   const [packageCount, setPackageCount] = useState('1');
   const [packageUnitPrice, setPackageUnitPrice] = useState('');
+  const [fixedAmount, setFixedAmount] = useState('');
   const [tip, setTip] = useState('');
-  const amountNum =
-    (Number(packageCount.replace(',', '.')) || 0) *
-    (Number(packageUnitPrice.replace(',', '.')) || 0);
+
+  const selectedP = platforms.find(p => p.id === platformId);
+  const isDelivery = selectedP?.segment === 'delivery';
+  const isDiaria = selectedP?.payment_model === 'diaria';
+
+  const amountNum = (isDelivery || isDiaria)
+    ? (Number(fixedAmount.replace(',', '.')) || 0)
+    : (Number(packageCount.replace(',', '.')) || 0) * (Number(packageUnitPrice.replace(',', '.')) || 0);
+
   const [type, setType] = useState<'alimento' | 'pacote' | 'documento'>('alimento');
   const [loading, setLoading] = useState(false);
   const nowLocal = (offsetMin = 0) => {
@@ -33,9 +40,13 @@ const NovaRota = () => {
   const [endKm, setEndKm] = useState<string>('0');
 
   useEffect(() => {
-    supabase.from('platforms').select('id, name').eq('active', true).then(({ data }) => {
+    supabase.from('platforms').select('id, name, segment, payment_model').eq('active', true).then(({ data }) => {
       setPlatforms(data ?? []);
-      if (data?.[0]) setPlatformId(data[0].id);
+      if (data?.[0]) {
+        setPlatformId(data[0].id);
+        if (data[0].segment === 'delivery') setType('alimento');
+        else setType('pacote');
+      }
     });
   }, []);
 
@@ -64,8 +75,8 @@ const NovaRota = () => {
       destination: destination || null,
       distance_km: Number(distance.replace(',', '.')) || 0,
       amount: amountNum,
-      package_count: Number(packageCount.replace(',', '.')) || 0,
-      package_unit_price: Number(packageUnitPrice.replace(',', '.')) || 0,
+      package_count: isDelivery ? 1 : (Number(packageCount.replace(',', '.')) || 0),
+      package_unit_price: (isDelivery || isDiaria) ? 0 : (Number(packageUnitPrice.replace(',', '.')) || 0),
       tip: Number(tip.replace(',', '.')) || 0,
       product_type: type,
       occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
@@ -87,7 +98,13 @@ const NovaRota = () => {
         <FormShell footer={<SubmitButton loading={loading}>FINALIZAR E REGISTRAR ROTA ›</SubmitButton>}>
           <Field label="Plataforma de serviço">
             <div className="flex gap-2">
-              <Select value={platformId} onChange={(e) => setPlatformId(e.target.value)}>
+              <Select value={platformId} onChange={(e) => {
+                const newId = e.target.value;
+                setPlatformId(newId);
+                const p = platforms.find(x => x.id === newId);
+                if (p?.segment === 'delivery') setType('alimento');
+                else setType('pacote');
+              }}>
                 <option value="">Selecione a Plataforma</option>
                 {platforms.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
@@ -187,12 +204,25 @@ const NovaRota = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Quantidade Pacotes">
-              <Input inputMode="numeric" value={packageCount} onChange={(e) => setPackageCount(e.target.value)} placeholder="0" />
-            </Field>
-            <Field label="Valor Pacote (R$)">
-              <Input inputMode="decimal" value={packageUnitPrice} onChange={(e) => setPackageUnitPrice(e.target.value)} placeholder="0,00" />
-            </Field>
+            {!isDelivery && (
+              <Field label="Quantidade Pacotes">
+                <Input inputMode="numeric" value={packageCount} onChange={(e) => setPackageCount(e.target.value)} placeholder="0" />
+              </Field>
+            )}
+            
+            {isDiaria ? (
+              <Field label="Valor da Diária (R$)">
+                <Input inputMode="decimal" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0,00" />
+              </Field>
+            ) : isDelivery ? (
+              <Field label="Valor da Corrida (R$)">
+                <Input inputMode="decimal" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0,00" />
+              </Field>
+            ) : (
+              <Field label="Valor por Pacote (R$)">
+                <Input inputMode="decimal" value={packageUnitPrice} onChange={(e) => setPackageUnitPrice(e.target.value)} placeholder="0,00" />
+              </Field>
+            )}
           </div>
 
           <div className="rounded-xl bg-surface-high p-3 flex items-center justify-between">
