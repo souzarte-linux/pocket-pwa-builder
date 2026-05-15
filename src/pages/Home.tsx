@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Route, Calendar, Clock, Fuel, Wrench, UtensilsCrossed, Package, FileText, LogOut } from 'lucide-react';
+import { Route, Calendar, Clock, Fuel, Wrench, UtensilsCrossed, Package, FileText, LogOut, Wallet } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { QuickActionsFab } from '@/components/QuickActionsFab';
 import { OilChangeAlert } from '@/components/OilChangeAlert';
@@ -156,7 +156,18 @@ const Home = () => {
           <Calendar className="size-8 text-primary" strokeWidth={2.4} />
         </button>
 
-
+        <button
+          onClick={() => navigate('/faturas')}
+          className="w-full p-5 rounded-xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center gap-4"
+        >
+          <div className="flex-1">
+            <h2 className="display text-xl text-success leading-tight">CONTAS A RECEBER</h2>
+            <p className="mt-1 text-xs label-up text-muted-foreground">
+              Fechar faturas e baixar pagamentos
+            </p>
+          </div>
+          <Wallet className="size-8 text-success" strokeWidth={2.4} />
+        </button>
       </section>
 
       {/* Quick expense */}

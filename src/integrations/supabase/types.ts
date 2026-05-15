@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      billing_cycles: {
+        Row: {
+          id: string
+          user_id: string
+          platform_id: string
+          period_start: string
+          period_end: string
+          expected_payment_date: string
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          platform_id: string
+          period_start: string
+          period_end: string
+          expected_payment_date: string
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          platform_id?: string
+          period_start?: string
+          period_end?: string
+          expected_payment_date?: string
+          status?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_cycles_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "platforms"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       daily_totals: {
         Row: {
           amount: number
@@ -26,6 +67,7 @@ export type Database = {
           product_type: Database["public"]["Enums"]["product_type"] | null
           subtract_routes: boolean | null
           user_id: string
+          billing_cycle_id: string | null
         }
         Insert: {
           amount: number
@@ -38,6 +80,7 @@ export type Database = {
           product_type?: Database["public"]["Enums"]["product_type"] | null
           subtract_routes?: boolean | null
           user_id: string
+          billing_cycle_id?: string | null
         }
         Update: {
           amount?: number
@@ -50,6 +93,7 @@ export type Database = {
           product_type?: Database["public"]["Enums"]["product_type"] | null
           subtract_routes?: boolean | null
           user_id?: string
+          billing_cycle_id?: string | null
         }
         Relationships: [
           {
@@ -57,6 +101,13 @@ export type Database = {
             columns: ["platform_id"]
             isOneToOne: false
             referencedRelation: "platforms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_totals_billing_cycle_id_fkey"
+            columns: ["billing_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "billing_cycles"
             referencedColumns: ["id"]
           },
         ]
@@ -111,6 +162,57 @@ export type Database = {
           vendor?: string | null
         }
         Relationships: []
+      }
+      financial_adjustments: {
+        Row: {
+          id: string
+          user_id: string
+          platform_id: string
+          billing_cycle_id: string | null
+          type: string
+          amount: number
+          description: string | null
+          occurred_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          platform_id: string
+          billing_cycle_id?: string | null
+          type: string
+          amount: number
+          description?: string | null
+          occurred_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          platform_id?: string
+          billing_cycle_id?: string | null
+          type?: string
+          amount?: number
+          description?: string | null
+          occurred_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_adjustments_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "platforms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_adjustments_billing_cycle_id_fkey"
+            columns: ["billing_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "billing_cycles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       oil_changes: {
         Row: {
@@ -298,6 +400,7 @@ export type Database = {
           break_minutes: number
           start_km: number
           end_km: number
+          billing_cycle_id: string | null
         }
         Insert: {
           amount?: number
@@ -319,6 +422,7 @@ export type Database = {
           break_minutes?: number
           start_km?: number
           end_km?: number
+          billing_cycle_id?: string | null
         }
         Update: {
           amount?: number
@@ -340,6 +444,7 @@ export type Database = {
           break_minutes?: number
           start_km?: number
           end_km?: number
+          billing_cycle_id?: string | null
         }
         Relationships: [
           {
@@ -347,6 +452,13 @@ export type Database = {
             columns: ["platform_id"]
             isOneToOne: false
             referencedRelation: "platforms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_billing_cycle_id_fkey"
+            columns: ["billing_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "billing_cycles"
             referencedColumns: ["id"]
           },
         ]

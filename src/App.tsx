@@ -20,6 +20,9 @@ import MetasFinanceiras from "./pages/MetasFinanceiras";
 import CadastroVeiculo from "./pages/CadastroVeiculo";
 import Configuracoes from "./pages/Configuracoes";
 import TrocasOleo from "./pages/TrocasOleo";
+import Faturas from "./pages/Faturas";
+import NovaFatura from "./pages/NovaFatura";
+import AjusteFinanceiro from "./pages/AjusteFinanceiro";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +50,9 @@ const App = () => (
           <Route path="/metas-financeiras" element={<RequireAuth><MetasFinanceiras /></RequireAuth>} />
           <Route path="/configuracoes" element={<Configuracoes />} />
           <Route path="/trocas-oleo" element={<RequireAuth><TrocasOleo /></RequireAuth>} />
+          <Route path="/faturas" element={<RequireAuth><Faturas /></RequireAuth>} />
+          <Route path="/fatura/nova" element={<RequireAuth><NovaFatura /></RequireAuth>} />
+          <Route path="/ajuste-financeiro" element={<RequireAuth><AjusteFinanceiro /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
