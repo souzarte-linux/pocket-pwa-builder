@@ -154,6 +154,9 @@ export type Database = {
           pix_key: string | null
           pix_key_type: string | null
           user_id: string
+          segment: string
+          payment_model: string
+          rules: Json
         }
         Insert: {
           active?: boolean
@@ -169,6 +172,9 @@ export type Database = {
           pix_key?: string | null
           pix_key_type?: string | null
           user_id: string
+          segment?: string
+          payment_model?: string
+          rules?: Json
         }
         Update: {
           active?: boolean
@@ -184,6 +190,9 @@ export type Database = {
           pix_key?: string | null
           pix_key_type?: string | null
           user_id?: string
+          segment?: string
+          payment_model?: string
+          rules?: Json
         }
         Relationships: []
       }
@@ -393,7 +402,7 @@ export type Database = {
     }
     Enums: {
       expense_category: "combustivel" | "manutencao" | "alimentacao"
-      payment_cycle: "semanal" | "quinzenal" | "mensal"
+      payment_cycle: "semanal" | "quinzenal" | "mensal" | "misto"
       payment_method: "dinheiro" | "pix" | "cartao" | "carteira"
       product_type: "alimento" | "pacote" | "documento" | "outro"
       vehicle_type: "moto" | "carro" | "bike" | "patinete"
@@ -525,7 +534,7 @@ export const Constants = {
   public: {
     Enums: {
       expense_category: ["combustivel", "manutencao", "alimentacao"],
-      payment_cycle: ["semanal", "quinzenal", "mensal"],
+      payment_cycle: ["semanal", "quinzenal", "mensal", "misto"],
       payment_method: ["dinheiro", "pix", "cartao", "carteira"],
       product_type: ["alimento", "pacote", "documento", "outro"],
       vehicle_type: ["moto", "carro", "bike", "patinete"],

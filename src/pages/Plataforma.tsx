@@ -6,7 +6,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
 
-type Cycle = 'semanal' | 'quinzenal' | 'mensal';
+type Cycle = 'semanal' | 'quinzenal' | 'mensal' | 'misto';
+type Segment = 'logistica' | 'delivery';
+type PaymentModel = 'producao' | 'diaria';
 const days = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM'];
 
 const Plataforma = () => {
@@ -22,6 +24,8 @@ const Plataforma = () => {
   const [account, setAccount] = useState('');
   const [pixType, setPixType] = useState('CPF');
   const [pixKey, setPixKey] = useState('');
+  const [segment, setSegment] = useState<Segment>('logistica');
+  const [paymentModel, setPaymentModel] = useState<PaymentModel>('producao');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -33,6 +37,8 @@ const Plataforma = () => {
       setBankName(data.bank_name ?? ''); setAgency(data.bank_agency ?? '');
       setAccount(data.bank_account ?? ''); setPixType(data.pix_key_type ?? 'CPF');
       setPixKey(data.pix_key ?? '');
+      if (data.segment) setSegment(data.segment as Segment);
+      if (data.payment_model) setPaymentModel(data.payment_model as PaymentModel);
     });
   }, [id, isEdit]);
 
@@ -46,6 +52,7 @@ const Plataforma = () => {
       payment_day: cycle === 'semanal' ? paymentDay : null,
       bank_name: bankName || null, bank_agency: agency || null,
       bank_account: account || null, pix_key_type: pixType, pix_key: pixKey || null, active: true,
+      segment, payment_model: paymentModel, rules: {},
     };
     const { error } = isEdit
       ? await supabase.from('platforms').update(payload).eq('id', id!)
@@ -76,9 +83,23 @@ const Plataforma = () => {
             <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="Digite o nome da plataforma" />
           </Field>
 
+          <Field label="Segmento de Operação">
+            <div className="grid grid-cols-2 gap-2">
+              <SegButton active={segment === 'logistica'} onClick={() => setSegment('logistica')}>Logística</SegButton>
+              <SegButton active={segment === 'delivery'} onClick={() => setSegment('delivery')}>Delivery</SegButton>
+            </div>
+          </Field>
+
+          <Field label="Modelo de Pagamento">
+            <div className="grid grid-cols-2 gap-2">
+              <SegButton active={paymentModel === 'producao'} onClick={() => setPaymentModel('producao')}>Produção (Pacote)</SegButton>
+              <SegButton active={paymentModel === 'diaria'} onClick={() => setPaymentModel('diaria')}>Diária (Fixo)</SegButton>
+            </div>
+          </Field>
+
           <Field label="Ciclo de pagamento">
-            <div className="grid grid-cols-3 gap-2">
-              {(['semanal', 'quinzenal', 'mensal'] as Cycle[]).map((c) => (
+            <div className="grid grid-cols-2 gap-2">
+              {(['semanal', 'quinzenal', 'mensal', 'misto'] as Cycle[]).map((c) => (
                 <SegButton key={c} active={cycle === c} onClick={() => setCycle(c)}>{c.toUpperCase()}</SegButton>
               ))}
             </div>

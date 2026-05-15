@@ -1,0 +1,2 @@
+id;user_id;platform_id;amount;distance_km;product_type;subtract_routes;notes;occurred_at;created_at
+2ec43af6-7575-4443-9767-5f8da38140bd;350e6d7e-edc3-446e-9103-a84211e27dce;c2e6d8c8-f49b-428f-9114-89c9b81db80e;39.82;32.00;pacote;false;Entregas Uber;2026-05-08 17:39:00+00;2026-05-08 20:32:58.042669+00
