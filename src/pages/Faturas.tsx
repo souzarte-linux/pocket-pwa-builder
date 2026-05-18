@@ -6,6 +6,7 @@ import { formatBRL } from '@/lib/format';
 import { Plus, CheckCircle, FileWarning, Wallet, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/Modal';
+import { startOfWeek, startOfMonth, addDays } from 'date-fns';
 
 interface BillingCycle {
   id: string;
@@ -75,8 +76,84 @@ const Faturas = () => {
     setLoading(false);
   };
 
+  const generateBillingCycles = async () => {
+    const { data: platforms, error: platformsError } = await supabase
+      .from('platforms')
+      .select('id, name, cycle, payment_day');
+
+    if (platformsError) {
+      toast.error('Erro ao carregar plataformas.');
+      return;
+    }
+
+    const today = new Date();
+    const newBillingCycles = [];
+
+    for (const platform of platforms) {
+      let cycleStart;
+      let cycleEnd = today;
+
+      if (platform.cycle === 'semanal') {
+        cycleStart = startOfWeek(today, { weekStartsOn: 1 });
+      } else if (platform.cycle === 'quinzenal') {
+        const midMonth = addDays(startOfMonth(today), 14);
+        cycleStart = today < midMonth ? startOfMonth(today) : midMonth;
+      } else if (platform.cycle === 'mensal') {
+        cycleStart = startOfMonth(today);
+      } else {
+        continue;
+      }
+
+      const { data: routes, error: routesError } = await supabase
+        .from('routes')
+        .select('amount, tip')
+        .eq('platform_id', platform.id)
+        .gte('occurred_at', cycleStart.toISOString())
+        .lte('occurred_at', cycleEnd.toISOString());
+
+      const { data: dailyTotals, error: dailyTotalsError } = await supabase
+        .from('daily_totals')
+        .select('amount')
+        .eq('platform_id', platform.id)
+        .gte('occurred_at', cycleStart.toISOString())
+        .lte('occurred_at', cycleEnd.toISOString());
+
+      if (routesError || dailyTotalsError) {
+        toast.error('Erro ao carregar dados de rotas ou totais diários.');
+        continue;
+      }
+
+      const totalAmount = [...(routes ?? []), ...(dailyTotals ?? [])].reduce(
+        (sum, entry) => sum + Number(entry.amount) + Number(entry.tip ?? 0),
+        0
+      );
+
+      if (totalAmount > 0) {
+        newBillingCycles.push({
+          platform_id: platform.id,
+          period_start: cycleStart.toISOString(),
+          period_end: cycleEnd.toISOString(),
+          expected_payment_date: addDays(cycleEnd, 7).toISOString(),
+          status: 'pendente',
+          total_amount: totalAmount,
+        });
+      }
+    }
+
+    for (const cycle of newBillingCycles) {
+      const { error } = await supabase.from('billing_cycles').insert(cycle);
+      if (error) {
+        toast.error('Erro ao gerar fatura para uma plataforma.');
+      }
+    }
+
+    toast.success('Faturas geradas automaticamente!');
+    fetchCycles();
+  };
+
   useEffect(() => {
     fetchCycles();
+    generateBillingCycles();
   }, []);
 
   const markAsPaid = async (id: string) => {
