@@ -1,10 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, TrendingUp, Settings } from 'lucide-react';
+import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, Settings, Calendar, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, formatTime, todayBoundaries } from '@/lib/format';
 import { EditTransactionDialog, EditTarget } from '@/components/EditTransactionDialog';
+import { startOfWeek, endOfWeek, isSameWeek, isSameMonth, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 type Tab = 'todos' | 'ganhos' | 'despesas';
 
@@ -37,6 +39,139 @@ const iconFor = (k: Tx['iconKey']) => {
   }
 };
 
+interface DayGroup { label: string; date: string; txs: Tx[]; balance: number; }
+interface WeekGroup { label: string; start: Date; end: Date; days: DayGroup[]; balance: number; isCurrentWeek: boolean; }
+interface MonthGroup { label: string; month: Date; weeks: WeekGroup[]; balance: number; isCurrentMonth: boolean; }
+
+const TxRow = ({ x, onEdit }: { x: Tx, onEdit: (x: Tx) => void }) => {
+  const { Icon, color } = iconFor(x.iconKey);
+  return (
+    <li className="rounded-xl bg-surface border border-border/40 p-3 flex items-center gap-3">
+      <span className={`size-11 rounded-lg grid place-items-center ${color}`}>
+        <Icon className="size-5" />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-sm uppercase truncate">{x.title}</p>
+        <p className="text-[11px] text-muted-foreground uppercase truncate">
+          {x.subtitle}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className={`font-bold ${x.positive ? 'text-primary' : 'text-destructive'}`}>
+          {x.positive ? '+' : '-'}
+          {formatBRL(x.amount)}
+        </p>
+        {x.tag && (
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${x.positive ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
+            {x.tag}
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => onEdit(x)}
+        aria-label="Editar"
+        className="size-9 shrink-0 rounded-lg grid place-items-center bg-surface-high text-muted-foreground hover:text-primary hover:bg-primary/10 transition active:scale-95"
+      >
+        <Settings className="size-4" />
+      </button>
+    </li>
+  );
+};
+
+const WeekSection = ({ week, onEdit }: { week: WeekGroup, onEdit: (x: Tx) => void }) => {
+  const [open, setOpen] = useState(week.isCurrentWeek);
+  
+  return (
+    <div className="mb-4">
+      <button 
+        onClick={() => setOpen(!open)} 
+        className={`w-full flex items-center justify-between p-3 rounded-xl border transition ${open ? 'bg-primary/5 border-primary/20' : 'bg-surface border-border/40'}`}
+      >
+        <div className="flex items-center gap-2">
+          <Calendar className="size-5 text-primary" />
+          <span className="font-bold text-sm uppercase">{week.label}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {!open && (
+             <span className={`font-black text-sm ${week.balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+               {formatBRL(week.balance)}
+             </span>
+          )}
+          {open ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+        </div>
+      </button>
+      
+      {open && (
+        <div className="mt-3 space-y-5 pl-2 border-l-2 border-border/20 ml-2 pb-2">
+          {week.days.map(day => (
+             <div key={day.date}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-1 h-3 bg-muted-foreground rounded-full" />
+                  <h4 className="text-xs font-bold text-muted-foreground tracking-widest">{day.label}</h4>
+                </div>
+                <ul className="space-y-2">
+                   {day.txs.map(x => <TxRow key={x.id} x={x} onEdit={onEdit} />)}
+                </ul>
+                <div className="mt-2 flex items-center justify-between px-3 py-1.5 bg-surface-high/50 rounded-lg border border-border/10">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Saldo do Dia</span>
+                  <span className={`text-xs font-black ${day.balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                    {formatBRL(day.balance)}
+                  </span>
+                </div>
+             </div>
+          ))}
+          
+          <div className="flex items-center justify-between p-3 bg-primary/10 rounded-xl border border-primary/20 mt-4">
+             <span className="text-xs font-black text-primary uppercase">FECHAMENTO DA SEMANA</span>
+             <span className={`font-black ${week.balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+               {formatBRL(week.balance)}
+             </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+};
+
+const MonthSection = ({ month, onEdit }: { month: MonthGroup, onEdit: (x: Tx) => void }) => {
+  const [open, setOpen] = useState(month.isCurrentMonth);
+  return (
+    <div className="mb-6">
+      <button 
+        onClick={() => setOpen(!open)} 
+        className="w-full flex items-center justify-between p-4 bg-surface-high rounded-xl border border-primary/20 shadow-sm mb-3"
+      >
+        <div className="flex items-center gap-2">
+          <CalendarDays className="size-5 text-primary" />
+          <span className="display text-lg uppercase text-primary">{month.label}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {!open && (
+             <span className={`font-black text-lg ${month.balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+               {formatBRL(month.balance)}
+             </span>
+          )}
+          {open ? <ChevronUp className="size-5 text-primary" /> : <ChevronDown className="size-5 text-primary" />}
+        </div>
+      </button>
+      
+      {open && (
+        <div className="space-y-2">
+           {month.weeks.map(w => <WeekSection key={w.label} week={w} onEdit={onEdit} />)}
+           
+           <div className="mt-4 flex items-center justify-between p-4 bg-primary text-primary-foreground rounded-xl shadow-card">
+             <span className="text-sm font-black uppercase">SALDO DO MÊS ({month.label})</span>
+             <span className="text-xl font-black">
+               {formatBRL(month.balance)}
+             </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+};
+
 const Historico = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('todos');
@@ -49,7 +184,7 @@ const Historico = () => {
 
   const load = async () => {
     const since = new Date();
-    since.setDate(since.getDate() - 30);
+    since.setDate(since.getDate() - 90); // 90 days to show decent history
 
     const [routesRes, expRes, dailyRes, plats, prof] = await Promise.all([
       supabase
@@ -156,23 +291,80 @@ const Historico = () => {
       );
   }, [items, tab, search]);
 
-  // group by date label
-  const groups = useMemo(() => {
-    const map = new Map<string, Tx[]>();
-    filtered.forEach((x) => {
+  const months = useMemo(() => {
+    const today = new Date();
+    const monthsMap = new Map<string, Tx[]>(); 
+    
+    filtered.forEach(x => {
       const d = new Date(x.occurred_at);
-      const today = new Date();
-      const yest = new Date();
-      yest.setDate(today.getDate() - 1);
-      let label: string;
-      if (d.toDateString() === today.toDateString()) label = `HOJE, ${d.getDate()} DE ${d.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '')}`;
-      else if (d.toDateString() === yest.toDateString()) label = `ONTEM, ${d.getDate()} DE ${d.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '')}`;
-      else label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', weekday: 'short' }).toUpperCase();
-      if (!map.has(label)) map.set(label, []);
-      map.get(label)!.push(x);
+      const mKey = format(d, 'yyyy-MM');
+      if (!monthsMap.has(mKey)) monthsMap.set(mKey, []);
+      monthsMap.get(mKey)!.push(x);
     });
-    return Array.from(map.entries());
+    
+    const outMonths: MonthGroup[] = [];
+    
+    Array.from(monthsMap.entries()).sort((a,b) => b[0].localeCompare(a[0])).forEach(([mKey, mTxs]) => {
+      const monthDate = new Date(`${mKey}-01T00:00:00`);
+      const isCurrentMonth = isSameMonth(monthDate, today);
+      
+      const weeksMap = new Map<string, Tx[]>(); 
+      mTxs.forEach(x => {
+        const d = new Date(x.occurred_at);
+        const wStart = startOfWeek(d, { weekStartsOn: 1 });
+        const wKey = format(wStart, 'yyyy-MM-dd');
+        if (!weeksMap.has(wKey)) weeksMap.set(wKey, []);
+        weeksMap.get(wKey)!.push(x);
+      });
+      
+      const outWeeks: WeekGroup[] = [];
+      Array.from(weeksMap.entries()).sort((a,b) => b[0].localeCompare(a[0])).forEach(([wKey, wTxs]) => {
+        const wStartDate = new Date(`${wKey}T00:00:00`);
+        const wEndDate = endOfWeek(wStartDate, { weekStartsOn: 1 });
+        const isCurrentWeek = isSameWeek(wStartDate, today, { weekStartsOn: 1 });
+        
+        const daysMap = new Map<string, Tx[]>();
+        wTxs.forEach(x => {
+          const d = new Date(x.occurred_at);
+          const dKey = format(d, 'yyyy-MM-dd');
+          if (!daysMap.has(dKey)) daysMap.set(dKey, []);
+          daysMap.get(dKey)!.push(x);
+        });
+        
+        const outDays: DayGroup[] = [];
+        Array.from(daysMap.entries()).sort((a,b) => b[0].localeCompare(a[0])).forEach(([dKey, dTxs]) => {
+          const d = new Date(`${dKey}T00:00:00`);
+          const yest = new Date(); yest.setDate(today.getDate() - 1);
+          let label = format(d, "EEEE, dd 'de' MMM", { locale: ptBR }).toUpperCase();
+          if (format(d, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd')) label = `HOJE, ${format(d, "dd 'de' MMM", { locale: ptBR }).toUpperCase()}`;
+          else if (format(d, 'yyyy-MM-dd') === format(yest, 'yyyy-MM-dd')) label = `ONTEM, ${format(d, "dd 'de' MMM", { locale: ptBR }).toUpperCase()}`;
+          
+          const balance = dTxs.reduce((s,x) => s + (x.positive ? x.amount : -x.amount), 0);
+          outDays.push({ label, date: dKey, txs: dTxs, balance });
+        });
+        
+        const balance = outDays.reduce((s, d) => s + d.balance, 0);
+        let label = `Semana de ${format(wStartDate, 'dd/MM')} a ${format(wEndDate, 'dd/MM')}`;
+        if (isCurrentWeek) label = 'Esta Semana';
+        
+        outWeeks.push({ label, start: wStartDate, end: wEndDate, days: outDays, balance, isCurrentWeek });
+      });
+      
+      const balance = outWeeks.reduce((s, w) => s + w.balance, 0);
+      const label = format(monthDate, 'MMMM yyyy', { locale: ptBR }).toUpperCase();
+      outMonths.push({ label, month: monthDate, weeks: outWeeks, balance, isCurrentMonth });
+    });
+    
+    return outMonths;
   }, [filtered]);
+
+  const handleEdit = (x: Tx) => {
+    if (x.table === 'routes') {
+      navigate(`/rota/nova?id=${x.raw_id}`);
+    } else {
+      setEditTarget({ table: x.table, id: x.raw_id, positive: x.positive });
+    }
+  };
 
   const pct = goal > 0 ? Math.min(100, (Math.max(0, todayBalance) / goal) * 100) : 0;
 
@@ -230,83 +422,14 @@ const Historico = () => {
         </div>
       </div>
 
-      {/* Groups */}
-      <div className="mt-6 space-y-6">
-        {groups.length === 0 && (
+      {/* Months List */}
+      <div className="mt-6 pb-12">
+        {months.length === 0 && (
           <p className="text-center text-sm text-muted-foreground py-8 rounded-2xl bg-surface border border-dashed border-border/40">
             Nenhuma transação encontrada.
           </p>
         )}
-        {groups.map(([label, list]) => (
-          <section key={label}>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="w-1 h-5 bg-primary rounded-full" />
-              <h3 className="display text-base">{label}</h3>
-            </div>
-            <ul className="space-y-2.5">
-              {list.map((x) => {
-                const { Icon, color } = iconFor(x.iconKey);
-                return (
-                  <li
-                    key={x.id}
-                    className="rounded-xl bg-surface border border-border/40 p-3 flex items-center gap-3"
-                  >
-                    <span className={`size-11 rounded-lg grid place-items-center ${color}`}>
-                      <Icon className="size-5" />
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm uppercase truncate">{x.title}</p>
-                      <p className="text-[11px] text-muted-foreground uppercase truncate">
-                        {x.subtitle}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-bold ${x.positive ? 'text-primary' : 'text-destructive'}`}>
-                        {x.positive ? '+' : '-'}
-                        {formatBRL(x.amount)}
-                      </p>
-                      {x.tag && (
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                            x.positive
-                              ? 'bg-success/15 text-success'
-                              : 'bg-destructive/15 text-destructive'
-                          }`}
-                        >
-                          {x.tag}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (x.table === 'routes') {
-                          navigate(`/rota/nova?id=${x.raw_id}`);
-                        } else {
-                          setEditTarget({ table: x.table, id: x.raw_id, positive: x.positive });
-                        }
-                      }}
-                      aria-label="Editar"
-                      className="size-9 shrink-0 rounded-lg grid place-items-center bg-surface-high text-muted-foreground hover:text-primary hover:bg-primary/10 transition active:scale-95"
-                    >
-                      <Settings className="size-4" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="mt-3 flex items-center justify-between px-3 py-2 bg-surface-high/50 rounded-xl border border-border/20">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Saldo do Dia</span>
-              <span className={`text-sm font-black ${
-                list.reduce((acc, x) => acc + (x.positive ? x.amount : -x.amount), 0) >= 0 
-                  ? 'text-primary' 
-                  : 'text-destructive'
-              }`}>
-                {formatBRL(list.reduce((acc, x) => acc + (x.positive ? x.amount : -x.amount), 0))}
-              </span>
-            </div>
-          </section>
-        ))}
+        {months.map(m => <MonthSection key={m.label} month={m} onEdit={handleEdit} />)}
       </div>
 
       <EditTransactionDialog
