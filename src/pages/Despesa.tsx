@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import { Field, Input, TextArea, SegButton, SubmitButton, FormShell } from '@/components/forms/Form';
+import { Field, Input, TextArea, SegButton, SubmitButton, FormShell, Select } from '@/components/forms/Form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CreditCard, QrCode, Banknote, Wallet } from 'lucide-react';
+import { CreditCard, QrCode, Banknote, Wallet, Plus } from 'lucide-react';
 
 type Cat = 'combustivel' | 'manutencao' | 'alimentacao';
 
@@ -13,6 +13,8 @@ const titles: Record<Cat, { title: string; defaultTitle: string }> = {
   manutencao: { title: 'LANÇAR MANUTENÇÃO', defaultTitle: 'Manutenção' },
   alimentacao: { title: 'LANÇAMENTO DE ALIMENTAÇÃO', defaultTitle: 'Refeição' },
 };
+
+const allFuelTypes = ['Etanol', 'Gasolina Comum', 'Gasolina Aditivada', 'GNV', 'Diesel'];
 
 const Despesa = () => {
   const { categoria } = useParams<{ categoria: Cat }>();
@@ -28,22 +30,66 @@ const Despesa = () => {
   const [odometer, setOdometer] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState('');
+  const [receiptNumber, setReceiptNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao' | 'dinheiro' | 'carteira'>('pix');
   const [loading, setLoading] = useState(false);
+  
+  const [gasStations, setGasStations] = useState<any[]>([]);
 
-  // Auto compute total for fuel
-  const computedTotal =
-    cat === 'combustivel' && liters && pricePerLiter
-      ? (Number(liters.replace(',', '.')) * Number(pricePerLiter.replace(',', '.'))).toFixed(2)
-      : amount;
+  useEffect(() => {
+    if (cat === 'combustivel') {
+      supabase.from('gas_stations').select('*').order('name').then(({ data }) => {
+        setGasStations(data ?? []);
+        if (data && data.length > 0 && !vendor) {
+          // don't auto select, wait for user input
+        }
+      });
+    }
+  }, [cat]);
+
+  const handlePriceChange = (val: string) => {
+    setPricePerLiter(val);
+    if (cat !== 'combustivel') return;
+    const p = Number(val.replace(',', '.')) || 0;
+    const l = Number(liters.replace(',', '.')) || 0;
+    const a = Number(amount.replace(',', '.')) || 0;
+    if (p > 0 && l > 0) setAmount((p * l).toFixed(2).replace('.', ','));
+    else if (p > 0 && a > 0) setLiters((a / p).toFixed(2).replace('.', ','));
+  };
+
+  const handleLitersChange = (val: string) => {
+    setLiters(val);
+    if (cat !== 'combustivel') return;
+    const l = Number(val.replace(',', '.')) || 0;
+    const p = Number(pricePerLiter.replace(',', '.')) || 0;
+    const a = Number(amount.replace(',', '.')) || 0;
+    if (l > 0 && p > 0) setAmount((p * l).toFixed(2).replace('.', ','));
+    else if (l > 0 && a > 0) setPricePerLiter((a / l).toFixed(2).replace('.', ','));
+  };
+
+  const handleAmountChange = (val: string) => {
+    setAmount(val);
+    if (cat !== 'combustivel') return;
+    const a = Number(val.replace(',', '.')) || 0;
+    const p = Number(pricePerLiter.replace(',', '.')) || 0;
+    const l = Number(liters.replace(',', '.')) || 0;
+    if (a > 0 && p > 0) setLiters((a / p).toFixed(2).replace('.', ','));
+    else if (a > 0 && l > 0) setPricePerLiter((a / l).toFixed(2).replace('.', ','));
+  };
+
+  const selectedStation = gasStations.find(g => g.name === vendor);
+  const availableFuels = selectedStation?.fuel_types && selectedStation.fuel_types.length > 0 
+    ? selectedStation.fuel_types 
+    : allFuelTypes;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
-    const final = Number(String(computedTotal).replace(',', '.')) || 0;
-    const { error } = await supabase.from('expenses').insert({
+    const final = Number(amount.replace(',', '.')) || 0;
+    
+    const payload: any = {
       user_id: u.user.id,
       category: cat,
       title: title || titles[cat].defaultTitle,
@@ -56,7 +102,16 @@ const Despesa = () => {
       description: description || null,
       payment_method: paymentMethod,
       occurred_at: new Date(date + 'T12:00:00').toISOString(),
-    });
+    };
+
+    if (cat === 'combustivel') {
+      payload.receipt_number = receiptNumber || null;
+      if (vendor) {
+        payload.vendor = vendor;
+      }
+    }
+
+    const { error } = await supabase.from('expenses').insert(payload);
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success('Despesa registrada!');
@@ -67,9 +122,39 @@ const Despesa = () => {
     <AppShell back title={titles[cat].title}>
       <form onSubmit={submit}>
         <FormShell footer={<SubmitButton loading={loading}>SALVAR DESPESA</SubmitButton>}>
-          <Field label={cat === 'combustivel' ? 'Posto de abastecimento' : cat === 'manutencao' ? 'Oficina mecânica' : 'Nome do local'}>
-            <Input value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder={cat === 'alimentacao' ? 'Ex: Restaurante do Silva' : 'Selecione…'} />
-          </Field>
+          
+          {cat === 'combustivel' ? (
+            <Field label="Posto de abastecimento">
+              <div className="flex gap-2">
+                <Select value={vendor} onChange={(e) => {
+                  setVendor(e.target.value);
+                  const st = gasStations.find(x => x.name === e.target.value);
+                  if (st && st.fuel_types && st.fuel_types.length > 0) {
+                    if (!st.fuel_types.includes(fuelType)) {
+                      setFuelType(st.fuel_types[0]);
+                    }
+                  }
+                }}>
+                  <option value="">Selecione o Posto</option>
+                  {gasStations.map(g => (
+                    <option key={g.id} value={g.name}>{g.name} ({g.brand})</option>
+                  ))}
+                </Select>
+                <button
+                  type="button"
+                  onClick={() => navigate('/posto/novo')}
+                  className="size-12 shrink-0 grid place-items-center rounded-xl bg-surface-high text-primary border border-border/40"
+                  aria-label="Novo posto"
+                >
+                  <Plus className="size-5" />
+                </button>
+              </div>
+            </Field>
+          ) : (
+            <Field label={cat === 'manutencao' ? 'Oficina mecânica' : 'Nome do local'}>
+              <Input value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder={cat === 'alimentacao' ? 'Ex: Restaurante do Silva' : 'Selecione…'} />
+            </Field>
+          )}
 
           {cat !== 'combustivel' && (
             <Field label={cat === 'manutencao' ? 'Peça/Serviço' : 'O que foi comprado'}>
@@ -80,31 +165,59 @@ const Despesa = () => {
           {cat === 'combustivel' && (
             <>
               <Field label="Tipo de combustível">
-                <Input value={fuelType} onChange={(e) => setFuelType(e.target.value)} />
+                <Select value={fuelType} onChange={(e) => setFuelType(e.target.value)}>
+                  {availableFuels.map((f: string) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </Select>
               </Field>
+
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Preço/Litro"><Input inputMode="decimal" value={pricePerLiter} onChange={(e) => setPricePerLiter(e.target.value)} placeholder="5,89" /></Field>
-                <Field label="Litros"><Input inputMode="decimal" value={liters} onChange={(e) => setLiters(e.target.value)} placeholder="20.00" /></Field>
+                <Field label="Preço/Litro">
+                  <Input inputMode="decimal" value={pricePerLiter} onChange={(e) => handlePriceChange(e.target.value)} placeholder="5,89" />
+                </Field>
+                <Field label="Litros">
+                  <Input inputMode="decimal" value={liters} onChange={(e) => handleLitersChange(e.target.value)} placeholder="20.00" />
+                </Field>
               </div>
-              <Field label="Odômetro (km)"><Input inputMode="decimal" value={odometer} onChange={(e) => setOdometer(e.target.value)} placeholder="125450" /></Field>
+              <Field label="Odômetro (km)">
+                <Input inputMode="decimal" value={odometer} onChange={(e) => setOdometer(e.target.value)} placeholder="125450" />
+              </Field>
             </>
           )}
 
           <Field label="Valor total pago">
             <Input
               inputMode="decimal"
-              value={cat === 'combustivel' ? String(computedTotal) : amount}
-              onChange={(e) => setAmount(e.target.value)}
+              value={amount}
+              onChange={(e) => handleAmountChange(e.target.value)}
               placeholder="R$ 0,00"
-              readOnly={cat === 'combustivel' && !!liters && !!pricePerLiter}
-              className={cat === 'combustivel' ? 'border-2 !border-primary' : ''}
+              className={cat === 'combustivel' ? 'border-2 !border-primary text-primary font-black' : ''}
+              required
             />
           </Field>
 
-          <Field label="Data"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label="Data">
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          </Field>
+
+          {cat === 'combustivel' && (
+            <>
+              <Field label="Cupom Fiscal (Opcional)">
+                <Input value={receiptNumber} onChange={(e) => setReceiptNumber(e.target.value)} placeholder="Nº do cupom ou chave de acesso" />
+              </Field>
+              <Field label="Observação (Opcional)">
+                <TextArea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Alguma anotação sobre o abastecimento?" />
+              </Field>
+            </>
+          )}
 
           {cat === 'alimentacao' && (
             <Field label="O que foi comprado"><TextArea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descreva os itens consumidos…" /></Field>
+          )}
+          
+          {cat === 'manutencao' && (
+            <Field label="Observação"><TextArea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Notas adicionais sobre a manutenção…" /></Field>
           )}
 
           <Field label="Forma de pagamento">

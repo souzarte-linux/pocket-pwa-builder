@@ -128,6 +128,7 @@ export type Database = {
           title: string
           user_id: string
           vendor: string | null
+          receipt_number: string | null
         }
         Insert: {
           amount: number
@@ -144,6 +145,7 @@ export type Database = {
           title: string
           user_id: string
           vendor?: string | null
+          receipt_number?: string | null
         }
         Update: {
           amount?: number
@@ -160,6 +162,37 @@ export type Database = {
           title?: string
           user_id?: string
           vendor?: string | null
+          receipt_number?: string | null
+        }
+        Relationships: []
+      }
+      gas_stations: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          address: string | null
+          brand: string
+          fuel_types: string[]
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          address?: string | null
+          brand: string
+          fuel_types?: string[]
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          address?: string | null
+          brand?: string
+          fuel_types?: string[]
+          created_at?: string
         }
         Relationships: []
       }
