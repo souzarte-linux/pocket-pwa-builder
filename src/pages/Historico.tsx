@@ -361,6 +361,9 @@ const Historico = () => {
   const handleEdit = (x: Tx) => {
     if (x.table === 'routes') {
       navigate(`/rota/nova?id=${x.raw_id}`);
+    } else if (x.table === 'expenses') {
+      const cat = x.tag?.toLowerCase() || 'combustivel';
+      navigate(`/despesa/${cat}?id=${x.raw_id}`);
     } else {
       setEditTarget({ table: x.table, id: x.raw_id, positive: x.positive });
     }

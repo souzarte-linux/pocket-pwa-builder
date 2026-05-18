@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { Field, Input, TextArea, SegButton, SubmitButton, FormShell, Select } from '@/components/forms/Form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CreditCard, QrCode, Banknote, Wallet, Plus } from 'lucide-react';
+import { CreditCard, QrCode, Banknote, Wallet, Plus, Trash2 } from 'lucide-react';
 
 type Cat = 'combustivel' | 'manutencao' | 'alimentacao';
 
@@ -20,6 +20,9 @@ const Despesa = () => {
   const { categoria } = useParams<{ categoria: Cat }>();
   const cat = (categoria ?? 'combustivel') as Cat;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('id');
+  const isEdit = !!editId;
 
   const [vendor, setVendor] = useState('');
   const [title, setTitle] = useState('');
@@ -33,6 +36,7 @@ const Despesa = () => {
   const [receiptNumber, setReceiptNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao' | 'dinheiro' | 'carteira'>('pix');
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
   const [gasStations, setGasStations] = useState<any[]>([]);
 
@@ -40,12 +44,27 @@ const Despesa = () => {
     if (cat === 'combustivel') {
       supabase.from('gas_stations').select('*').order('name').then(({ data }) => {
         setGasStations(data ?? []);
-        if (data && data.length > 0 && !vendor) {
-          // don't auto select, wait for user input
+      });
+    }
+
+    if (editId) {
+      supabase.from('expenses').select('*').eq('id', editId).maybeSingle().then(({ data: e }) => {
+        if (e) {
+          setVendor(e.vendor ?? '');
+          setTitle(e.title ?? '');
+          setAmount(String(e.amount ?? ''));
+          setLiters(String(e.liters ?? ''));
+          setPricePerLiter(String(e.price_per_liter ?? ''));
+          if (e.fuel_type) setFuelType(e.fuel_type);
+          setOdometer(String(e.odometer_km ?? ''));
+          setDate(new Date(e.occurred_at).toISOString().slice(0, 10));
+          setDescription(e.description ?? '');
+          setReceiptNumber(e.receipt_number ?? '');
+          if (e.payment_method) setPaymentMethod(e.payment_method as any);
         }
       });
     }
-  }, [cat]);
+  }, [cat, editId]);
 
   const handlePriceChange = (val: string) => {
     setPricePerLiter(val);
@@ -111,17 +130,50 @@ const Despesa = () => {
       }
     }
 
-    const { error } = await supabase.from('expenses').insert(payload);
+    let error;
+    if (isEdit) {
+      const res = await supabase.from('expenses').update(payload).eq('id', editId);
+      error = res.error;
+    } else {
+      const res = await supabase.from('expenses').insert(payload);
+      error = res.error;
+    }
+
     setLoading(false);
     if (error) return toast.error(error.message);
-    toast.success('Despesa registrada!');
-    navigate('/');
+    toast.success(isEdit ? 'Despesa atualizada!' : 'Despesa registrada!');
+    navigate(isEdit ? '/historico' : '/');
+  };
+
+  const handleDelete = async () => {
+    if (!editId || !confirm('Deseja realmente excluir esta despesa?')) return;
+    setDeleting(true);
+    const { error } = await supabase.from('expenses').delete().eq('id', editId);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success('Despesa excluída!');
+    navigate('/historico');
   };
 
   return (
-    <AppShell back title={titles[cat].title}>
+    <AppShell back title={isEdit ? `EDITAR ${titles[cat].defaultTitle.toUpperCase()}` : titles[cat].title}>
       <form onSubmit={submit}>
-        <FormShell footer={<SubmitButton loading={loading}>SALVAR DESPESA</SubmitButton>}>
+        <FormShell footer={
+          <div className="flex flex-col gap-2 w-full">
+            <SubmitButton loading={loading}>{isEdit ? 'SALVAR ALTERAÇÕES' : 'SALVAR DESPESA'}</SubmitButton>
+            {isEdit && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="w-full h-14 rounded-xl border border-destructive/40 text-destructive font-black tracking-wide flex items-center justify-center gap-2 bg-surface hover:bg-destructive/10 transition active:scale-[0.98]"
+              >
+                <Trash2 className="size-5" />
+                {deleting ? 'EXCLUINDO...' : 'EXCLUIR DESPESA'}
+              </button>
+            )}
+          </div>
+        }>
           
           {cat === 'combustivel' ? (
             <Field label="Posto de abastecimento">
