@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { Field, Input, TextArea, Select, SegButton, SubmitButton, FormShell } from '@/components/forms/Form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { UtensilsCrossed, Package, FileText, Plus } from 'lucide-react';
+import { UtensilsCrossed, Package, FileText, Plus, Trash2 } from 'lucide-react';
 
 const NovaRota = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('id');
+  const isEdit = !!editId;
   const [platforms, setPlatforms] = useState<{ id: string; name: string, segment: string, payment_model: string }[]>([]);
   const [platformId, setPlatformId] = useState('');
   const [origin, setOrigin] = useState('');
@@ -28,6 +31,7 @@ const NovaRota = () => {
 
   const [type, setType] = useState<'alimento' | 'pacote' | 'documento'>('alimento');
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const nowLocal = (offsetMin = 0) => {
     const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000 + offsetMin * 60000);
     return d.toISOString().slice(0, 16);
@@ -40,15 +44,35 @@ const NovaRota = () => {
   const [endKm, setEndKm] = useState<string>('0');
 
   useEffect(() => {
-    supabase.from('platforms').select('id, name, segment, payment_model').eq('active', true).then(({ data }) => {
+    supabase.from('platforms').select('id, name, segment, payment_model').eq('active', true).then(async ({ data }) => {
       setPlatforms(data ?? []);
-      if (data?.[0]) {
+      
+      if (editId) {
+        const { data: r } = await supabase.from('routes').select('*').eq('id', editId).maybeSingle();
+        if (r) {
+          setPlatformId(r.platform_id ?? '');
+          setOrigin(r.origin ?? '');
+          setDestination(r.destination ?? '');
+          setDistance(String(r.distance_km ?? ''));
+          setPackageCount(String(r.package_count ?? '1'));
+          setPackageUnitPrice(String(r.package_unit_price ?? ''));
+          setFixedAmount(String(r.amount ?? ''));
+          setTip(String(r.tip ?? ''));
+          setType(r.product_type as 'alimento' | 'pacote' | 'documento');
+          setOccurredAt(new Date(r.occurred_at).toISOString().slice(0, 16));
+          if (r.started_at) setStartAt(new Date(r.started_at).toISOString().slice(0, 16));
+          if (r.ended_at) setEndAt(new Date(r.ended_at).toISOString().slice(0, 16));
+          setBreakMin(String(r.break_minutes ?? '0'));
+          setStartKm(String(r.start_km ?? '0'));
+          setEndKm(String(r.end_km ?? '0'));
+        }
+      } else if (data?.[0]) {
         setPlatformId(data[0].id);
         if (data[0].segment === 'delivery') setType('alimento');
         else setType('pacote');
       }
     });
-  }, []);
+  }, [editId]);
 
   useEffect(() => {
     const s = Number(startKm.replace(',', '.')) || 0;
@@ -76,7 +100,7 @@ const NovaRota = () => {
       setLoading(false);
       return;
     }
-    const { error } = await supabase.from('routes').insert({
+    const payload = {
       user_id: u.user.id,
       platform_id: platformId || null,
       origin: origin || null,
@@ -93,17 +117,52 @@ const NovaRota = () => {
       break_minutes: Number(breakMin) || 0,
       start_km: sKm,
       end_km: eKm,
-    });
+    };
+
+    let error;
+    if (isEdit) {
+      const res = await supabase.from('routes').update(payload).eq('id', editId);
+      error = res.error;
+    } else {
+      const res = await supabase.from('routes').insert(payload);
+      error = res.error;
+    }
+
     setLoading(false);
     if (error) return toast.error(error.message);
-    toast.success('Rota registrada!');
-    navigate('/');
+    toast.success(isEdit ? 'Rota atualizada!' : 'Rota registrada!');
+    navigate(isEdit ? '/historico' : '/');
+  };
+
+  const handleDelete = async () => {
+    if (!editId || !confirm('Deseja realmente excluir esta rota?')) return;
+    setDeleting(true);
+    const { error } = await supabase.from('routes').delete().eq('id', editId);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success('Rota excluída!');
+    navigate('/historico');
   };
 
   return (
-    <AppShell back title="COURIER PRO" subtitle="Nova entrega — Registrar rota">
+    <AppShell back title="COURIER PRO" subtitle={isEdit ? "Editar entrega" : "Nova entrega — Registrar rota"}>
       <form onSubmit={submit}>
-        <FormShell footer={<SubmitButton loading={loading}>FINALIZAR E REGISTRAR ROTA ›</SubmitButton>}>
+        <FormShell footer={
+          <div className="flex flex-col gap-2 w-full">
+            <SubmitButton loading={loading}>{isEdit ? 'SALVAR ALTERAÇÕES ›' : 'FINALIZAR E REGISTRAR ROTA ›'}</SubmitButton>
+            {isEdit && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="w-full h-14 rounded-xl border border-destructive/40 text-destructive font-black tracking-wide flex items-center justify-center gap-2 bg-surface hover:bg-destructive/10 transition active:scale-[0.98]"
+              >
+                <Trash2 className="size-5" />
+                {deleting ? 'EXCLUINDO...' : 'EXCLUIR ROTA'}
+              </button>
+            )}
+          </div>
+        }>
           <Field label="Plataforma de serviço">
             <div className="flex gap-2">
               <Select value={platformId} onChange={(e) => {
@@ -158,7 +217,7 @@ const NovaRota = () => {
                 />
               </Field>
             </div>
-            
+
             <Field label="Intervalo / descanso (minutos)">
               <Input
                 type="number"
@@ -217,7 +276,7 @@ const NovaRota = () => {
                 <Input inputMode="numeric" value={packageCount} onChange={(e) => setPackageCount(e.target.value)} placeholder="0" />
               </Field>
             )}
-            
+
             {isDiaria ? (
               <Field label="Valor da Diária (R$)">
                 <Input inputMode="decimal" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0,00" />

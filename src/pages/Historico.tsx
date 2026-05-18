@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, TrendingUp, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,6 +38,7 @@ const iconFor = (k: Tx['iconKey']) => {
 };
 
 const Historico = () => {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('todos');
   const [search, setSearch] = useState('');
   const [items, setItems] = useState<Tx[]>([]);
@@ -277,9 +279,13 @@ const Historico = () => {
                     </div>
                     <button
                       type="button"
-                      onClick={() =>
-                        setEditTarget({ table: x.table, id: x.raw_id, positive: x.positive })
-                      }
+                      onClick={() => {
+                        if (x.table === 'routes') {
+                          navigate(`/rota/nova?id=${x.raw_id}`);
+                        } else {
+                          setEditTarget({ table: x.table, id: x.raw_id, positive: x.positive });
+                        }
+                      }}
                       aria-label="Editar"
                       className="size-9 shrink-0 rounded-lg grid place-items-center bg-surface-high text-muted-foreground hover:text-primary hover:bg-primary/10 transition active:scale-95"
                     >
