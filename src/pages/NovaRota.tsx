@@ -50,6 +50,14 @@ const NovaRota = () => {
     });
   }, []);
 
+  useEffect(() => {
+    const s = Number(startKm.replace(',', '.')) || 0;
+    const e = Number(endKm.replace(',', '.')) || 0;
+    if (s > 0 && e > s) {
+      setDistance((e - s).toFixed(1).replace('.', ','));
+    }
+  }, [startKm, endKm]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!startAt || !endAt) return toast.error('Informe início e fim da jornada.');
