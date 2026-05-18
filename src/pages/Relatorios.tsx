@@ -131,6 +131,10 @@ interface Platform {
   id: string;
   name: string;
 }
+interface BillingCycle {
+  total_amount: number;
+  expected_payment_date: string;
+}
 
 const COLORS = [
   'hsl(19 100% 50%)',
@@ -149,6 +153,7 @@ const Relatorios = () => {
   const [dailies, setDailies] = useState<DailyTotal[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [billingCycles, setBillingCycles] = useState<BillingCycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [showPlatformDropdown, setShowPlatformDropdown] = useState(false);
@@ -191,7 +196,7 @@ const Relatorios = () => {
       setLoading(true);
       const sinceISO = range.since.toISOString();
       const untilISO = range.until.toISOString();
-      const [r, d, e, p] = await Promise.all([
+      const [r, d, e, p, b] = await Promise.all([
         supabase
           .from('routes')
           .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price, started_at, ended_at, break_minutes')
@@ -205,11 +210,13 @@ const Relatorios = () => {
         supabase.from('expenses').select('amount, category, occurred_at')
           .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
         supabase.from('platforms').select('id, name'),
+        supabase.from('billing_cycles').select('total_amount, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
       ]);
       setRoutes((r.data ?? []) as Route[]);
       setDailies((d.data ?? []) as DailyTotal[]);
       setExpenses((e.data ?? []) as Expense[]);
       setPlatforms((p.data ?? []) as Platform[]);
+      setBillingCycles((b.data ?? []) as BillingCycle[]);
       setLoading(false);
     };
     load();
@@ -458,6 +465,22 @@ const Relatorios = () => {
       .map(([, v]) => ({ ...v, lucro: Number((v.receita - v.despesa).toFixed(2)) }));
   }, [routes, dailies, expenses, period, selectedPlatform, range]);
 
+  const futureCashFlow = useMemo(() => {
+    const map = new Map<string, number>();
+    billingCycles.forEach(b => {
+      const date = b.expected_payment_date;
+      if (!date) return;
+      map.set(date, (map.get(date) ?? 0) + Number(b.total_amount));
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, amount]) => ({
+        date,
+        label: new Date(`${date}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase(),
+        amount: Number(amount.toFixed(2))
+      }));
+  }, [billingCycles]);
+
   return (
     <AppShell title={'RELATÓRIOS\nINSIGHTS'}>
       <div className="space-y-4">
@@ -610,18 +633,20 @@ const Relatorios = () => {
         <div className="grid grid-cols-2 gap-3">
           <Kpi
             Icon={Banknote}
-            label="Receita"
+            label="Receita Bruta"
             value={formatBRL(stats.totalRevenue)}
             tone="primary"
           />
           <Kpi
             Icon={stats.profit >= 0 ? TrendingUp : TrendingDown}
-            label="Lucro"
+            label="Lucro Líquido"
             value={formatBRL(stats.profit)}
             tone={stats.profit >= 0 ? 'success' : 'destructive'}
           />
-          <Kpi Icon={Gauge} label="R$ / KM" value={formatBRL(stats.revPerKm)} tone="accent" />
-          <Kpi Icon={Clock} label="R$ / Hora" value={formatBRL(stats.revPerHour)} tone="info" />
+          <Kpi Icon={TrendingUp} label="Lucro / KM" value={formatBRL(stats.profitPerKm)} tone="success" />
+          <Kpi Icon={TrendingUp} label="Lucro / Hora" value={formatBRL(stats.profitPerHour)} tone="success" />
+          <Kpi Icon={Gauge} label="Receita / KM" value={formatBRL(stats.revPerKm)} />
+          <Kpi Icon={Clock} label="Receita / Hora" value={formatBRL(stats.revPerHour)} />
           <Kpi Icon={RouteIcon} label="KM rodados" value={formatKm(stats.totalKm)} />
           <Kpi Icon={Clock} label="Horas trab." value={formatHours(stats.hours * 3600000)} />
           <Kpi
@@ -631,8 +656,6 @@ const Relatorios = () => {
             tone="destructive"
           />
           <Kpi Icon={Package} label="Rotas" value={String(stats.routeCount)} />
-          <Kpi Icon={Package} label="Pacotes" value={String(stats.totalPackages)} tone="accent" />
-          <Kpi Icon={Banknote} label="R$ / Pacote" value={formatBRL(stats.avgPackagePrice)} tone="info" />
         </div>
 
         {/* Revenue x Expense x Profit timeline */}
@@ -659,41 +682,80 @@ const Relatorios = () => {
                     formatter={(v: number) => formatBRL(v)}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Line type="monotone" dataKey="receita" stroke="hsl(48 100% 50%)" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="despesa" stroke="hsl(0 84% 60%)" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="lucro" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="receita" name="Receita" stroke="hsl(48 100% 50%)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="despesa" name="Despesa" stroke="hsl(0 84% 60%)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="lucro" name="Lucro Líq." stroke="hsl(142 71% 45%)" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           )}
         </Section>
 
+        {/* Future Cash Flow */}
+        <Section title="FLUXO DE CAIXA FUTURO (FATURAS A RECEBER)">
+          {futureCashFlow.length === 0 ? (
+            <Empty hint="Nenhuma fatura em aberto com data de pagamento futura." />
+          ) : (
+            <>
+              <div className="h-44">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={futureCashFlow} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+                    <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1E1E1E',
+                        border: '1px solid #353534',
+                        borderRadius: 12,
+                        fontSize: 12,
+                        color: '#e5e2e1',
+                      }}
+                      labelStyle={{ color: '#ffb599', fontWeight: 'bold', marginBottom: 4 }}
+                      itemStyle={{ color: '#e5e2e1' }}
+                      label="Projeção"
+                      formatter={(v: number) => formatBRL(v)}
+                      cursor={{ fill: 'rgba(255, 181, 153, 0.1)' }}
+                    />
+                    <Bar dataKey="amount" name="A Receber" radius={[4, 4, 0, 0]} fill="hsl(21 100% 60%)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-3 bg-primary/10 rounded-xl p-3 flex items-center justify-between border border-primary/20">
+                <span className="text-sm font-bold text-primary">TOTAL PROJETADO</span>
+                <span className="display text-xl text-primary">{formatBRL(futureCashFlow.reduce((s, c) => s + c.amount, 0))}</span>
+              </div>
+            </>
+          )}
+        </Section>
+
         {/* Per platform */}
-        <Section title="POR PLATAFORMA">
+        <Section title="POR PLATAFORMA (RENTABILIDADE)">
           {byPlatform.length === 0 ? (
             <Empty hint="Cadastre plataformas e lance rotas." />
           ) : (
             <>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={byPlatform} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
-                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                  <BarChart data={byPlatform.sort((a,b) => b.revPerHour - a.revPerHour)} margin={{ top: 8, right: 4, left: -16, bottom: 0 }} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" horizontal={false} />
+                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                    <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={10} width={80} />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: '#f3f4f6',
-                        border: '1px solid #d1d5db',
+                        backgroundColor: '#1E1E1E',
+                        border: '1px solid #353534',
                         borderRadius: 12,
                         fontSize: 12,
-                        color: '#111827',
+                        color: '#e5e2e1',
                       }}
-                      labelStyle={{ color: '#111827' }}
-                      itemStyle={{ color: '#111827' }}
-                      label="Receita Bruta"
-                      formatter={(v: number) => formatBRL(v)}
+                      labelStyle={{ color: '#ffb599', fontWeight: 'bold', marginBottom: 4 }}
+                      itemStyle={{ color: '#e5e2e1' }}
+                      label="Rentabilidade"
+                      formatter={(v: number) => formatBRL(v) + '/hora'}
+                      cursor={{ fill: 'rgba(255, 181, 153, 0.1)' }}
                     />
-                    <Bar dataKey="receita" radius={[8, 8, 0, 0]}>
+                    <Bar dataKey="revPerHour" name="R$ / Hora" radius={[0, 4, 4, 0]}>
                       {byPlatform.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
@@ -702,7 +764,7 @@ const Relatorios = () => {
                 </ResponsiveContainer>
               </div>
               <ul className="mt-3 divide-y divide-border/40">
-                {byPlatform.map((p, i) => (
+                {byPlatform.sort((a,b) => b.revPerHour - a.revPerHour).map((p, i) => (
                   <li key={p.name} className="py-2 flex items-center gap-3">
                     <span
                       className="size-2.5 rounded-full shrink-0"
@@ -711,10 +773,13 @@ const Relatorios = () => {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm truncate">{p.name}</p>
                       <p className="text-[11px] text-muted-foreground">
-                        {formatBRL(p.revPerKm)}/km · {formatBRL(p.revPerHour)}/h
+                        Receita Bruta: {formatBRL(p.receita)}
                       </p>
                     </div>
-                    <span className="text-primary font-bold text-sm">{formatBRL(p.receita)}</span>
+                    <div className="text-right">
+                      <span className="text-primary font-bold text-sm">{formatBRL(p.revPerHour)}/h</span>
+                      <p className="text-[11px] text-muted-foreground">{formatBRL(p.revPerKm)}/km</p>
+                    </div>
                   </li>
                 ))}
               </ul>
