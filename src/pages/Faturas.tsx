@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL } from '@/lib/format';
-import { Plus, CheckCircle, FileWarning, Wallet } from 'lucide-react';
+import { Plus, CheckCircle, FileWarning, Wallet, Edit } from 'lucide-react';
 import { toast } from 'sonner';
+import { Modal } from '@/components/ui/Modal';
 
 interface BillingCycle {
   id: string;
@@ -21,6 +22,7 @@ const Faturas = () => {
   const navigate = useNavigate();
   const [cycles, setCycles] = useState<BillingCycle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingCycle, setEditingCycle] = useState<BillingCycle | null>(null);
 
   const fetchCycles = async () => {
     setLoading(true);
@@ -88,6 +90,27 @@ const Faturas = () => {
     }
   };
 
+  const saveCycleChanges = async (updatedCycle: BillingCycle) => {
+    const { error } = await supabase
+      .from('billing_cycles')
+      .update({
+        platform_id: updatedCycle.platform_id,
+        period_start: updatedCycle.period_start,
+        period_end: updatedCycle.period_end,
+        expected_payment_date: updatedCycle.expected_payment_date,
+        status: updatedCycle.status,
+      })
+      .eq('id', updatedCycle.id);
+
+    if (error) {
+      toast.error('Erro ao salvar alterações.');
+    } else {
+      toast.success('Fatura atualizada com sucesso!');
+      fetchCycles();
+      setEditingCycle(null);
+    }
+  };
+
   const pending = cycles.filter(c => c.status !== 'pago');
   const paid = cycles.filter(c => c.status === 'pago');
 
@@ -119,14 +142,22 @@ const Faturas = () => {
             <span className="text-sm font-semibold">Previsto: {new Date(c.expected_payment_date).toLocaleDateString('pt-BR')}</span>
           </div>
           
-          {c.status !== 'pago' && (
-            <button 
-              onClick={() => markAsPaid(c.id)}
-              className="h-10 px-4 bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wide rounded-lg active:scale-95 transition-transform"
+          <div className="flex gap-2">
+            {c.status !== 'pago' && (
+              <button 
+                onClick={() => markAsPaid(c.id)}
+                className="h-10 px-4 bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wide rounded-lg active:scale-95 transition-transform"
+              >
+                Baixar Pagamento
+              </button>
+            )}
+            <button
+              onClick={() => setEditingCycle(c)}
+              className="h-10 px-4 bg-secondary text-secondary-foreground font-bold text-xs uppercase tracking-wide rounded-lg active:scale-95 transition-transform"
             >
-              Baixar Pagamento
+              <Edit className="size-4" /> Editar
             </button>
-          )}
+          </div>
         </div>
       </div>
     );
