@@ -46,7 +46,7 @@ const NovaRota = () => {
   useEffect(() => {
     supabase.from('platforms').select('id, name, segment, payment_model').eq('active', true).then(async ({ data }) => {
       setPlatforms(data ?? []);
-      
+
       if (editId) {
         const { data: r } = await supabase.from('routes').select('*').eq('id', editId).maybeSingle();
         if (r) {

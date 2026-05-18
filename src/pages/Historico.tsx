@@ -295,6 +295,16 @@ const Historico = () => {
                 );
               })}
             </ul>
+            <div className="mt-3 flex items-center justify-between px-3 py-2 bg-surface-high/50 rounded-xl border border-border/20">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Saldo do Dia</span>
+              <span className={`text-sm font-black ${
+                list.reduce((acc, x) => acc + (x.positive ? x.amount : -x.amount), 0) >= 0 
+                  ? 'text-primary' 
+                  : 'text-destructive'
+              }`}>
+                {formatBRL(list.reduce((acc, x) => acc + (x.positive ? x.amount : -x.amount), 0))}
+              </span>
+            </div>
           </section>
         ))}
       </div>
