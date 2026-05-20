@@ -6,10 +6,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
 
-type Cycle = 'semanal' | 'quinzenal' | 'mensal' | 'misto';
+type Cycle = 'semanal' | 'quinzenal' | 'mensal' | 'variavel';
 type Segment = 'logistica' | 'delivery';
 type PaymentModel = 'producao' | 'diaria';
-const days = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM'];
+const weekDays = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM'];
+
+// Cycle days for variable billing – stores day-of-month numbers
+const parseCycleDays = (rules: any): number[] => {
+  try {
+    const d = Array.isArray(rules?.cycle_days) ? rules.cycle_days : JSON.parse(rules?.cycle_days ?? '[]');
+    return d.filter((x: any) => typeof x === 'number');
+  } catch { return []; }
+};
 
 const Plataforma = () => {
   const { id } = useParams();
@@ -19,6 +27,8 @@ const Plataforma = () => {
   const [name, setName] = useState('');
   const [cycle, setCycle] = useState<Cycle>('semanal');
   const [paymentDay, setPaymentDay] = useState('QUA');
+  // Variable cycle: list of day-of-month numbers (1-28) when the cycle closes
+  const [cycleDays, setCycleDays] = useState<number[]>([1, 16]);
   const [bankName, setBankName] = useState('');
   const [agency, setAgency] = useState('');
   const [account, setAccount] = useState('');
@@ -28,12 +38,21 @@ const Plataforma = () => {
   const [paymentModel, setPaymentModel] = useState<PaymentModel>('producao');
   const [loading, setLoading] = useState(false);
 
+  const addCycleDay = () => setCycleDays(prev => [...prev, 1].sort((a, b) => a - b));
+  const removeCycleDay = (idx: number) => setCycleDays(prev => prev.filter((_, i) => i !== idx));
+  const updateCycleDay = (idx: number, val: number) => {
+    const clamped = Math.max(1, Math.min(28, val));
+    setCycleDays(prev => prev.map((d, i) => i === idx ? clamped : d).sort((a, b) => a - b));
+  };
+
   useEffect(() => {
     if (!isEdit) return;
     supabase.from('platforms').select('*').eq('id', id).maybeSingle().then(({ data }) => {
       if (!data) return;
       setName(data.name); setCycle(data.cycle as Cycle);
       setPaymentDay(data.payment_day ?? 'QUA');
+      const cd = parseCycleDays(data.rules);
+      if (cd.length > 0) setCycleDays(cd);
       setBankName(data.bank_name ?? ''); setAgency(data.bank_agency ?? '');
       setAccount(data.bank_account ?? ''); setPixType(data.pix_key_type ?? 'CPF');
       setPixKey(data.pix_key ?? '');
@@ -52,7 +71,8 @@ const Plataforma = () => {
       payment_day: cycle === 'semanal' ? paymentDay : null,
       bank_name: bankName || null, bank_agency: agency || null,
       bank_account: account || null, pix_key_type: pixType, pix_key: pixKey || null, active: true,
-      segment, payment_model: paymentModel, rules: {},
+      segment, payment_model: paymentModel,
+      rules: cycle === 'variavel' ? { cycle_days: cycleDays } : {},
     };
     const { error } = isEdit
       ? await supabase.from('platforms').update(payload).eq('id', id!)
@@ -99,16 +119,18 @@ const Plataforma = () => {
 
           <Field label="Ciclo de pagamento">
             <div className="grid grid-cols-2 gap-2">
-              {(['semanal', 'quinzenal', 'mensal', 'misto'] as Cycle[]).map((c) => (
-                <SegButton key={c} active={cycle === c} onClick={() => setCycle(c)}>{c.toUpperCase()}</SegButton>
+              {(['semanal', 'quinzenal', 'mensal', 'variavel'] as Cycle[]).map((c) => (
+                <SegButton key={c} active={cycle === c} onClick={() => setCycle(c)}>
+                  {c === 'variavel' ? 'VARIÁVEL' : c.toUpperCase()}
+                </SegButton>
               ))}
             </div>
           </Field>
 
           {cycle === 'semanal' && (
-            <Field label="Dia do pagamento">
+            <Field label="Dia do pagamento (semanal)">
               <div className="grid grid-cols-7 gap-1.5">
-                {days.map((d) => (
+                {weekDays.map((d) => (
                   <button
                     key={d}
                     type="button"
@@ -118,6 +140,54 @@ const Plataforma = () => {
                 ))}
               </div>
             </Field>
+          )}
+
+          {cycle === 'variavel' && (
+            <div className="rounded-2xl bg-surface border border-border/40 p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="display text-base">Dias de corte do ciclo</h3>
+                <button
+                  type="button"
+                  onClick={addCycleDay}
+                  className="text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-lg hover:bg-primary/20 transition"
+                >
+                  + Adicionar dia
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Informe em quais dias do mês o ciclo fecha (ex: dia 1 e dia 16 para quinzenal variável). O sistema gerará faturas automaticamente nestas datas.
+              </p>
+              <div className="space-y-2">
+                {cycleDays.map((day, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground font-bold w-20">Dia do mês</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={28}
+                      value={day}
+                      onChange={e => updateCycleDay(idx, Number(e.target.value))}
+                      className="flex-1 h-12 px-4 rounded-xl bg-surface-high border border-border/40 focus:border-primary outline-none text-center font-black text-lg text-primary"
+                    />
+                    {cycleDays.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeCycleDay(idx)}
+                        className="size-10 grid place-items-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition"
+                      >
+                        <span className="font-black text-lg">×</span>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-3">
+                <p className="text-xs font-bold text-primary uppercase tracking-wide">Prévia dos fechamentos</p>
+                <p className="text-sm text-foreground mt-1">
+                  {cycleDays.map(d => `Todo dia ${d}`).join(' · ')}
+                </p>
+              </div>
+            </div>
           )}
 
           <div className="rounded-2xl bg-surface border border-border/40 p-4 space-y-4">
