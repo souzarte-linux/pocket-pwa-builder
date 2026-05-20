@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatBRL } from '@/lib/format';
 import { Plus, CheckCircle, FileWarning, Wallet, Pencil, X, Save } from 'lucide-react';
 import { toast } from 'sonner';
-import { startOfWeek, startOfMonth, addDays, getDaysInMonth } from 'date-fns';
+import { startOfWeek, startOfMonth, addDays } from 'date-fns';
 import { Field, Input, Select } from '@/components/forms/Form';
 
 interface BillingCycle {
@@ -85,55 +85,61 @@ const Faturas = () => {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const { data: u } = await supabase.auth.getUser();
+    if (!u?.user) return;
 
     for (const platform of platforms) {
       const rules = platform.rules as any;
 
-      // For variable cycles, use the stored cycle_days
+      // ── Variable cycle (misto): uses cycle_entries [{cut, payDelay}] ──
       if (platform.cycle === 'misto') {
-        const cycleDays: number[] = Array.isArray(rules?.cycle_days) ? rules.cycle_days : [];
-        if (cycleDays.length === 0) continue;
+        const entries: { cut: number; payDelay: number }[] = Array.isArray(rules?.cycle_entries)
+          ? rules.cycle_entries
+          : (Array.isArray(rules?.cycle_days) // legacy migration
+              ? rules.cycle_days.map((d: number) => ({ cut: d, payDelay: rules?.fixed_pay_delay ?? 7 }))
+              : []);
 
-        // Sort the cut days and find the current cycle window
-        const sorted = [...cycleDays].sort((a, b) => a - b);
+        if (entries.length === 0) continue;
+
         const dom = today.getDate();
+        const sorted = [...entries].sort((a, b) => a.cut - b.cut);
 
-        // Find which cut day window today falls in
-        const prevCutDay = sorted.filter(d => d <= dom).pop() ?? sorted[sorted.length - 1];
-        const nextCutIdx = (sorted.indexOf(prevCutDay) + 1) % sorted.length;
-        const nextCutDay = sorted[nextCutIdx];
+        // Find the entry whose cut day has just passed (or is today)
+        const activeEntry = sorted.filter(e => e.cut <= dom).pop() ?? sorted[sorted.length - 1];
+        const prevCut = activeEntry.cut;
+        const prevCutMonth = prevCut <= dom ? today.getMonth() : today.getMonth() - 1;
+        const cycleStart = new Date(today.getFullYear(), prevCutMonth, prevCut);
 
-        const month = today.getMonth();
-        const year = today.getFullYear();
-        const cycleStart = new Date(year, prevCutDay <= dom ? month : month - 1, prevCutDay);
-        const daysInMonth = getDaysInMonth(new Date(year, nextCutDay <= prevCutDay ? month + 1 : month));
-        const rawEnd = new Date(year, nextCutDay <= prevCutDay ? month + 1 : month, nextCutDay - 1);
+        // Find next cut entry
+        const nextEntryIdx = (sorted.indexOf(activeEntry) + 1) % sorted.length;
+        const nextEntry = sorted[nextEntryIdx];
+        const nextCutMonth = nextEntry.cut <= prevCut ? today.getMonth() + 1 : today.getMonth();
+        const rawEnd = new Date(today.getFullYear(), nextCutMonth, nextEntry.cut - 1);
         const cycleEnd = today < rawEnd ? today : rawEnd;
 
-        // Check if there's already an open cycle for this platform in this window
+        // Avoid duplicate cycles for this window
         const { data: existing } = await supabase.from('billing_cycles')
           .select('id')
           .eq('platform_id', platform.id)
           .gte('period_start', cycleStart.toISOString().slice(0, 10))
           .limit(1);
-
         if (existing && existing.length > 0) continue;
 
-        const { data: u } = await supabase.auth.getUser();
-        if (!u.user) continue;
-
+        const payDate = addDays(cycleEnd, activeEntry.payDelay);
         await supabase.from('billing_cycles').insert({
           user_id: u.user.id,
           platform_id: platform.id,
           period_start: cycleStart.toISOString().slice(0, 10),
           period_end: cycleEnd.toISOString().slice(0, 10),
-          expected_payment_date: addDays(cycleEnd, 7).toISOString().slice(0, 10),
+          expected_payment_date: payDate.toISOString().slice(0, 10),
           status: 'open',
         });
         continue;
       }
 
-      // Standard cycles
+      // ── Fixed cycles: semanal, quinzenal, mensal ──
+      const payDelay = Number(rules?.fixed_pay_delay) || 7;
+
       let cycleStart: Date;
       if (platform.cycle === 'semanal') {
         cycleStart = startOfWeek(today, { weekStartsOn: 1 });
@@ -151,18 +157,15 @@ const Faturas = () => {
         .eq('platform_id', platform.id)
         .gte('period_start', cycleStart.toISOString())
         .limit(1);
-
       if (existing && existing.length > 0) continue;
 
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) continue;
-
+      const payDate = addDays(today, payDelay);
       await supabase.from('billing_cycles').insert({
         user_id: u.user.id,
         platform_id: platform.id,
         period_start: cycleStart.toISOString(),
         period_end: today.toISOString(),
-        expected_payment_date: addDays(today, 7).toISOString(),
+        expected_payment_date: payDate.toISOString(),
         status: 'open',
       });
     }
