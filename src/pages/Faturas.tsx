@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL } from '@/lib/format';
-import { Plus, CheckCircle, FileWarning, Wallet, Pencil, X, Save } from 'lucide-react';
+import { Plus, CheckCircle, FileWarning, Wallet, Pencil, X, Save, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { startOfWeek, startOfMonth, addDays } from 'date-fns';
 import { Field, Input, Select } from '@/components/forms/Form';
@@ -38,6 +38,8 @@ const Faturas = () => {
   const [editingCycle, setEditingCycle] = useState<BillingCycle | null>(null);
   const [editState, setEditState] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
+  // Platform filter: 'all' or a specific platform_id
+  const [filterPlatform, setFilterPlatform] = useState<string>('all');
 
   const fetchCycles = async () => {
     setLoading(true);
@@ -225,8 +227,18 @@ const Faturas = () => {
     else { toast.success('Fatura recebida!'); fetchCycles(); }
   };
 
-  const pending = cycles.filter(c => c.status !== 'pago');
-  const paid = cycles.filter(c => c.status === 'pago');
+  // Derive unique platforms from fetched cycles for the filter chips
+  const platformOptions = Array.from(
+    new Map(cycles.map(c => [c.platform_id, c.platform_name ?? ''])).entries()
+  ).map(([id, name]) => ({ id, name }));
+
+  const filterFn = (c: BillingCycle) =>
+    filterPlatform === 'all' || c.platform_id === filterPlatform;
+
+  const pending = cycles.filter(c => c.status !== 'pago').filter(filterFn);
+  const paid = cycles.filter(c => c.status === 'pago').filter(filterFn);
+  const pendingTotal = pending.reduce((acc, c) => acc + (c.total_amount || 0), 0);
+  const paidTotal = paid.reduce((acc, c) => acc + (c.total_amount || 0), 0);
 
   const CycleCard = ({ c }: { c: BillingCycle }) => {
     const isOverdue = c.status !== 'pago' && new Date(c.expected_payment_date) < new Date();
@@ -280,18 +292,69 @@ const Faturas = () => {
   return (
     <AppShell title={'CONTAS A RECEBER\nFATURAS'} back>
       <div className="space-y-6 pb-24">
+
+        {/* ── Platform filter chips ── */}
+        {platformOptions.length > 1 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="size-4 text-primary" />
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Filtrar por plataforma</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setFilterPlatform('all')}
+                className={`h-9 px-4 rounded-full text-xs font-black uppercase tracking-wide transition active:scale-95 ${
+                  filterPlatform === 'all'
+                    ? 'bg-primary text-primary-foreground shadow-fab'
+                    : 'bg-surface border border-border/40 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Todas
+              </button>
+              {platformOptions.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setFilterPlatform(filterPlatform === p.id ? 'all' : p.id)}
+                  className={`h-9 px-4 rounded-full text-xs font-black uppercase tracking-wide transition active:scale-95 ${
+                    filterPlatform === p.id
+                      ? 'bg-primary text-primary-foreground shadow-fab'
+                      : 'bg-surface border border-border/40 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+
+            {filterPlatform !== 'all' && (
+              <div className="flex gap-3 mt-1">
+                <div className="flex-1 rounded-xl bg-primary/5 border border-primary/20 p-3">
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-wide">A receber</p>
+                  <p className="display text-xl text-primary">{formatBRL(pendingTotal)}</p>
+                </div>
+                <div className="flex-1 rounded-xl bg-success/5 border border-success/20 p-3">
+                  <p className="text-[10px] font-bold text-success uppercase tracking-wide">Recebido</p>
+                  <p className="display text-xl text-success">{formatBRL(paidTotal)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Em Aberto</h2>
             <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-md">
-              {formatBRL(pending.reduce((acc, c) => acc + (c.total_amount || 0), 0))}
+              {formatBRL(pendingTotal)}
             </span>
           </div>
           {loading ? (
             <p className="text-sm text-center text-muted-foreground py-8">Carregando...</p>
           ) : pending.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border/40 p-6 text-center bg-surface">
-              <p className="text-sm text-muted-foreground">Nenhuma fatura em aberto.</p>
+              <p className="text-sm text-muted-foreground">
+                {filterPlatform === 'all' ? 'Nenhuma fatura em aberto.' : 'Nenhuma fatura em aberto para esta plataforma.'}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">{pending.map(c => <CycleCard key={c.id} c={c} />)}</div>
