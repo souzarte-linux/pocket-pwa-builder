@@ -90,7 +90,7 @@ const Faturas = () => {
       const rules = platform.rules as any;
 
       // For variable cycles, use the stored cycle_days
-      if (platform.cycle === 'variavel') {
+      if (platform.cycle === 'misto') {
         const cycleDays: number[] = Array.isArray(rules?.cycle_days) ? rules.cycle_days : [];
         if (cycleDays.length === 0) continue;
 

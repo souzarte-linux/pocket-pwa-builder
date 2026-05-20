@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
 
-type Cycle = 'semanal' | 'quinzenal' | 'mensal' | 'variavel';
+type Cycle = 'semanal' | 'quinzenal' | 'mensal' | 'misto';
 type Segment = 'logistica' | 'delivery';
 type PaymentModel = 'producao' | 'diaria';
 const weekDays = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM'];
@@ -72,7 +72,7 @@ const Plataforma = () => {
       bank_name: bankName || null, bank_agency: agency || null,
       bank_account: account || null, pix_key_type: pixType, pix_key: pixKey || null, active: true,
       segment, payment_model: paymentModel,
-      rules: cycle === 'variavel' ? { cycle_days: cycleDays } : {},
+      rules: cycle === 'misto' ? { cycle_days: cycleDays } : {},
     };
     const { error } = isEdit
       ? await supabase.from('platforms').update(payload).eq('id', id!)
@@ -119,9 +119,9 @@ const Plataforma = () => {
 
           <Field label="Ciclo de pagamento">
             <div className="grid grid-cols-2 gap-2">
-              {(['semanal', 'quinzenal', 'mensal', 'variavel'] as Cycle[]).map((c) => (
+              {(['semanal', 'quinzenal', 'mensal', 'misto'] as Cycle[]).map((c) => (
                 <SegButton key={c} active={cycle === c} onClick={() => setCycle(c)}>
-                  {c === 'variavel' ? 'VARIÁVEL' : c.toUpperCase()}
+                  {c === 'misto' ? 'VARIÁVEL' : c.toUpperCase()}
                 </SegButton>
               ))}
             </div>
@@ -142,7 +142,7 @@ const Plataforma = () => {
             </Field>
           )}
 
-          {cycle === 'variavel' && (
+          {cycle === 'misto' && (
             <div className="rounded-2xl bg-surface border border-border/40 p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="display text-base">Dias de corte do ciclo</h3>
