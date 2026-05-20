@@ -119,11 +119,13 @@ const Faturas = () => {
         const rawEnd = new Date(today.getFullYear(), nextCutMonth, nextEntry.cut - 1);
         const cycleEnd = today < rawEnd ? today : rawEnd;
 
-        // Avoid duplicate cycles for this window
+        // Avoid duplicate: check if any open/pending cycle CONTAINS today for this platform
         const { data: existing } = await supabase.from('billing_cycles')
           .select('id')
           .eq('platform_id', platform.id)
-          .gte('period_start', cycleStart.toISOString().slice(0, 10))
+          .in('status', ['open', 'pending'])
+          .lte('period_start', today.toISOString().slice(0, 10))  // started before or on today
+          .gte('period_end', cycleStart.toISOString().slice(0, 10)) // ends after or on cycleStart
           .limit(1);
         if (existing && existing.length > 0) continue;
 
@@ -154,10 +156,15 @@ const Faturas = () => {
         continue;
       }
 
+      // Avoid duplicate: check if any open/pending cycle CONTAINS today for this platform
+      const todayStr = today.toISOString().slice(0, 10);
+      const cycleStartStr = cycleStart.toISOString().slice(0, 10);
       const { data: existing } = await supabase.from('billing_cycles')
         .select('id')
         .eq('platform_id', platform.id)
-        .gte('period_start', cycleStart.toISOString())
+        .in('status', ['open', 'pending'])
+        .lte('period_start', todayStr)   // cycle started on or before today
+        .gte('period_end', cycleStartStr) // cycle ends on or after this cycle's start
         .limit(1);
       if (existing && existing.length > 0) continue;
 
@@ -165,9 +172,9 @@ const Faturas = () => {
       await supabase.from('billing_cycles').insert({
         user_id: u.user.id,
         platform_id: platform.id,
-        period_start: cycleStart.toISOString(),
-        period_end: today.toISOString(),
-        expected_payment_date: payDate.toISOString(),
+        period_start: cycleStartStr,
+        period_end: todayStr,
+        expected_payment_date: addDays(today, payDelay).toISOString().slice(0, 10),
         status: 'open',
       });
     }
