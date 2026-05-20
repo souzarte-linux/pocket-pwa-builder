@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL } from '@/lib/format';
-import { Plus, CheckCircle, FileWarning, Wallet, Pencil, X, Save, SlidersHorizontal } from 'lucide-react';
+import { Plus, CheckCircle, FileWarning, Wallet, Pencil, X, Save, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { startOfWeek, startOfMonth, addDays } from 'date-fns';
 import { Field, Input, Select } from '@/components/forms/Form';
@@ -38,7 +38,7 @@ const Faturas = () => {
   const [editingCycle, setEditingCycle] = useState<BillingCycle | null>(null);
   const [editState, setEditState] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
-  // Platform filter: 'all' or a specific platform_id
+  const [deleting, setDeleting] = useState(false);
   const [filterPlatform, setFilterPlatform] = useState<string>('all');
 
   const fetchCycles = async () => {
@@ -234,6 +234,32 @@ const Faturas = () => {
     else { toast.success('Fatura recebida!'); fetchCycles(); }
   };
 
+  const deleteCycle = async () => {
+    if (!editingCycle) return;
+    if (!confirm(`Excluir permanentemente a fatura de ${editingCycle.platform_name}?\nAs rotas vinculadas serão desassociadas (não excluídas).`)) return;
+    setDeleting(true);
+
+    // 1. Desvincular rotas e totais antes de excluir
+    await supabase.from('routes')
+      .update({ billing_cycle_id: null })
+      .eq('billing_cycle_id', editingCycle.id);
+    await supabase.from('daily_totals')
+      .update({ billing_cycle_id: null })
+      .eq('billing_cycle_id', editingCycle.id);
+    await supabase.from('financial_adjustments')
+      .update({ billing_cycle_id: null })
+      .eq('billing_cycle_id', editingCycle.id);
+
+    // 2. Excluir o ciclo
+    const { error } = await supabase.from('billing_cycles').delete().eq('id', editingCycle.id);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success('Fatura excluída com sucesso!');
+    setEditingCycle(null);
+    setEditState(null);
+    fetchCycles();
+  };
+
   // Derive unique platforms from fetched cycles for the filter chips
   const platformOptions = Array.from(
     new Map(cycles.map(c => [c.platform_id, c.platform_name ?? ''])).entries()
@@ -420,11 +446,20 @@ const Faturas = () => {
 
             <button
               onClick={saveEdit}
-              disabled={saving}
+              disabled={saving || deleting}
               className="w-full h-14 bg-primary text-primary-foreground font-black text-sm uppercase rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition disabled:opacity-60"
             >
               <Save className="size-5" />
               {saving ? 'SALVANDO...' : 'SALVAR ALTERAÇÕES'}
+            </button>
+
+            <button
+              onClick={deleteCycle}
+              disabled={saving || deleting}
+              className="w-full h-12 border border-destructive/40 text-destructive font-black text-sm uppercase rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition hover:bg-destructive/10 disabled:opacity-40"
+            >
+              <Trash2 className="size-4" />
+              {deleting ? 'EXCLUINDO...' : 'EXCLUIR FATURA PERMANENTEMENTE'}
             </button>
           </div>
         </div>
