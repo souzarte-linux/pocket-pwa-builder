@@ -33,6 +33,20 @@ const STATUS_LABEL: Record<string, string> = {
 
 const Faturas = () => {
   const navigate = useNavigate();
+
+  /** Formats 'YYYY-MM-DD' or ISO timestamp to 'DD/MM/YYYY' without timezone shift */
+  const fmtDate = (iso: string) => {
+    const d = iso.slice(0, 10); // take only YYYY-MM-DD
+    const [y, m, day] = d.split('-');
+    return `${day}/${m}/${y}`;
+  };
+  /** Compare date-only string against today for overdue check */
+  const isBeforeToday = (iso: string) => {
+    const d = iso.slice(0, 10);
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    return d < todayStr;
+  };
   const [cycles, setCycles] = useState<BillingCycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCycle, setEditingCycle] = useState<BillingCycle | null>(null);
@@ -274,14 +288,14 @@ const Faturas = () => {
   const paidTotal = paid.reduce((acc, c) => acc + (c.total_amount || 0), 0);
 
   const CycleCard = ({ c }: { c: BillingCycle }) => {
-    const isOverdue = c.status !== 'pago' && new Date(c.expected_payment_date) < new Date();
+    const isOverdue = c.status !== 'pago' && isBeforeToday(c.expected_payment_date);
     return (
       <div className={`rounded-xl p-4 border ${isOverdue ? 'border-destructive/50 bg-destructive/5' : 'border-border/40 bg-surface'}`}>
         <div className="flex justify-between items-start mb-2">
           <div>
             <h3 className="font-bold text-lg">{c.platform_name}</h3>
             <p className="text-xs text-muted-foreground">
-              {new Date(c.period_start).toLocaleDateString('pt-BR')} → {new Date(c.period_end).toLocaleDateString('pt-BR')}
+              {fmtDate(c.period_start)} → {fmtDate(c.period_end)}
             </p>
           </div>
           <div className="text-right">
@@ -299,7 +313,7 @@ const Faturas = () => {
         <div className="flex justify-between items-center mt-4">
           <div className="flex items-center gap-2">
             <Wallet className="size-4 text-muted-foreground" />
-            <span className="text-sm font-semibold">Previsto: {new Date(c.expected_payment_date).toLocaleDateString('pt-BR')}</span>
+            <span className="text-sm font-semibold">Previsto: {fmtDate(c.expected_payment_date)}</span>
           </div>
           <div className="flex gap-2">
             {c.status !== 'pago' && (
