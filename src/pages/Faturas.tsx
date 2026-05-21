@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL } from '@/lib/format';
-import { Plus, CheckCircle, FileWarning, Wallet, Pencil, X, Save, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Plus, CheckCircle, FileWarning, Wallet, Pencil, X, Save, SlidersHorizontal, Trash2, CalendarCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { startOfWeek, startOfMonth, addDays } from 'date-fns';
 import { Field, Input, Select } from '@/components/forms/Form';
@@ -54,6 +54,13 @@ const Faturas = () => {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [filterPlatform, setFilterPlatform] = useState<string>('all');
+  // Pay modal state
+  const [payingCycle, setPayingCycle] = useState<BillingCycle | null>(null);
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  };
+  const [paidDate, setPaidDate] = useState(todayISO());
 
   const fetchCycles = async () => {
     setLoading(true);
@@ -241,11 +248,23 @@ const Faturas = () => {
     fetchCycles();
   };
 
-  const markAsPaid = async (id: string) => {
-    if (!confirm('Confirmar recebimento desta fatura?')) return;
-    const { error } = await supabase.from('billing_cycles').update({ status: 'pago' }).eq('id', id);
-    if (error) toast.error(error.message);
-    else { toast.success('Fatura recebida!'); fetchCycles(); }
+  const openPay = (c: BillingCycle) => {
+    setPayingCycle(c);
+    setPaidDate(todayISO());
+  };
+
+  const confirmPay = async () => {
+    if (!payingCycle) return;
+    setSaving(true);
+    const { error } = await supabase.from('billing_cycles').update({
+      status: 'pago',
+      expected_payment_date: paidDate,
+    }).eq('id', payingCycle.id);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success('Fatura recebida!');
+    setPayingCycle(null);
+    fetchCycles();
   };
 
   const deleteCycle = async () => {
@@ -313,12 +332,14 @@ const Faturas = () => {
         <div className="flex justify-between items-center mt-4">
           <div className="flex items-center gap-2">
             <Wallet className="size-4 text-muted-foreground" />
-            <span className="text-sm font-semibold">Previsto: {fmtDate(c.expected_payment_date)}</span>
+            <span className="text-sm font-semibold">
+              {c.status === 'pago' ? 'Recebido em:' : 'Previsto:'} {fmtDate(c.expected_payment_date)}
+            </span>
           </div>
           <div className="flex gap-2">
             {c.status !== 'pago' && (
               <button
-                onClick={() => markAsPaid(c.id)}
+                onClick={() => openPay(c)}
                 className="h-10 px-4 bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wide rounded-lg active:scale-95 transition-transform flex items-center gap-1.5"
               >
                 <CheckCircle className="size-3.5" /> Baixar
@@ -474,6 +495,39 @@ const Faturas = () => {
             >
               <Trash2 className="size-4" />
               {deleting ? 'EXCLUINDO...' : 'EXCLUIR FATURA PERMANENTEMENTE'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Pay Modal */}
+      {payingCycle && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={() => setPayingCycle(null)}>
+          <div
+            className="w-full max-w-lg bg-surface-container rounded-t-3xl p-6 space-y-5 border-t border-border/40 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="display text-xl">BAIXAR FATURA</h2>
+                <p className="text-sm text-primary font-bold">{payingCycle.platform_name}</p>
+              </div>
+              <button onClick={() => setPayingCycle(null)} className="size-10 grid place-items-center rounded-xl bg-surface-high text-muted-foreground hover:text-foreground">
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <Field label="Data de Recebimento">
+              <Input type="date" value={paidDate} onChange={e => setPaidDate(e.target.value)} />
+            </Field>
+
+            <button
+              onClick={confirmPay}
+              disabled={saving}
+              className="w-full h-14 bg-success text-success-foreground font-black text-sm uppercase rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition disabled:opacity-60"
+            >
+              <CalendarCheck className="size-5" />
+              {saving ? 'PROCESSANDO...' : 'CONFIRMAR RECEBIMENTO'}
             </button>
           </div>
         </div>
