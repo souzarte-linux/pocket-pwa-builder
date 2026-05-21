@@ -655,7 +655,8 @@ const Relatorios = () => {
             value={formatBRL(stats.costPerKm)}
             tone="destructive"
           />
-          <Kpi Icon={Package} label="Rotas" value={String(stats.routeCount)} />
+          <Kpi Icon={MapPin} label="Rotas" value={String(stats.routeCount)} />
+          <Kpi Icon={Package} label="Pacotes" value={String(stats.totalPackages)} />
         </div>
 
         {/* Revenue x Expense x Profit timeline */}
