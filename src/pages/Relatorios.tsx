@@ -278,7 +278,7 @@ const Relatorios = () => {
         ? filteredRoutes.reduce((s, r) => s + Number(r.amount), 0) / totalPackages
         : 0,
     };
-  }, [routes, dailies, expenses, selectedPlatform, range.since, range.until]);
+  }, [routes, dailies, expenses, selectedPlatform, range.since, range.until, platformName]);
 
   // Per platform aggregates
   const byPlatform = useMemo(() => {
@@ -330,7 +330,7 @@ const Relatorios = () => {
         revPerHour: v.ms > 0 ? Number((v.revenue / (v.ms / 3600000)).toFixed(2)) : 0,
       }))
       .sort((a, b) => b.receita - a.receita);
-  }, [routes, dailies, platforms, selectedPlatform, range.since, range.until]);
+  }, [routes, dailies, platforms, selectedPlatform, range.since, range.until, platformName]);
 
   // Categories (product type)
   const byCategory = useMemo(() => {
