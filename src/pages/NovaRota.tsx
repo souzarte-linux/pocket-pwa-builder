@@ -16,7 +16,11 @@ const NovaRota = () => {
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [distance, setDistance] = useState('');
-  const [packageCount, setPackageCount] = useState('1');
+  const [smallPackageCount, setSmallPackageCount] = useState('1');
+  const [largePackageCount, setLargePackageCount] = useState('0');
+  const [largePackagePrices, setLargePackagePrices] = useState<number[]>([]);
+  const [showLargePackageModal, setShowLargePackageModal] = useState(false);
+  const [tempLargePackagePrices, setTempLargePackagePrices] = useState<string[]>([]);
   const [packageUnitPrice, setPackageUnitPrice] = useState('');
   const [fixedAmount, setFixedAmount] = useState('');
   const [tip, setTip] = useState('');
@@ -25,9 +29,36 @@ const NovaRota = () => {
   const isDelivery = selectedP?.segment === 'delivery';
   const isDiaria = selectedP?.payment_model === 'diaria';
 
+  const smallPkgCount = Number(smallPackageCount) || 0;
+  const smallPkgPrice = Number(packageUnitPrice.replace(',', '.')) || 0;
+  const largePkgSum = largePackagePrices.reduce((a, b) => a + (Number(b) || 0), 0);
   const amountNum = (isDelivery || isDiaria)
     ? (Number(fixedAmount.replace(',', '.')) || 0)
-    : (Number(packageCount.replace(',', '.')) || 0) * (Number(packageUnitPrice.replace(',', '.')) || 0);
+    : (smallPkgCount * smallPkgPrice) + largePkgSum;
+
+  const handleLargePackageCountChange = (val: string) => {
+    const count = Math.max(0, parseInt(val) || 0);
+    setLargePackageCount(String(count));
+    if (count > 0) {
+      // prefill temp array with existing prices or empty strings
+      const newTemp = Array.from({ length: count }, (_, i) => String(largePackagePrices[i] ?? ''));
+      setTempLargePackagePrices(newTemp);
+      setShowLargePackageModal(true);
+    } else {
+      setLargePackagePrices([]);
+    }
+  };
+
+  const applyToAllPrices = () => {
+    const firstVal = tempLargePackagePrices[0] || '0';
+    setTempLargePackagePrices(Array(tempLargePackagePrices.length).fill(firstVal));
+  };
+
+  const saveLargePackagePrices = () => {
+    const prices = tempLargePackagePrices.map(p => Number(p.replace(',', '.')) || 0);
+    setLargePackagePrices(prices);
+    setShowLargePackageModal(false);
+  };
 
   const [type, setType] = useState<'alimento' | 'pacote' | 'documento'>('alimento');
   const [loading, setLoading] = useState(false);
@@ -54,7 +85,9 @@ const NovaRota = () => {
           setOrigin(r.origin ?? '');
           setDestination(r.destination ?? '');
           setDistance(String(r.distance_km ?? ''));
-          setPackageCount(String(r.package_count ?? '1'));
+          setSmallPackageCount(String(r.small_packages_count ?? r.package_count ?? '1'));
+          setLargePackageCount(String(r.large_packages_count ?? '0'));
+          setLargePackagePrices((r.large_packages_prices as number[]) ?? []);
           setPackageUnitPrice(String(r.package_unit_price ?? ''));
           setFixedAmount(String(r.amount ?? ''));
           setTip(String(r.tip ?? ''));
@@ -100,6 +133,7 @@ const NovaRota = () => {
       setLoading(false);
       return;
     }
+    const totalCount = isDelivery ? 1 : (Number(smallPackageCount) + Number(largePackageCount));
     const payload = {
       user_id: u.user.id,
       platform_id: platformId || null,
@@ -107,7 +141,7 @@ const NovaRota = () => {
       destination: destination || null,
       distance_km: Number(distance.replace(',', '.')) || 0,
       amount: amountNum,
-      package_count: isDelivery ? 1 : (Number(packageCount.replace(',', '.')) || 0),
+      package_count: totalCount,
       package_unit_price: (isDelivery || isDiaria) ? 0 : (Number(packageUnitPrice.replace(',', '.')) || 0),
       tip: Number(tip.replace(',', '.')) || 0,
       product_type: type,
@@ -117,6 +151,9 @@ const NovaRota = () => {
       break_minutes: Number(breakMin) || 0,
       start_km: sKm,
       end_km: eKm,
+      small_packages_count: isDelivery ? 0 : Number(smallPackageCount),
+      large_packages_count: isDelivery ? 0 : Number(largePackageCount),
+      large_packages_prices: isDelivery ? [] : largePackagePrices,
     };
 
     let error;
@@ -270,27 +307,53 @@ const NovaRota = () => {
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {!isDelivery && (
-              <Field label="Quantidade Pacotes">
-                <Input inputMode="numeric" value={packageCount} onChange={(e) => setPackageCount(e.target.value)} placeholder="0" />
+          {!isDelivery && !isDiaria && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Pacotinhos">
+                <Input inputMode="numeric" value={smallPackageCount} onChange={(e) => setSmallPackageCount(e.target.value)} placeholder="0" />
               </Field>
-            )}
-
-            {isDiaria ? (
-              <Field label="Valor da Diária (R$)">
-                <Input inputMode="decimal" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0,00" />
-              </Field>
-            ) : isDelivery ? (
-              <Field label="Valor da Corrida (R$)">
-                <Input inputMode="decimal" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0,00" />
-              </Field>
-            ) : (
-              <Field label="Valor por Pacote (R$)">
+              <Field label="Valor do Pacotinho (R$)">
                 <Input inputMode="decimal" value={packageUnitPrice} onChange={(e) => setPackageUnitPrice(e.target.value)} placeholder="0,00" />
               </Field>
-            )}
-          </div>
+              
+              <Field label="Volumosos">
+                <div className="flex gap-2">
+                  <Input inputMode="numeric" value={largePackageCount} onChange={(e) => handleLargePackageCountChange(e.target.value)} placeholder="0" />
+                  {Number(largePackageCount) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const count = Number(largePackageCount);
+                        const newTemp = Array.from({ length: count }, (_, i) => String(largePackagePrices[i] ?? ''));
+                        setTempLargePackagePrices(newTemp);
+                        setShowLargePackageModal(true);
+                      }}
+                      className="px-3 rounded-xl bg-surface-bright text-xs text-primary font-bold hover:bg-surface-bright/80 transition shrink-0"
+                    >
+                      Valores
+                    </button>
+                  )}
+                </div>
+              </Field>
+              <Field label="Quantidade Pacotes Total">
+                <Input readOnly disabled value={String(smallPkgCount + (Number(largePackageCount) || 0))} />
+              </Field>
+            </div>
+          )}
+
+          {(isDiaria || isDelivery) && (
+            <div className="grid grid-cols-1 gap-3">
+              {isDiaria ? (
+                <Field label="Valor da Diária (R$)">
+                  <Input inputMode="decimal" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0,00" />
+                </Field>
+              ) : (
+                <Field label="Valor da Corrida (R$)">
+                  <Input inputMode="decimal" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0,00" />
+                </Field>
+              )}
+            </div>
+          )}
 
           <div className="rounded-xl bg-surface-high p-3 flex items-center justify-between">
             <span className="label-up text-xs text-muted-foreground">Valor total</span>
@@ -319,6 +382,68 @@ const NovaRota = () => {
           </div>
         </FormShell>
       </form>
+      {showLargePackageModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowLargePackageModal(false)}>
+          <div
+            className="w-full max-w-lg bg-surface-container rounded-t-3xl p-6 space-y-5 border-t border-border/40 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="display text-xl">VALORES DOS VOLUMOSOS</h2>
+                <p className="text-sm text-primary font-bold">{largePackageCount} pacote(s) volumoso(s)</p>
+              </div>
+              <button type="button" onClick={() => setShowLargePackageModal(false)} className="size-10 grid place-items-center rounded-xl bg-surface-high text-muted-foreground hover:text-foreground">
+                <Package className="size-5" />
+              </button>
+            </div>
+
+            {tempLargePackagePrices.length > 1 && (
+              <button
+                type="button"
+                onClick={applyToAllPrices}
+                className="w-full py-2 bg-surface text-primary font-bold text-xs uppercase rounded-xl border border-primary/20 hover:bg-surface-high active:scale-95 transition"
+              >
+                Aplicar valor do 1º para todos
+              </button>
+            )}
+
+            <div className="max-h-[40vh] overflow-y-auto space-y-3 pr-1">
+              {tempLargePackagePrices.map((price, idx) => (
+                <Field key={idx} label={`Valor do Volume #${idx + 1} (R$)`}>
+                  <Input
+                    inputMode="decimal"
+                    value={price}
+                    onChange={(e) => {
+                      const updated = [...tempLargePackagePrices];
+                      updated[idx] = e.target.value;
+                      setTempLargePackagePrices(updated);
+                    }}
+                    placeholder="0,00"
+                  />
+                </Field>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowLargePackageModal(false)}
+                className="h-14 border border-border/60 text-muted-foreground font-black text-sm uppercase rounded-xl active:scale-[0.98] transition hover:bg-surface-high"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={saveLargePackagePrices}
+                className="h-14 bg-primary text-primary-foreground font-black text-sm uppercase rounded-xl active:scale-[0.98] transition"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 };

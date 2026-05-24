@@ -434,6 +434,9 @@ export type Database = {
           start_km: number
           end_km: number
           billing_cycle_id: string | null
+          small_packages_count: number
+          large_packages_count: number
+          large_packages_prices: number[]
         }
         Insert: {
           amount?: number
@@ -456,6 +459,9 @@ export type Database = {
           start_km?: number
           end_km?: number
           billing_cycle_id?: string | null
+          small_packages_count?: number
+          large_packages_count?: number
+          large_packages_prices?: number[]
         }
         Update: {
           amount?: number
@@ -478,6 +484,9 @@ export type Database = {
           start_km?: number
           end_km?: number
           billing_cycle_id?: string | null
+          small_packages_count?: number
+          large_packages_count?: number
+          large_packages_prices?: number[]
         }
         Relationships: [
           {

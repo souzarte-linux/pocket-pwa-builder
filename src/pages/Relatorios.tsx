@@ -199,7 +199,7 @@ const Relatorios = () => {
       const [r, d, e, p, b] = await Promise.all([
         supabase
           .from('routes')
-          .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price, started_at, ended_at, break_minutes')
+          .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price, started_at, ended_at, break_minutes, small_packages_count, large_packages_count')
           .gte('occurred_at', sinceISO)
           .lte('occurred_at', untilISO),
         supabase
@@ -255,13 +255,17 @@ const Relatorios = () => {
       return s + Math.max(0, duration - breakMs);
     }, 0);
     const hours = totalMs / 3600000;
-    const totalPackages = filteredRoutes.reduce((s, r) => s + Number(r.package_count ?? 0), 0);
+    const totalSmallPackages = filteredRoutes.reduce((s, r) => s + Number(r.small_packages_count ?? r.package_count ?? 0), 0);
+    const totalLargePackages = filteredRoutes.reduce((s, r) => s + Number(r.large_packages_count ?? 0), 0);
+    const totalPackages = totalSmallPackages + totalLargePackages;
     return {
       totalRevenue,
       totalKm,
       totalExpense,
       profit,
       hours,
+      totalSmallPackages,
+      totalLargePackages,
       totalPackages,
       revPerKm: totalKm > 0 ? totalRevenue / totalKm : 0,
       costPerKm: totalKm > 0 ? totalExpense / totalKm : 0,
@@ -656,7 +660,9 @@ const Relatorios = () => {
             tone="destructive"
           />
           <Kpi Icon={MapPin} label="Rotas" value={String(stats.routeCount)} />
-          <Kpi Icon={Package} label="Pacotes" value={String(stats.totalPackages)} />
+          <Kpi Icon={Package} label="Pacotes Totais" value={String(stats.totalPackages)} />
+          <Kpi Icon={Package} label="Pacotinhos" value={String(stats.totalSmallPackages)} />
+          <Kpi Icon={Package} label="Volumosos" value={String(stats.totalLargePackages)} />
         </div>
 
         {/* Revenue x Expense x Profit timeline */}
