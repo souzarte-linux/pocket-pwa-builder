@@ -200,6 +200,7 @@ const NovaRota = () => {
             )}
           </div>
         }>
+          <h3 className="text-sm font-semibold text-primary uppercase">PLATAFORMA</h3>
           <Field label="Plataforma de serviço">
             <div className="flex gap-2">
               <Select value={platformId} onChange={(e) => {
@@ -289,6 +290,8 @@ const NovaRota = () => {
               </Field>
             </div>
           </div>
+
+          <h3 className="text-sm font-semibold text-primary uppercase">LOGISTICA E RECEITA</h3>
 
           <Field label="Origem">
             <Input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Endereço de coleta" />
