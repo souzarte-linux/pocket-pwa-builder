@@ -199,7 +199,7 @@ const Relatorios = () => {
       const [r, d, e, p, b] = await Promise.all([
         supabase
           .from('routes')
-          .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price, started_at, ended_at, break_minutes, small_packages_count, large_packages_count')
+          .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price, started_at, ended_at, break_minutes, small_packages_count, large_packages_count, large_packages_prices')
           .gte('occurred_at', sinceISO)
           .lte('occurred_at', untilISO),
         supabase
@@ -258,6 +258,20 @@ const Relatorios = () => {
     const totalSmallPackages = filteredRoutes.reduce((s, r) => s + Number(r.small_packages_count ?? r.package_count ?? 0), 0);
     const totalLargePackages = filteredRoutes.reduce((s, r) => s + Number(r.large_packages_count ?? 0), 0);
     const totalPackages = totalSmallPackages + totalLargePackages;
+    
+    const smallPackagesValue = filteredRoutes.reduce((s, r) => {
+      if (r.product_type !== 'pacote') return s;
+      const count = Number(r.small_packages_count ?? r.package_count ?? 0);
+      const price = Number(r.package_unit_price ?? 0);
+      return s + (count * price);
+    }, 0);
+
+    const largePackagesValue = filteredRoutes.reduce((s, r) => {
+      if (r.product_type !== 'pacote') return s;
+      const prices = (r as any).large_packages_prices as number[] ?? [];
+      return s + prices.reduce((sum, p) => sum + Number(p), 0);
+    }, 0);
+
     return {
       totalRevenue,
       totalKm,
@@ -267,6 +281,8 @@ const Relatorios = () => {
       totalSmallPackages,
       totalLargePackages,
       totalPackages,
+      smallPackagesValue,
+      largePackagesValue,
       revPerKm: totalKm > 0 ? totalRevenue / totalKm : 0,
       costPerKm: totalKm > 0 ? totalExpense / totalKm : 0,
       profitPerKm: totalKm > 0 ? profit / totalKm : 0,
@@ -662,7 +678,9 @@ const Relatorios = () => {
           <Kpi Icon={MapPin} label="Rotas" value={String(stats.routeCount)} />
           <Kpi Icon={Package} label="Pacotes Totais" value={String(stats.totalPackages)} />
           <Kpi Icon={Package} label="Pacotinhos" value={String(stats.totalSmallPackages)} />
+          <Kpi Icon={Banknote} label="Valor Pacotinhos" value={formatBRL(stats.smallPackagesValue)} tone="primary" />
           <Kpi Icon={Package} label="Volumosos" value={String(stats.totalLargePackages)} />
+          <Kpi Icon={Banknote} label="Valor Volumosos" value={formatBRL(stats.largePackagesValue)} tone="primary" />
         </div>
 
         {/* Revenue x Expense x Profit timeline */}

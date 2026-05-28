@@ -16,6 +16,7 @@ const Painel = () => {
   const [weekly, setWeekly] = useState(0);
   const [goal, setGoal] = useState(3450);
   const [monthly, setMonthly] = useState(0);
+  const [todayPackages, setTodayPackages] = useState(0);
   const [platforms, setPlatforms] = useState<PlatformStat[]>([]);
   const [exp, setExp] = useState({ combustivel: 0, manutencao: 0, alimentacao: 0 });
   const [trend, setTrend] = useState<number[]>([]);
@@ -38,7 +39,7 @@ const Painel = () => {
       const monthStart = startOfMonth();
 
       const sumRoutes = async (gte: string, lte?: string) => {
-        let q = supabase.from('routes').select('amount, tip, platform_id').gte('occurred_at', gte);
+        let q = supabase.from('routes').select('amount, tip, platform_id, package_count, small_packages_count, large_packages_count').gte('occurred_at', gte);
         if (lte) q = q.lte('occurred_at', lte);
         const { data } = await q;
         return data ?? [];
@@ -61,10 +62,16 @@ const Painel = () => {
 
       const sum = (arr: any[]) =>
         arr.reduce((s, r) => s + Number(r.amount) + Number(r.tip ?? 0), 0);
+      
+      const sumPackages = (arr: any[]) =>
+        arr.reduce((s, r) => s + (Number(r.small_packages_count ?? r.package_count ?? 0) + Number(r.large_packages_count ?? 0)), 0);
 
       setDaily(sum(today_r) + sum(today_d));
       setWeekly(sum(week_r) + sum(week_d));
       setMonthly(sum(month_r) + sum(month_d));
+      
+      const totalTodayPackages = sumPackages(today_r);
+      setTodayPackages(totalTodayPackages);
 
       // Earnings by platform (current month)
       const { data: plats } = await supabase.from('platforms').select('id, name');
@@ -131,6 +138,7 @@ const Painel = () => {
           value={formatBRL(daily)}
           trend={`${Math.round(dailyPct)}%`}
           progress={dailyPct}
+          hint={`${todayPackages} pacotes hoje`}
         />
         <StatCard
           label="Lucro Semanal"
