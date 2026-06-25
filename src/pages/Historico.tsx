@@ -390,8 +390,37 @@ const Historico = () => {
 
   const pct = goal > 0 ? Math.min(100, (Math.max(0, todayBalance) / goal) * 100) : 0;
 
+  const catLabel: Record<string, string> = {
+    combustivel: 'Combustível',
+    oleo: 'Óleo / Filtros',
+    pecas: 'Peças / Outros',
+  };
+  const hasFilter = !!(catParam || sinceParam || untilParam);
+  const fmtShort = (iso: string) => {
+    try { return format(new Date(iso), 'dd/MM/yy'); } catch { return iso; }
+  };
+
   return (
     <AppShell>
+      {hasFilter && (
+        <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-primary/10 border border-primary/30 px-3 py-2">
+          <div className="flex items-center gap-2 text-xs min-w-0">
+            <Filter className="size-4 text-primary shrink-0" />
+            <span className="font-bold text-primary uppercase truncate">
+              {catParam ? catLabel[catParam] : 'Filtrado'}
+              {sinceParam && untilParam && ` • ${fmtShort(sinceParam)} – ${fmtShort(untilParam)}`}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSearchParams({})}
+            className="text-[10px] font-bold uppercase text-primary px-2 py-1 rounded-md hover:bg-primary/15"
+          >
+            Limpar
+          </button>
+        </div>
+      )}
+
       {/* Search */}
       <div className="flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 border border-border/40">
         <Search className="size-5 text-muted-foreground" />
