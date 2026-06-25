@@ -251,6 +251,34 @@ const Relatorios = () => {
     load();
   }, [range]);
 
+  // Load maintenance-related historical data (once on mount)
+  useEffect(() => {
+    const loadMaint = async () => {
+      const [profRes, oilRes, expAllRes, routesAllRes] = await Promise.all([
+        supabase.from('profiles').select('oil_change_km, last_oil_change_at').maybeSingle(),
+        supabase.from('oil_changes').select('changed_at, km_at_change').order('changed_at', { ascending: false }),
+        supabase.from('expenses').select('amount, category, occurred_at, title, liters, odometer_km')
+          .in('category', ['combustivel', 'manutencao']),
+        supabase.from('routes').select('end_km, start_km'),
+      ]);
+      if (profRes.data) setMaintProfile(profRes.data as MaintProfile);
+      const oc = (oilRes.data ?? []) as OilChange[];
+      setOilChanges(oc);
+      const allExp = (expAllRes.data ?? []) as Expense[];
+      setAllFuelExpenses(allExp.filter((e) => e.category === 'combustivel'));
+      setAllMaintExpenses(allExp.filter((e) => e.category === 'manutencao'));
+      let maxKm = 0;
+      (routesAllRes.data ?? []).forEach((r: { end_km: number | null; start_km: number | null }) => {
+        const v = Math.max(Number(r.end_km ?? 0), Number(r.start_km ?? 0));
+        if (v > maxKm) maxKm = v;
+      });
+      setMaxRouteKm(maxKm);
+    };
+    loadMaint();
+  }, []);
+
+
+
   const platformName = (id: string | null) =>
     (id && platforms.find((p) => p.id === id)?.name) || 'Sem plataforma';
 
