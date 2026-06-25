@@ -78,7 +78,8 @@ const Plataforma = () => {
       setPaymentDay(data.payment_day ?? 'QUA');
       const entries = parseCycleEntries(data.rules);
       if (entries.length > 0) setCycleEntries(entries);
-      const fd = data.rules?.fixed_pay_delay;
+      const rules = (data.rules ?? {}) as { fixed_pay_delay?: string | number };
+      const fd = rules.fixed_pay_delay;
       if (fd) setFixedPayDelay(String(fd));
       setBankName(data.bank_name ?? '');
       setAgency(data.bank_agency ?? '');
