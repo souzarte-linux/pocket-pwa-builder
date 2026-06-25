@@ -123,6 +123,7 @@ export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
                 value={data.amount ?? ''}
                 onChange={(e) => setData({ ...data, amount: e.target.value })}
                 required
+                placeholder="0,00"
               />
             </Field>
 
@@ -182,12 +183,14 @@ export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
                     step="0.1"
                     value={data.distance_km ?? 0}
                     onChange={(e) => setData({ ...data, distance_km: e.target.value })}
+                    placeholder="Ex: 10,5"
                   />
                 </Field>
                 <Field label="Notas">
                   <Input
                     value={data.notes ?? ''}
                     onChange={(e) => setData({ ...data, notes: e.target.value })}
+                    placeholder="Ex: Dia de chuva, trânsito..."
                   />
                 </Field>
               </>
@@ -200,18 +203,21 @@ export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
                     value={data.title ?? ''}
                     onChange={(e) => setData({ ...data, title: e.target.value })}
                     required
+                    placeholder="Ex: Combustível, Óleo..."
                   />
                 </Field>
                 <Field label="Fornecedor">
                   <Input
                     value={data.vendor ?? ''}
                     onChange={(e) => setData({ ...data, vendor: e.target.value })}
+                    placeholder="Ex: Posto Ipiranga..."
                   />
                 </Field>
                 <Field label="Descrição">
                   <Input
                     value={data.description ?? ''}
                     onChange={(e) => setData({ ...data, description: e.target.value })}
+                    placeholder="Ex: Abastecimento da moto..."
                   />
                 </Field>
               </>

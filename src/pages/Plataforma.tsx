@@ -187,6 +187,7 @@ const Plataforma = () => {
                     min={1}
                     value={fixedPayDelay}
                     onChange={e => setFixedPayDelay(e.target.value)}
+                    placeholder="7"
                     className="flex-1 h-12 px-4 rounded-xl bg-surface-high border border-border/40 focus:border-primary outline-none text-center font-black text-lg text-primary"
                   />
                   <span className="text-sm text-muted-foreground font-bold">dias</span>
@@ -208,6 +209,7 @@ const Plataforma = () => {
                   min={1}
                   value={fixedPayDelay}
                   onChange={e => setFixedPayDelay(e.target.value)}
+                  placeholder="7"
                   className="flex-1 h-12 px-4 rounded-xl bg-surface-high border border-border/40 focus:border-primary outline-none text-center font-black text-lg text-primary"
                 />
                 <span className="text-sm text-muted-foreground font-bold">dias</span>
@@ -262,6 +264,7 @@ const Plataforma = () => {
                             max={28}
                             value={entry.cut}
                             onChange={e => updateEntry(idx, 'cut', Number(e.target.value))}
+                            placeholder="1"
                             className="flex-1 h-12 px-2 rounded-xl bg-surface border border-border/40 focus:border-primary outline-none text-center font-black text-xl text-primary"
                           />
                           <span className="text-xs text-muted-foreground">do mês</span>
@@ -278,6 +281,7 @@ const Plataforma = () => {
                             min={1}
                             value={entry.payDelay}
                             onChange={e => updateEntry(idx, 'payDelay', Number(e.target.value))}
+                            placeholder="7"
                             className="flex-1 h-12 px-2 rounded-xl bg-surface border border-border/40 focus:border-primary outline-none text-center font-black text-xl text-primary"
                           />
                           <span className="text-xs text-muted-foreground">dias<br/>depois</span>

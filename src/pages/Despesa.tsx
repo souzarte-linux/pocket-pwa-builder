@@ -204,13 +204,13 @@ const Despesa = () => {
             </Field>
           ) : (
             <Field label={cat === 'manutencao' ? 'Oficina mecânica' : 'Nome do local'}>
-              <Input value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder={cat === 'alimentacao' ? 'Ex: Restaurante do Silva' : 'Selecione…'} />
+              <Input value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder={cat === 'alimentacao' ? 'Ex: Restaurante do Silva' : cat === 'manutencao' ? 'Ex: Oficina do João' : 'Ex: Nome do estabelecimento...'} />
             </Field>
           )}
 
           {cat !== 'combustivel' && (
             <Field label={cat === 'manutencao' ? 'Peça/Serviço' : 'O que foi comprado'}>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={cat === 'manutencao' ? 'Ex: Troca de óleo' : 'Almoço, lanche…'} />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={cat === 'manutencao' ? 'Ex: Troca de óleo' : 'Ex: Almoço, lanche…'} />
             </Field>
           )}
 
@@ -226,14 +226,14 @@ const Despesa = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Preço/Litro">
-                  <Input inputMode="decimal" value={pricePerLiter} onChange={(e) => handlePriceChange(e.target.value)} placeholder="5,89" />
+                  <Input inputMode="decimal" value={pricePerLiter} onChange={(e) => handlePriceChange(e.target.value)} placeholder="Ex: 5,89" />
                 </Field>
                 <Field label="Litros">
-                  <Input inputMode="decimal" value={liters} onChange={(e) => handleLitersChange(e.target.value)} placeholder="20.00" />
+                  <Input inputMode="decimal" value={liters} onChange={(e) => handleLitersChange(e.target.value)} placeholder="Ex: 20,0" />
                 </Field>
               </div>
               <Field label="Odômetro (km)">
-                <Input inputMode="decimal" value={odometer} onChange={(e) => setOdometer(e.target.value)} placeholder="125450" />
+                <Input inputMode="decimal" value={odometer} onChange={(e) => setOdometer(e.target.value)} placeholder="Ex: 125450" />
               </Field>
             </>
           )}
@@ -243,7 +243,7 @@ const Despesa = () => {
               inputMode="decimal"
               value={amount}
               onChange={(e) => handleAmountChange(e.target.value)}
-              placeholder="R$ 0,00"
+              placeholder="Ex: 0,00"
               className={cat === 'combustivel' ? 'border-2 !border-primary text-primary font-black' : ''}
               required
             />

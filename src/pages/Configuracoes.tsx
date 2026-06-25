@@ -101,7 +101,7 @@ const Configuracoes = () => {
           <FormShell footer={<SubmitButton loading={loading}>SALVAR</SubmitButton>}>
             <h3 className="display text-primary-container text-lg">PERFIL</h3>
             <Field label="Nome completo">
-              <Input value={form.full_name} onChange={(e) => set('full_name', e.target.value)} />
+              <Input value={form.full_name} onChange={(e) => set('full_name', e.target.value)} placeholder="Ex: João da Silva" />
             </Field>
             <Field label="Sexo">
               <Select value={form.gender} onChange={(e) => set('gender', e.target.value)}>
@@ -113,13 +113,13 @@ const Configuracoes = () => {
 
             <h3 className="display text-primary-container text-lg pt-4">METAS</h3>
             <Field label="Meta diária (R$)">
-              <Input type="number" step="0.01" value={form.daily_goal} onChange={(e) => set('daily_goal', e.target.value)} />
+              <Input type="number" step="0.01" value={form.daily_goal} onChange={(e) => set('daily_goal', e.target.value)} placeholder="Ex: 350,00" />
             </Field>
             <Field label="Meta semanal (R$)">
-              <Input type="number" step="0.01" value={form.weekly_goal} onChange={(e) => set('weekly_goal', e.target.value)} />
+              <Input type="number" step="0.01" value={form.weekly_goal} onChange={(e) => set('weekly_goal', e.target.value)} placeholder="Ex: 2.100,00" />
             </Field>
             <Field label="Meta mensal (R$)">
-              <Input type="number" step="0.01" value={form.monthly_goal} onChange={(e) => set('monthly_goal', e.target.value)} />
+              <Input type="number" step="0.01" value={form.monthly_goal} onChange={(e) => set('monthly_goal', e.target.value)} placeholder="Ex: 8.500,00" />
             </Field>
 
             <h3 className="display text-primary-container text-lg pt-4">VEÍCULO</h3>
@@ -131,13 +131,13 @@ const Configuracoes = () => {
                 <option value="patinete">Patinete</option>
               </Select>
             </Field>
-            <Field label="Marca"><Input value={form.vehicle_brand} onChange={(e) => set('vehicle_brand', e.target.value)} /></Field>
-            <Field label="Modelo"><Input value={form.vehicle_model} onChange={(e) => set('vehicle_model', e.target.value)} /></Field>
-            <Field label="Ano de fabricação"><Input type="number" value={form.vehicle_year} onChange={(e) => set('vehicle_year', e.target.value)} /></Field>
-            <Field label="Placa"><Input value={form.plate} onChange={(e) => set('plate', e.target.value.toUpperCase())} /></Field>
-            <Field label="Tamanho do tanque (litros)"><Input type="number" step="0.1" value={form.tank_size_l} onChange={(e) => set('tank_size_l', e.target.value)} /></Field>
-            <Field label="Consumo médio (km/l)"><Input type="number" step="0.1" value={form.avg_consumption_kml} onChange={(e) => set('avg_consumption_kml', e.target.value)} /></Field>
-            <Field label="Troca de óleo a cada (KM)"><Input type="number" value={form.oil_change_km} onChange={(e) => set('oil_change_km', e.target.value)} /></Field>
+            <Field label="Marca"><Input value={form.vehicle_brand} onChange={(e) => set('vehicle_brand', e.target.value)} placeholder="Ex: Honda" /></Field>
+            <Field label="Modelo"><Input value={form.vehicle_model} onChange={(e) => set('vehicle_model', e.target.value)} placeholder="Ex: CG 160" /></Field>
+            <Field label="Ano de fabricação"><Input type="number" value={form.vehicle_year} onChange={(e) => set('vehicle_year', e.target.value)} placeholder="Ex: 2024" /></Field>
+            <Field label="Placa"><Input value={form.plate} onChange={(e) => set('plate', e.target.value.toUpperCase())} placeholder="Ex: ABC-1234" /></Field>
+            <Field label="Tamanho do tanque (litros)"><Input type="number" step="0.1" value={form.tank_size_l} onChange={(e) => set('tank_size_l', e.target.value)} placeholder="Ex: 12" /></Field>
+            <Field label="Consumo médio (km/l)"><Input type="number" step="0.1" value={form.avg_consumption_kml} onChange={(e) => set('avg_consumption_kml', e.target.value)} placeholder="Ex: 40" /></Field>
+            <Field label="Troca de óleo a cada (KM)"><Input type="number" value={form.oil_change_km} onChange={(e) => set('oil_change_km', e.target.value)} placeholder="Ex: 3000" /></Field>
             <Field label="Tamanho do pneu dianteiro"><Input value={form.tire_size_front} onChange={(e) => set('tire_size_front', e.target.value)} placeholder="ex: 80/100-18" /></Field>
             <Field label="Tamanho do pneu traseiro"><Input value={form.tire_size_rear} onChange={(e) => set('tire_size_rear', e.target.value)} placeholder="ex: 90/90-18" /></Field>
             <Field label="Possui Bag ou Baú?">

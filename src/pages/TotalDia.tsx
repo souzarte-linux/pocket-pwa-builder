@@ -73,8 +73,8 @@ const TotalDia = () => {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Distância (km)"><Input inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="0.0" /></Field>
-            <Field label="Valor (R$)"><Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" /></Field>
+            <Field label="Distância (km)"><Input inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="Ex: 10,5" /></Field>
+            <Field label="Valor (R$)"><Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Ex: 150,00" /></Field>
           </div>
 
           <Field label="Tipo de produto">
@@ -85,7 +85,7 @@ const TotalDia = () => {
             </div>
           </Field>
 
-          <Field label="Observações"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Detalhes adicionais da rota…" /></Field>
+          <Field label="Observações"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex: Trânsito intenso, chuva..." /></Field>
         </FormShell>
       </form>
     </AppShell>
