@@ -166,6 +166,7 @@ const COLORS = [
 ];
 
 const Relatorios = () => {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('semana');
   const [customStart, setCustomStart] = useState<string>(daysAgoISO(7));
   const [customEnd, setCustomEnd] = useState<string>(todayISO());
