@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, Settings, Calendar, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -172,9 +172,15 @@ const MonthSection = ({ month, onEdit }: { month: MonthGroup, onEdit: (x: Tx) =>
   )
 };
 
+const OIL_RX = /\b(oleo|óleo|filtro)\b/i;
+
 const Historico = () => {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>('todos');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const catParam = (searchParams.get('cat') || '') as '' | 'combustivel' | 'oleo' | 'pecas';
+  const sinceParam = searchParams.get('since');
+  const untilParam = searchParams.get('until');
+  const [tab, setTab] = useState<Tab>(catParam ? 'despesas' : 'todos');
   const [search, setSearch] = useState('');
   const [items, setItems] = useState<Tx[]>([]);
   const [todayBalance, setTodayBalance] = useState(0);
