@@ -221,16 +221,26 @@ const Relatorios = () => {
           .select('amount, distance_km, platform_id, product_type, occurred_at, subtract_routes')
           .gte('occurred_at', sinceISO)
           .lte('occurred_at', untilISO),
-        supabase.from('expenses').select('amount, category, occurred_at')
+        supabase.from('expenses').select('amount, category, occurred_at, title, liters, odometer_km')
           .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
         supabase.from('platforms').select('id, name'),
-        supabase.from('billing_cycles').select('total_amount, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
+        supabase.from('billing_cycles').select('id, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
       ]);
       setRoutes((r.data ?? []) as Route[]);
       setDailies((d.data ?? []) as DailyTotal[]);
       setExpenses((e.data ?? []) as Expense[]);
       setPlatforms((p.data ?? []) as Platform[]);
-      setBillingCycles((b.data ?? []) as BillingCycle[]);
+      const cycles = (b.data ?? []) as { id: string; expected_payment_date: string }[];
+      const cycleIds = cycles.map((c) => c.id);
+      let totalsByCycle: Record<string, number> = {};
+      if (cycleIds.length > 0) {
+        const rRes = await supabase.from('routes').select('amount, tip, billing_cycle_id').in('billing_cycle_id', cycleIds);
+        (rRes.data ?? []).forEach((row: { amount: number; tip: number | null; billing_cycle_id: string | null }) => {
+          if (!row.billing_cycle_id) return;
+          totalsByCycle[row.billing_cycle_id] = (totalsByCycle[row.billing_cycle_id] ?? 0) + Number(row.amount) + Number(row.tip ?? 0);
+        });
+      }
+      setBillingCycles(cycles.map((c) => ({ total_amount: totalsByCycle[c.id] ?? 0, expected_payment_date: c.expected_payment_date })));
       setLoading(false);
     };
     load();
