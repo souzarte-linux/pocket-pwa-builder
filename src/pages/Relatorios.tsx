@@ -28,6 +28,11 @@ import {
   TrendingUp,
   ChevronDown,
   ChevronUp,
+  Wrench,
+  Fuel,
+  Droplet,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 
 type Period = 'dia' | 'semana' | 'quinzena' | 'mes' | 'ano' | 'custom';
@@ -113,6 +118,9 @@ interface Route {
   break_minutes: number;
   package_count: number | null;
   package_unit_price: number | null;
+  small_packages_count?: number | null;
+  large_packages_count?: number | null;
+  large_packages_prices?: number[] | null;
 }
 interface DailyTotal {
   amount: number;
@@ -126,6 +134,9 @@ interface Expense {
   amount: number;
   category: string;
   occurred_at: string;
+  title?: string | null;
+  liters?: number | null;
+  odometer_km?: number | null;
 }
 interface Platform {
   id: string;
@@ -134,6 +145,14 @@ interface Platform {
 interface BillingCycle {
   total_amount: number;
   expected_payment_date: string;
+}
+interface OilChange {
+  changed_at: string;
+  km_at_change: number;
+}
+interface MaintProfile {
+  oil_change_km: number | null;
+  last_oil_change_at: string | null;
 }
 
 const COLORS = [
@@ -154,6 +173,11 @@ const Relatorios = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [billingCycles, setBillingCycles] = useState<BillingCycle[]>([]);
+  const [oilChanges, setOilChanges] = useState<OilChange[]>([]);
+  const [allMaintExpenses, setAllMaintExpenses] = useState<Expense[]>([]);
+  const [allFuelExpenses, setAllFuelExpenses] = useState<Expense[]>([]);
+  const [maintProfile, setMaintProfile] = useState<MaintProfile | null>(null);
+  const [maxRouteKm, setMaxRouteKm] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [showPlatformDropdown, setShowPlatformDropdown] = useState(false);
@@ -207,20 +231,58 @@ const Relatorios = () => {
           .select('amount, distance_km, platform_id, product_type, occurred_at, subtract_routes')
           .gte('occurred_at', sinceISO)
           .lte('occurred_at', untilISO),
-        supabase.from('expenses').select('amount, category, occurred_at')
+        supabase.from('expenses').select('amount, category, occurred_at, title, liters, odometer_km')
           .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
         supabase.from('platforms').select('id, name'),
-        supabase.from('billing_cycles').select('total_amount, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
+        supabase.from('billing_cycles').select('id, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
       ]);
       setRoutes((r.data ?? []) as Route[]);
       setDailies((d.data ?? []) as DailyTotal[]);
       setExpenses((e.data ?? []) as Expense[]);
       setPlatforms((p.data ?? []) as Platform[]);
-      setBillingCycles((b.data ?? []) as BillingCycle[]);
+      const cycles = (b.data ?? []) as { id: string; expected_payment_date: string }[];
+      const cycleIds = cycles.map((c) => c.id);
+      let totalsByCycle: Record<string, number> = {};
+      if (cycleIds.length > 0) {
+        const rRes = await supabase.from('routes').select('amount, tip, billing_cycle_id').in('billing_cycle_id', cycleIds);
+        (rRes.data ?? []).forEach((row: { amount: number; tip: number | null; billing_cycle_id: string | null }) => {
+          if (!row.billing_cycle_id) return;
+          totalsByCycle[row.billing_cycle_id] = (totalsByCycle[row.billing_cycle_id] ?? 0) + Number(row.amount) + Number(row.tip ?? 0);
+        });
+      }
+      setBillingCycles(cycles.map((c) => ({ total_amount: totalsByCycle[c.id] ?? 0, expected_payment_date: c.expected_payment_date })));
       setLoading(false);
     };
     load();
   }, [range]);
+
+  // Load maintenance-related historical data (once on mount)
+  useEffect(() => {
+    const loadMaint = async () => {
+      const [profRes, oilRes, expAllRes, routesAllRes] = await Promise.all([
+        supabase.from('profiles').select('oil_change_km, last_oil_change_at').maybeSingle(),
+        supabase.from('oil_changes').select('changed_at, km_at_change').order('changed_at', { ascending: false }),
+        supabase.from('expenses').select('amount, category, occurred_at, title, liters, odometer_km')
+          .in('category', ['combustivel', 'manutencao']),
+        supabase.from('routes').select('end_km, start_km'),
+      ]);
+      if (profRes.data) setMaintProfile(profRes.data as MaintProfile);
+      const oc = (oilRes.data ?? []) as OilChange[];
+      setOilChanges(oc);
+      const allExp = (expAllRes.data ?? []) as Expense[];
+      setAllFuelExpenses(allExp.filter((e) => e.category === 'combustivel'));
+      setAllMaintExpenses(allExp.filter((e) => e.category === 'manutencao'));
+      let maxKm = 0;
+      (routesAllRes.data ?? []).forEach((r: { end_km: number | null; start_km: number | null }) => {
+        const v = Math.max(Number(r.end_km ?? 0), Number(r.start_km ?? 0));
+        if (v > maxKm) maxKm = v;
+      });
+      setMaxRouteKm(maxKm);
+    };
+    loadMaint();
+  }, []);
+
+
 
   const platformName = (id: string | null) =>
     (id && platforms.find((p) => p.id === id)?.name) || 'Sem plataforma';
@@ -295,6 +357,91 @@ const Relatorios = () => {
         : 0,
     };
   }, [routes, dailies, expenses, selectedPlatform, range.since, range.until, platformName]);
+
+  // Real fuel consumption in the period (km/L)
+  const realConsumption = useMemo(() => {
+    const periodFuel = expenses.filter((e) => e.category === 'combustivel');
+    const liters = periodFuel.reduce((s, e) => s + Number(e.liters ?? 0), 0);
+    if (liters <= 0) return 0;
+    return stats.totalKm / liters;
+  }, [expenses, stats.totalKm]);
+
+  // Estimated current odometer
+  const currentOdometer = useMemo(() => {
+    let max = maxRouteKm;
+    allFuelExpenses.forEach((e) => {
+      const v = Number(e.odometer_km ?? 0);
+      if (v > max) max = v;
+    });
+    allMaintExpenses.forEach((e) => {
+      const v = Number(e.odometer_km ?? 0);
+      if (v > max) max = v;
+    });
+    oilChanges.forEach((o) => {
+      const v = Number(o.km_at_change ?? 0);
+      if (v > max) max = v;
+    });
+    return max;
+  }, [maxRouteKm, allFuelExpenses, allMaintExpenses, oilChanges]);
+
+  // Period maintenance cost breakdown
+  const maintCostBreakdown = useMemo(() => {
+    const oilKeywords = /\b(oleo|óleo|filtro)\b/i;
+    let fuel = 0;
+    let oil = 0;
+    let parts = 0;
+    expenses.forEach((e) => {
+      const amt = Number(e.amount);
+      if (e.category === 'combustivel') fuel += amt;
+      else if (e.category === 'manutencao') {
+        if (e.title && oilKeywords.test(e.title)) oil += amt;
+        else parts += amt;
+      }
+    });
+    return { fuel, oil, parts, total: fuel + oil + parts };
+  }, [expenses]);
+
+  // Preventive maintenance schedule
+  const maintSchedule = useMemo(() => {
+    const findLastKm = (regex: RegExp): number | null => {
+      let best: { km: number; date: string } | null = null;
+      allMaintExpenses.forEach((e) => {
+        if (!e.title || !regex.test(e.title)) return;
+        const km = Number(e.odometer_km ?? 0);
+        if (!best || new Date(e.occurred_at) > new Date(best.date)) {
+          best = { km, date: e.occurred_at };
+        }
+      });
+      return best ? best.km : null;
+    };
+
+    // Last oil change: prefer oil_changes table, fall back to expenses
+    let lastOilKm: number | null = null;
+    if (oilChanges.length > 0) lastOilKm = Number(oilChanges[0].km_at_change ?? 0);
+    if (lastOilKm == null) lastOilKm = findLastKm(/\b(oleo|óleo)\b/i);
+
+    const oilLife = Number(maintProfile?.oil_change_km ?? 3000) || 3000;
+
+    const items: { name: string; lifeKm: number; lastKm: number | null }[] = [
+      { name: 'Troca de Óleo', lifeKm: oilLife, lastKm: lastOilKm },
+      { name: 'Kit Relação', lifeKm: 15000, lastKm: findLastKm(/relaç|relac|corrent|coroa|pinhão|pinhao/i) },
+      { name: 'Pneu Dianteiro', lifeKm: 15000, lastKm: findLastKm(/pneu.*diant|diant.*pneu/i) },
+      { name: 'Pneu Traseiro', lifeKm: 10000, lastKm: findLastKm(/pneu.*tras|tras.*pneu/i) },
+      { name: 'Pastilhas de Freio', lifeKm: 5000, lastKm: findLastKm(/pastilh|freio/i) },
+      { name: 'Vela de Ignição', lifeKm: 10000, lastKm: findLastKm(/vela|igniç|ignic/i) },
+    ];
+
+    return items.map((it) => {
+      const nextKm = (it.lastKm ?? 0) + it.lifeKm;
+      const remaining = nextKm - currentOdometer;
+      let status: 'ok' | 'warn' | 'critical' = 'ok';
+      if (remaining <= 0) status = 'critical';
+      else if (remaining <= 500) status = 'warn';
+      return { ...it, nextKm, remaining, status };
+    });
+  }, [allMaintExpenses, oilChanges, maintProfile, currentOdometer]);
+
+
 
   // Per platform aggregates
   const byPlatform = useMemo(() => {
@@ -671,10 +818,18 @@ const Relatorios = () => {
           <Kpi Icon={Clock} label="Horas trab." value={formatHours(stats.hours * 3600000)} />
           <Kpi
             Icon={TrendingDown}
-            label="Custo / KM"
+            label="Custo Op. / KM"
             value={formatBRL(stats.costPerKm)}
             tone="destructive"
+            hint="Custo operacional total (todas as despesas do período) dividido pela quilometragem total percorrida no mesmo período."
           />
+          <Kpi
+            Icon={Gauge}
+            label="Consumo Real (km/L)"
+            value={realConsumption > 0 ? `${realConsumption.toFixed(1)} km/L` : '—'}
+            hint="Calculado dinamicamente: KM rodados no período ÷ litros abastecidos (despesas de combustível no período)."
+          />
+
           <Kpi Icon={MapPin} label="Rotas" value={String(stats.routeCount)} />
           <Kpi Icon={Package} label="Pacotes Totais" value={String(stats.totalPackages)} />
           <Kpi Icon={Package} label="Pacotinhos" value={String(stats.totalSmallPackages)} />
@@ -683,7 +838,117 @@ const Relatorios = () => {
           <Kpi Icon={Banknote} label="Valor Volumosos" value={formatBRL(stats.largePackagesValue)} tone="primary" />
         </div>
 
+        {/* Maintenance costs (period) */}
+        <Section title="CUSTOS DE MANUTENÇÃO (PERÍODO)">
+          {maintCostBreakdown.total === 0 ? (
+            <Empty hint="Sem despesas de combustível ou manutenção no período." />
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <Kpi Icon={Fuel} label="Combustível" value={formatBRL(maintCostBreakdown.fuel)} tone="primary" />
+                <Kpi Icon={Droplet} label="Óleo / Filtros" value={formatBRL(maintCostBreakdown.oil)} tone="info" />
+                <Kpi Icon={Wrench} label="Peças / Outros" value={formatBRL(maintCostBreakdown.parts)} tone="destructive" />
+              </div>
+              <div className="h-44">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Combustível', value: Number(maintCostBreakdown.fuel.toFixed(2)) },
+                        { name: 'Óleo / Filtros', value: Number(maintCostBreakdown.oil.toFixed(2)) },
+                        { name: 'Peças / Outros', value: Number(maintCostBreakdown.parts.toFixed(2)) },
+                      ].filter((d) => d.value > 0)}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={36}
+                      outerRadius={64}
+                      strokeWidth={0}
+                    >
+                      {[0, 1, 2].map((i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1E1E1E',
+                        border: '1px solid #353534',
+                        borderRadius: 12,
+                        fontSize: 12,
+                        color: '#e5e2e1',
+                      }}
+                      labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                      itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                      formatter={(v: number) => formatBRL(v)}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          )}
+        </Section>
+
+        {/* Preventive maintenance schedule */}
+        <Section title="MANUTENÇÃO PREVENTIVA">
+          <div className="mb-3 flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Odômetro estimado</span>
+            <span className="font-bold text-foreground">{formatKm(currentOdometer)}</span>
+          </div>
+          <ul className="space-y-2">
+            {maintSchedule.map((it) => {
+              const toneBg =
+                it.status === 'critical'
+                  ? 'bg-destructive/15 border-destructive/40'
+                  : it.status === 'warn'
+                  ? 'bg-warning/15 border-warning/40'
+                  : 'bg-success/10 border-success/30';
+              const toneText =
+                it.status === 'critical'
+                  ? 'text-destructive'
+                  : it.status === 'warn'
+                  ? 'text-warning'
+                  : 'text-success';
+              const StatusIcon =
+                it.status === 'critical' ? AlertTriangle : it.status === 'warn' ? AlertTriangle : CheckCircle2;
+              const statusLabel =
+                it.status === 'critical' ? 'Atrasado' : it.status === 'warn' ? 'Atenção' : 'OK';
+              return (
+                <li
+                  key={it.name}
+                  className={`rounded-xl border p-3 ${toneBg}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-sm">{it.name}</span>
+                    <span className={`inline-flex items-center gap-1 text-[11px] font-bold uppercase ${toneText}`}>
+                      <StatusIcon className="size-3.5" />
+                      {statusLabel}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-[11px] text-muted-foreground">
+                    <div>
+                      <p className="uppercase">Última</p>
+                      <p className="font-semibold text-foreground">
+                        {it.lastKm != null ? formatKm(it.lastKm) : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="uppercase">Próxima</p>
+                      <p className="font-semibold text-foreground">{formatKm(it.nextKm)}</p>
+                    </div>
+                    <div>
+                      <p className="uppercase">Restante</p>
+                      <p className={`font-bold ${toneText}`}>
+                        {it.remaining <= 0 ? `-${formatKm(Math.abs(it.remaining))}` : formatKm(it.remaining)}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Section>
+
         {/* Revenue x Expense x Profit timeline */}
+
         <Section title="DESEMPENHO NO PERÍODO">
           {series.length === 0 ? (
             <Empty />
@@ -882,11 +1147,13 @@ const Kpi = ({
   label,
   value,
   tone = 'foreground',
+  hint,
 }: {
   Icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   tone?: 'primary' | 'success' | 'destructive' | 'accent' | 'info' | 'foreground';
+  hint?: string;
 }) => {
   const toneCls: Record<string, string> = {
     primary: 'text-primary',
@@ -897,15 +1164,26 @@ const Kpi = ({
     foreground: 'text-foreground',
   };
   return (
-    <div className="rounded-xl bg-surface border border-border/40 p-3 shadow-card">
+    <div className="rounded-xl bg-surface border border-border/40 p-3 shadow-card" title={hint}>
       <div className="flex items-center gap-2 mb-1">
         <Icon className={`size-4 ${toneCls[tone]}`} />
-        <span className="label-up text-[10px] text-muted-foreground">{label}</span>
+        <span className="label-up text-[10px] text-muted-foreground flex items-center gap-1">
+          {label}
+          {hint && (
+            <span
+              className="inline-flex items-center justify-center size-3.5 rounded-full bg-surface-high text-[9px] font-bold text-muted-foreground cursor-help"
+              aria-label={hint}
+            >
+              ?
+            </span>
+          )}
+        </span>
       </div>
       <p className={`display text-xl ${toneCls[tone]}`}>{value}</p>
     </div>
   );
 };
+
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="rounded-xl bg-surface border border-border/40 p-4 shadow-card">
