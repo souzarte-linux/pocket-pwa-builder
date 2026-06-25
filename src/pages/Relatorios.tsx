@@ -353,6 +353,91 @@ const Relatorios = () => {
     };
   }, [routes, dailies, expenses, selectedPlatform, range.since, range.until, platformName]);
 
+  // Real fuel consumption in the period (km/L)
+  const realConsumption = useMemo(() => {
+    const periodFuel = expenses.filter((e) => e.category === 'combustivel');
+    const liters = periodFuel.reduce((s, e) => s + Number(e.liters ?? 0), 0);
+    if (liters <= 0) return 0;
+    return stats.totalKm / liters;
+  }, [expenses, stats.totalKm]);
+
+  // Estimated current odometer
+  const currentOdometer = useMemo(() => {
+    let max = maxRouteKm;
+    allFuelExpenses.forEach((e) => {
+      const v = Number(e.odometer_km ?? 0);
+      if (v > max) max = v;
+    });
+    allMaintExpenses.forEach((e) => {
+      const v = Number(e.odometer_km ?? 0);
+      if (v > max) max = v;
+    });
+    oilChanges.forEach((o) => {
+      const v = Number(o.km_at_change ?? 0);
+      if (v > max) max = v;
+    });
+    return max;
+  }, [maxRouteKm, allFuelExpenses, allMaintExpenses, oilChanges]);
+
+  // Period maintenance cost breakdown
+  const maintCostBreakdown = useMemo(() => {
+    const oilKeywords = /\b(oleo|óleo|filtro)\b/i;
+    let fuel = 0;
+    let oil = 0;
+    let parts = 0;
+    expenses.forEach((e) => {
+      const amt = Number(e.amount);
+      if (e.category === 'combustivel') fuel += amt;
+      else if (e.category === 'manutencao') {
+        if (e.title && oilKeywords.test(e.title)) oil += amt;
+        else parts += amt;
+      }
+    });
+    return { fuel, oil, parts, total: fuel + oil + parts };
+  }, [expenses]);
+
+  // Preventive maintenance schedule
+  const maintSchedule = useMemo(() => {
+    const findLastKm = (regex: RegExp): number | null => {
+      let best: { km: number; date: string } | null = null;
+      allMaintExpenses.forEach((e) => {
+        if (!e.title || !regex.test(e.title)) return;
+        const km = Number(e.odometer_km ?? 0);
+        if (!best || new Date(e.occurred_at) > new Date(best.date)) {
+          best = { km, date: e.occurred_at };
+        }
+      });
+      return best ? best.km : null;
+    };
+
+    // Last oil change: prefer oil_changes table, fall back to expenses
+    let lastOilKm: number | null = null;
+    if (oilChanges.length > 0) lastOilKm = Number(oilChanges[0].km_at_change ?? 0);
+    if (lastOilKm == null) lastOilKm = findLastKm(/\b(oleo|óleo)\b/i);
+
+    const oilLife = Number(maintProfile?.oil_change_km ?? 3000) || 3000;
+
+    const items: { name: string; lifeKm: number; lastKm: number | null }[] = [
+      { name: 'Troca de Óleo', lifeKm: oilLife, lastKm: lastOilKm },
+      { name: 'Kit Relação', lifeKm: 15000, lastKm: findLastKm(/relaç|relac|corrent|coroa|pinhão|pinhao/i) },
+      { name: 'Pneu Dianteiro', lifeKm: 15000, lastKm: findLastKm(/pneu.*diant|diant.*pneu/i) },
+      { name: 'Pneu Traseiro', lifeKm: 10000, lastKm: findLastKm(/pneu.*tras|tras.*pneu/i) },
+      { name: 'Pastilhas de Freio', lifeKm: 5000, lastKm: findLastKm(/pastilh|freio/i) },
+      { name: 'Vela de Ignição', lifeKm: 10000, lastKm: findLastKm(/vela|igniç|ignic/i) },
+    ];
+
+    return items.map((it) => {
+      const nextKm = (it.lastKm ?? 0) + it.lifeKm;
+      const remaining = nextKm - currentOdometer;
+      let status: 'ok' | 'warn' | 'critical' = 'ok';
+      if (remaining <= 0) status = 'critical';
+      else if (remaining <= 500) status = 'warn';
+      return { ...it, nextKm, remaining, status };
+    });
+  }, [allMaintExpenses, oilChanges, maintProfile, currentOdometer]);
+
+
+
   // Per platform aggregates
   const byPlatform = useMemo(() => {
     const map = new Map<
