@@ -126,6 +126,9 @@ interface Expense {
   amount: number;
   category: string;
   occurred_at: string;
+  title?: string | null;
+  liters?: number | null;
+  odometer_km?: number | null;
 }
 interface Platform {
   id: string;
@@ -134,6 +137,14 @@ interface Platform {
 interface BillingCycle {
   total_amount: number;
   expected_payment_date: string;
+}
+interface OilChange {
+  changed_at: string;
+  km_at_change: number;
+}
+interface MaintProfile {
+  oil_change_km: number | null;
+  last_oil_change_at: string | null;
 }
 
 const COLORS = [
