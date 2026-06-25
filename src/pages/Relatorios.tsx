@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, formatKm, formatHours } from '@/lib/format';
@@ -1148,12 +1149,14 @@ const Kpi = ({
   value,
   tone = 'foreground',
   hint,
+  onClick,
 }: {
   Icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   tone?: 'primary' | 'success' | 'destructive' | 'accent' | 'info' | 'foreground';
   hint?: string;
+  onClick?: () => void;
 }) => {
   const toneCls: Record<string, string> = {
     primary: 'text-primary',
@@ -1163,8 +1166,14 @@ const Kpi = ({
     info: 'text-info',
     foreground: 'text-foreground',
   };
+  const Tag: any = onClick ? 'button' : 'div';
   return (
-    <div className="rounded-xl bg-surface border border-border/40 p-3 shadow-card" title={hint}>
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`text-left w-full rounded-xl bg-surface border border-border/40 p-3 shadow-card ${onClick ? 'transition hover:border-primary/40 hover:bg-surface-high active:scale-[0.98] cursor-pointer' : ''}`}
+      title={hint}
+    >
       <div className="flex items-center gap-2 mb-1">
         <Icon className={`size-4 ${toneCls[tone]}`} />
         <span className="label-up text-[10px] text-muted-foreground flex items-center gap-1">
@@ -1180,7 +1189,7 @@ const Kpi = ({
         </span>
       </div>
       <p className={`display text-xl ${toneCls[tone]}`}>{value}</p>
-    </div>
+    </Tag>
   );
 };
 
