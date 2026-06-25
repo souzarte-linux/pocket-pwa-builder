@@ -168,6 +168,11 @@ const Relatorios = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [billingCycles, setBillingCycles] = useState<BillingCycle[]>([]);
+  const [oilChanges, setOilChanges] = useState<OilChange[]>([]);
+  const [allMaintExpenses, setAllMaintExpenses] = useState<Expense[]>([]);
+  const [allFuelExpenses, setAllFuelExpenses] = useState<Expense[]>([]);
+  const [maintProfile, setMaintProfile] = useState<MaintProfile | null>(null);
+  const [maxRouteKm, setMaxRouteKm] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [showPlatformDropdown, setShowPlatformDropdown] = useState(false);
