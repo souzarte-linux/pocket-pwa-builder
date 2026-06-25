@@ -290,12 +290,25 @@ const Historico = () => {
           ? x.positive
           : !x.positive
       )
+      .filter((x) => {
+        if (!catParam) return true;
+        if (x.kind !== 'expense') return false;
+        if (catParam === 'combustivel') return x.iconKey === 'fuel';
+        if (catParam === 'oleo') return x.iconKey === 'wrench' && OIL_RX.test(x.title);
+        if (catParam === 'pecas') return x.iconKey === 'wrench' && !OIL_RX.test(x.title);
+        return true;
+      })
+      .filter((x) => {
+        if (sinceParam && x.occurred_at < sinceParam) return false;
+        if (untilParam && x.occurred_at > untilParam) return false;
+        return true;
+      })
       .filter((x) =>
         search.trim()
           ? (x.title + ' ' + x.subtitle).toLowerCase().includes(search.toLowerCase())
           : true
       );
-  }, [items, tab, search]);
+  }, [items, tab, search, catParam, sinceParam, untilParam]);
 
   const months = useMemo(() => {
     const today = new Date();
