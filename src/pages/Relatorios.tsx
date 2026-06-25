@@ -113,6 +113,9 @@ interface Route {
   break_minutes: number;
   package_count: number | null;
   package_unit_price: number | null;
+  small_packages_count?: number | null;
+  large_packages_count?: number | null;
+  large_packages_prices?: number[] | null;
 }
 interface DailyTotal {
   amount: number;
