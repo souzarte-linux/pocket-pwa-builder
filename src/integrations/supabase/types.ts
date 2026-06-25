@@ -16,34 +16,34 @@ export type Database = {
     Tables: {
       billing_cycles: {
         Row: {
-          id: string
-          user_id: string
-          platform_id: string
-          period_start: string
-          period_end: string
-          expected_payment_date: string
-          status: string
           created_at: string
+          expected_payment_date: string
+          id: string
+          period_end: string
+          period_start: string
+          platform_id: string
+          status: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          platform_id: string
-          period_start: string
-          period_end: string
-          expected_payment_date: string
-          status?: string
           created_at?: string
+          expected_payment_date: string
+          id?: string
+          period_end: string
+          period_start: string
+          platform_id: string
+          status?: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          platform_id?: string
-          period_start?: string
-          period_end?: string
-          expected_payment_date?: string
-          status?: string
           created_at?: string
+          expected_payment_date?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          platform_id?: string
+          status?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -52,12 +52,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "platforms"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       daily_totals: {
         Row: {
           amount: number
+          billing_cycle_id: string | null
           created_at: string
           distance_km: number | null
           id: string
@@ -67,10 +68,10 @@ export type Database = {
           product_type: Database["public"]["Enums"]["product_type"] | null
           subtract_routes: boolean | null
           user_id: string
-          billing_cycle_id: string | null
         }
         Insert: {
           amount: number
+          billing_cycle_id?: string | null
           created_at?: string
           distance_km?: number | null
           id?: string
@@ -80,10 +81,10 @@ export type Database = {
           product_type?: Database["public"]["Enums"]["product_type"] | null
           subtract_routes?: boolean | null
           user_id: string
-          billing_cycle_id?: string | null
         }
         Update: {
           amount?: number
+          billing_cycle_id?: string | null
           created_at?: string
           distance_km?: number | null
           id?: string
@@ -93,21 +94,20 @@ export type Database = {
           product_type?: Database["public"]["Enums"]["product_type"] | null
           subtract_routes?: boolean | null
           user_id?: string
-          billing_cycle_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "daily_totals_platform_id_fkey"
-            columns: ["platform_id"]
-            isOneToOne: false
-            referencedRelation: "platforms"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "daily_totals_billing_cycle_id_fkey"
             columns: ["billing_cycle_id"]
             isOneToOne: false
             referencedRelation: "billing_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_totals_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "platforms"
             referencedColumns: ["id"]
           },
         ]
@@ -125,10 +125,10 @@ export type Database = {
           odometer_km: number | null
           payment_method: Database["public"]["Enums"]["payment_method"] | null
           price_per_liter: number | null
+          receipt_number: string | null
           title: string
           user_id: string
           vendor: string | null
-          receipt_number: string | null
         }
         Insert: {
           amount: number
@@ -142,10 +142,10 @@ export type Database = {
           odometer_km?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           price_per_liter?: number | null
+          receipt_number?: string | null
           title: string
           user_id: string
           vendor?: string | null
-          receipt_number?: string | null
         }
         Update: {
           amount?: number
@@ -159,78 +159,55 @@ export type Database = {
           odometer_km?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           price_per_liter?: number | null
+          receipt_number?: string | null
           title?: string
           user_id?: string
           vendor?: string | null
-          receipt_number?: string | null
-        }
-        Relationships: []
-      }
-      gas_stations: {
-        Row: {
-          id: string
-          user_id: string
-          name: string
-          address: string | null
-          brand: string
-          fuel_types: string[]
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          name: string
-          address?: string | null
-          brand: string
-          fuel_types?: string[]
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          name?: string
-          address?: string | null
-          brand?: string
-          fuel_types?: string[]
-          created_at?: string
         }
         Relationships: []
       }
       financial_adjustments: {
         Row: {
-          id: string
-          user_id: string
-          platform_id: string
-          billing_cycle_id: string | null
-          type: string
           amount: number
-          description: string | null
-          occurred_at: string
+          billing_cycle_id: string | null
           created_at: string
+          description: string | null
+          id: string
+          occurred_at: string
+          platform_id: string
+          type: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          platform_id: string
-          billing_cycle_id?: string | null
-          type: string
           amount: number
-          description?: string | null
-          occurred_at: string
+          billing_cycle_id?: string | null
           created_at?: string
+          description?: string | null
+          id?: string
+          occurred_at: string
+          platform_id: string
+          type: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          platform_id?: string
-          billing_cycle_id?: string | null
-          type?: string
           amount?: number
-          description?: string | null
-          occurred_at?: string
+          billing_cycle_id?: string | null
           created_at?: string
+          description?: string | null
+          id?: string
+          occurred_at?: string
+          platform_id?: string
+          type?: string
+          user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "financial_adjustments_billing_cycle_id_fkey"
+            columns: ["billing_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "billing_cycles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "financial_adjustments_platform_id_fkey"
             columns: ["platform_id"]
@@ -238,14 +215,37 @@ export type Database = {
             referencedRelation: "platforms"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "financial_adjustments_billing_cycle_id_fkey"
-            columns: ["billing_cycle_id"]
-            isOneToOne: false
-            referencedRelation: "billing_cycles"
-            referencedColumns: ["id"]
-          }
         ]
+      }
+      gas_stations: {
+        Row: {
+          address: string | null
+          brand: string
+          created_at: string
+          fuel_types: Json | null
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          brand: string
+          created_at?: string
+          fuel_types?: Json | null
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          brand?: string
+          created_at?: string
+          fuel_types?: Json | null
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       oil_changes: {
         Row: {
@@ -285,13 +285,13 @@ export type Database = {
           id: string
           name: string
           payment_day: string | null
+          payment_model: string
           pix_bank: string | null
           pix_key: string | null
           pix_key_type: string | null
-          user_id: string
-          segment: string
-          payment_model: string
           rules: Json
+          segment: string
+          user_id: string
         }
         Insert: {
           active?: boolean
@@ -303,13 +303,13 @@ export type Database = {
           id?: string
           name: string
           payment_day?: string | null
+          payment_model?: string
           pix_bank?: string | null
           pix_key?: string | null
           pix_key_type?: string | null
-          user_id: string
-          segment?: string
-          payment_model?: string
           rules?: Json
+          segment?: string
+          user_id: string
         }
         Update: {
           active?: boolean
@@ -321,13 +321,13 @@ export type Database = {
           id?: string
           name?: string
           payment_day?: string | null
+          payment_model?: string
           pix_bank?: string | null
           pix_key?: string | null
           pix_key_type?: string | null
-          user_id?: string
-          segment?: string
-          payment_model?: string
           rules?: Json
+          segment?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -415,10 +415,16 @@ export type Database = {
       routes: {
         Row: {
           amount: number
+          billing_cycle_id: string | null
+          break_minutes: number
           created_at: string
           destination: string | null
           distance_km: number
+          end_km: number
+          ended_at: string | null
           id: string
+          large_packages_count: number | null
+          large_packages_prices: Json | null
           notes: string | null
           occurred_at: string
           origin: string | null
@@ -426,24 +432,24 @@ export type Database = {
           package_unit_price: number
           platform_id: string | null
           product_type: Database["public"]["Enums"]["product_type"]
+          small_packages_count: number | null
+          start_km: number
+          started_at: string | null
           tip: number
           user_id: string
-          started_at: string | null
-          ended_at: string | null
-          break_minutes: number
-          start_km: number
-          end_km: number
-          billing_cycle_id: string | null
-          small_packages_count: number
-          large_packages_count: number
-          large_packages_prices: number[]
         }
         Insert: {
           amount?: number
+          billing_cycle_id?: string | null
+          break_minutes?: number
           created_at?: string
           destination?: string | null
           distance_km?: number
+          end_km?: number
+          ended_at?: string | null
           id?: string
+          large_packages_count?: number | null
+          large_packages_prices?: Json | null
           notes?: string | null
           occurred_at?: string
           origin?: string | null
@@ -451,24 +457,24 @@ export type Database = {
           package_unit_price?: number
           platform_id?: string | null
           product_type?: Database["public"]["Enums"]["product_type"]
+          small_packages_count?: number | null
+          start_km?: number
+          started_at?: string | null
           tip?: number
           user_id: string
-          started_at?: string | null
-          ended_at?: string | null
-          break_minutes?: number
-          start_km?: number
-          end_km?: number
-          billing_cycle_id?: string | null
-          small_packages_count?: number
-          large_packages_count?: number
-          large_packages_prices?: number[]
         }
         Update: {
           amount?: number
+          billing_cycle_id?: string | null
+          break_minutes?: number
           created_at?: string
           destination?: string | null
           distance_km?: number
+          end_km?: number
+          ended_at?: string | null
           id?: string
+          large_packages_count?: number | null
+          large_packages_prices?: Json | null
           notes?: string | null
           occurred_at?: string
           origin?: string | null
@@ -476,31 +482,25 @@ export type Database = {
           package_unit_price?: number
           platform_id?: string | null
           product_type?: Database["public"]["Enums"]["product_type"]
+          small_packages_count?: number | null
+          start_km?: number
+          started_at?: string | null
           tip?: number
           user_id?: string
-          started_at?: string | null
-          ended_at?: string | null
-          break_minutes?: number
-          start_km?: number
-          end_km?: number
-          billing_cycle_id?: string | null
-          small_packages_count?: number
-          large_packages_count?: number
-          large_packages_prices?: number[]
         }
         Relationships: [
-          {
-            foreignKeyName: "routes_platform_id_fkey"
-            columns: ["platform_id"]
-            isOneToOne: false
-            referencedRelation: "platforms"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "routes_billing_cycle_id_fkey"
             columns: ["billing_cycle_id"]
             isOneToOne: false
             referencedRelation: "billing_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "platforms"
             referencedColumns: ["id"]
           },
         ]
@@ -545,7 +545,15 @@ export type Database = {
           started_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "work_sessions_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "platforms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
