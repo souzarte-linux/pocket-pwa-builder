@@ -28,6 +28,11 @@ import {
   TrendingUp,
   ChevronDown,
   ChevronUp,
+  Wrench,
+  Fuel,
+  Droplet,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 
 type Period = 'dia' | 'semana' | 'quinzena' | 'mes' | 'ano' | 'custom';
