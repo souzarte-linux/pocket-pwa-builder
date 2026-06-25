@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, Settings, Calendar, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -172,9 +172,15 @@ const MonthSection = ({ month, onEdit }: { month: MonthGroup, onEdit: (x: Tx) =>
   )
 };
 
+const OIL_RX = /\b(oleo|óleo|filtro)\b/i;
+
 const Historico = () => {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>('todos');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const catParam = (searchParams.get('cat') || '') as '' | 'combustivel' | 'oleo' | 'pecas';
+  const sinceParam = searchParams.get('since');
+  const untilParam = searchParams.get('until');
+  const [tab, setTab] = useState<Tab>(catParam ? 'despesas' : 'todos');
   const [search, setSearch] = useState('');
   const [items, setItems] = useState<Tx[]>([]);
   const [todayBalance, setTodayBalance] = useState(0);
@@ -284,12 +290,25 @@ const Historico = () => {
           ? x.positive
           : !x.positive
       )
+      .filter((x) => {
+        if (!catParam) return true;
+        if (x.kind !== 'expense') return false;
+        if (catParam === 'combustivel') return x.iconKey === 'fuel';
+        if (catParam === 'oleo') return x.iconKey === 'wrench' && OIL_RX.test(x.title);
+        if (catParam === 'pecas') return x.iconKey === 'wrench' && !OIL_RX.test(x.title);
+        return true;
+      })
+      .filter((x) => {
+        if (sinceParam && x.occurred_at < sinceParam) return false;
+        if (untilParam && x.occurred_at > untilParam) return false;
+        return true;
+      })
       .filter((x) =>
         search.trim()
           ? (x.title + ' ' + x.subtitle).toLowerCase().includes(search.toLowerCase())
           : true
       );
-  }, [items, tab, search]);
+  }, [items, tab, search, catParam, sinceParam, untilParam]);
 
   const months = useMemo(() => {
     const today = new Date();
@@ -371,8 +390,37 @@ const Historico = () => {
 
   const pct = goal > 0 ? Math.min(100, (Math.max(0, todayBalance) / goal) * 100) : 0;
 
+  const catLabel: Record<string, string> = {
+    combustivel: 'Combustível',
+    oleo: 'Óleo / Filtros',
+    pecas: 'Peças / Outros',
+  };
+  const hasFilter = !!(catParam || sinceParam || untilParam);
+  const fmtShort = (iso: string) => {
+    try { return format(new Date(iso), 'dd/MM/yy'); } catch { return iso; }
+  };
+
   return (
     <AppShell>
+      {hasFilter && (
+        <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-primary/10 border border-primary/30 px-3 py-2">
+          <div className="flex items-center gap-2 text-xs min-w-0">
+            <Filter className="size-4 text-primary shrink-0" />
+            <span className="font-bold text-primary uppercase truncate">
+              {catParam ? catLabel[catParam] : 'Filtrado'}
+              {sinceParam && untilParam && ` • ${fmtShort(sinceParam)} – ${fmtShort(untilParam)}`}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSearchParams({})}
+            className="text-[10px] font-bold uppercase text-primary px-2 py-1 rounded-md hover:bg-primary/15"
+          >
+            Limpar
+          </button>
+        </div>
+      )}
+
       {/* Search */}
       <div className="flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 border border-border/40">
         <Search className="size-5 text-muted-foreground" />

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, formatKm, formatHours } from '@/lib/format';
@@ -165,6 +166,7 @@ const COLORS = [
 ];
 
 const Relatorios = () => {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('semana');
   const [customStart, setCustomStart] = useState<string>(daysAgoISO(7));
   const [customEnd, setCustomEnd] = useState<string>(todayISO());
@@ -844,45 +846,62 @@ const Relatorios = () => {
             <Empty hint="Sem despesas de combustível ou manutenção no período." />
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                <Kpi Icon={Fuel} label="Combustível" value={formatBRL(maintCostBreakdown.fuel)} tone="primary" />
-                <Kpi Icon={Droplet} label="Óleo / Filtros" value={formatBRL(maintCostBreakdown.oil)} tone="info" />
-                <Kpi Icon={Wrench} label="Peças / Outros" value={formatBRL(maintCostBreakdown.parts)} tone="destructive" />
-              </div>
-              <div className="h-44">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: 'Combustível', value: Number(maintCostBreakdown.fuel.toFixed(2)) },
-                        { name: 'Óleo / Filtros', value: Number(maintCostBreakdown.oil.toFixed(2)) },
-                        { name: 'Peças / Outros', value: Number(maintCostBreakdown.parts.toFixed(2)) },
-                      ].filter((d) => d.value > 0)}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={36}
-                      outerRadius={64}
-                      strokeWidth={0}
-                    >
-                      {[0, 1, 2].map((i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#1E1E1E',
-                        border: '1px solid #353534',
-                        borderRadius: 12,
-                        fontSize: 12,
-                        color: '#e5e2e1',
-                      }}
-                      labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
-                      itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
-                      formatter={(v: number) => formatBRL(v)}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              {(() => {
+                const sinceISO = range.since.toISOString();
+                const untilISO = range.until.toISOString();
+                const goCat = (cat: 'combustivel' | 'oleo' | 'pecas') =>
+                  navigate(`/historico?cat=${cat}&since=${encodeURIComponent(sinceISO)}&until=${encodeURIComponent(untilISO)}`);
+                const pieData = [
+                  { key: 'combustivel' as const, name: 'Combustível', value: Number(maintCostBreakdown.fuel.toFixed(2)) },
+                  { key: 'oleo' as const, name: 'Óleo / Filtros', value: Number(maintCostBreakdown.oil.toFixed(2)) },
+                  { key: 'pecas' as const, name: 'Peças / Outros', value: Number(maintCostBreakdown.parts.toFixed(2)) },
+                ].filter((d) => d.value > 0);
+                return (
+                  <>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <Kpi Icon={Fuel} label="Combustível" value={formatBRL(maintCostBreakdown.fuel)} tone="primary" onClick={() => goCat('combustivel')} hint="Ver despesas de combustível no período" />
+                      <Kpi Icon={Droplet} label="Óleo / Filtros" value={formatBRL(maintCostBreakdown.oil)} tone="info" onClick={() => goCat('oleo')} hint="Ver despesas de óleo/filtros no período" />
+                      <Kpi Icon={Wrench} label="Peças / Outros" value={formatBRL(maintCostBreakdown.parts)} tone="destructive" onClick={() => goCat('pecas')} hint="Ver despesas de peças/outros no período" />
+                    </div>
+                    <div className="h-44">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={36}
+                            outerRadius={64}
+                            strokeWidth={0}
+                            onClick={(_, idx) => {
+                              const d = pieData[idx];
+                              if (d) goCat(d.key);
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {pieData.map((_, i) => (
+                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: '#1E1E1E',
+                              border: '1px solid #353534',
+                              borderRadius: 12,
+                              fontSize: 12,
+                              color: '#e5e2e1',
+                            }}
+                            labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                            itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                            formatter={(v: number) => formatBRL(v)}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <p className="mt-2 text-[10px] text-muted-foreground text-center">Toque em um card ou fatia para ver as despesas filtradas.</p>
+                  </>
+                );
+              })()}
             </>
           )}
         </Section>
@@ -1148,12 +1167,14 @@ const Kpi = ({
   value,
   tone = 'foreground',
   hint,
+  onClick,
 }: {
   Icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   tone?: 'primary' | 'success' | 'destructive' | 'accent' | 'info' | 'foreground';
   hint?: string;
+  onClick?: () => void;
 }) => {
   const toneCls: Record<string, string> = {
     primary: 'text-primary',
@@ -1163,8 +1184,14 @@ const Kpi = ({
     info: 'text-info',
     foreground: 'text-foreground',
   };
+  const Tag: any = onClick ? 'button' : 'div';
   return (
-    <div className="rounded-xl bg-surface border border-border/40 p-3 shadow-card" title={hint}>
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`text-left w-full rounded-xl bg-surface border border-border/40 p-3 shadow-card ${onClick ? 'transition hover:border-primary/40 hover:bg-surface-high active:scale-[0.98] cursor-pointer' : ''}`}
+      title={hint}
+    >
       <div className="flex items-center gap-2 mb-1">
         <Icon className={`size-4 ${toneCls[tone]}`} />
         <span className="label-up text-[10px] text-muted-foreground flex items-center gap-1">
@@ -1180,7 +1207,7 @@ const Kpi = ({
         </span>
       </div>
       <p className={`display text-xl ${toneCls[tone]}`}>{value}</p>
-    </div>
+    </Tag>
   );
 };
 
