@@ -838,7 +838,117 @@ const Relatorios = () => {
           <Kpi Icon={Banknote} label="Valor Volumosos" value={formatBRL(stats.largePackagesValue)} tone="primary" />
         </div>
 
+        {/* Maintenance costs (period) */}
+        <Section title="CUSTOS DE MANUTENÇÃO (PERÍODO)">
+          {maintCostBreakdown.total === 0 ? (
+            <Empty hint="Sem despesas de combustível ou manutenção no período." />
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <Kpi Icon={Fuel} label="Combustível" value={formatBRL(maintCostBreakdown.fuel)} tone="primary" />
+                <Kpi Icon={Droplet} label="Óleo / Filtros" value={formatBRL(maintCostBreakdown.oil)} tone="info" />
+                <Kpi Icon={Wrench} label="Peças / Outros" value={formatBRL(maintCostBreakdown.parts)} tone="destructive" />
+              </div>
+              <div className="h-44">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Combustível', value: Number(maintCostBreakdown.fuel.toFixed(2)) },
+                        { name: 'Óleo / Filtros', value: Number(maintCostBreakdown.oil.toFixed(2)) },
+                        { name: 'Peças / Outros', value: Number(maintCostBreakdown.parts.toFixed(2)) },
+                      ].filter((d) => d.value > 0)}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={36}
+                      outerRadius={64}
+                      strokeWidth={0}
+                    >
+                      {[0, 1, 2].map((i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1E1E1E',
+                        border: '1px solid #353534',
+                        borderRadius: 12,
+                        fontSize: 12,
+                        color: '#e5e2e1',
+                      }}
+                      labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                      itemStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                      formatter={(v: number) => formatBRL(v)}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          )}
+        </Section>
+
+        {/* Preventive maintenance schedule */}
+        <Section title="MANUTENÇÃO PREVENTIVA">
+          <div className="mb-3 flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Odômetro estimado</span>
+            <span className="font-bold text-foreground">{formatKm(currentOdometer)}</span>
+          </div>
+          <ul className="space-y-2">
+            {maintSchedule.map((it) => {
+              const toneBg =
+                it.status === 'critical'
+                  ? 'bg-destructive/15 border-destructive/40'
+                  : it.status === 'warn'
+                  ? 'bg-warning/15 border-warning/40'
+                  : 'bg-success/10 border-success/30';
+              const toneText =
+                it.status === 'critical'
+                  ? 'text-destructive'
+                  : it.status === 'warn'
+                  ? 'text-warning'
+                  : 'text-success';
+              const StatusIcon =
+                it.status === 'critical' ? AlertTriangle : it.status === 'warn' ? AlertTriangle : CheckCircle2;
+              const statusLabel =
+                it.status === 'critical' ? 'Atrasado' : it.status === 'warn' ? 'Atenção' : 'OK';
+              return (
+                <li
+                  key={it.name}
+                  className={`rounded-xl border p-3 ${toneBg}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-sm">{it.name}</span>
+                    <span className={`inline-flex items-center gap-1 text-[11px] font-bold uppercase ${toneText}`}>
+                      <StatusIcon className="size-3.5" />
+                      {statusLabel}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-[11px] text-muted-foreground">
+                    <div>
+                      <p className="uppercase">Última</p>
+                      <p className="font-semibold text-foreground">
+                        {it.lastKm != null ? formatKm(it.lastKm) : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="uppercase">Próxima</p>
+                      <p className="font-semibold text-foreground">{formatKm(it.nextKm)}</p>
+                    </div>
+                    <div>
+                      <p className="uppercase">Restante</p>
+                      <p className={`font-bold ${toneText}`}>
+                        {it.remaining <= 0 ? `-${formatKm(Math.abs(it.remaining))}` : formatKm(it.remaining)}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Section>
+
         {/* Revenue x Expense x Profit timeline */}
+
         <Section title="DESEMPENHO NO PERÍODO">
           {series.length === 0 ? (
             <Empty />
