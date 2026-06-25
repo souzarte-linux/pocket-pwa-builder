@@ -813,10 +813,18 @@ const Relatorios = () => {
           <Kpi Icon={Clock} label="Horas trab." value={formatHours(stats.hours * 3600000)} />
           <Kpi
             Icon={TrendingDown}
-            label="Custo / KM"
+            label="Custo Op. / KM"
             value={formatBRL(stats.costPerKm)}
             tone="destructive"
+            hint="Custo operacional total (todas as despesas do período) dividido pela quilometragem total percorrida no mesmo período."
           />
+          <Kpi
+            Icon={Gauge}
+            label="Consumo Real (km/L)"
+            value={realConsumption > 0 ? `${realConsumption.toFixed(1)} km/L` : '—'}
+            hint="Calculado dinamicamente: KM rodados no período ÷ litros abastecidos (despesas de combustível no período)."
+          />
+
           <Kpi Icon={MapPin} label="Rotas" value={String(stats.routeCount)} />
           <Kpi Icon={Package} label="Pacotes Totais" value={String(stats.totalPackages)} />
           <Kpi Icon={Package} label="Pacotinhos" value={String(stats.totalSmallPackages)} />
