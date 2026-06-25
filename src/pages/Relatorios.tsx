@@ -1032,11 +1032,13 @@ const Kpi = ({
   label,
   value,
   tone = 'foreground',
+  hint,
 }: {
   Icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   tone?: 'primary' | 'success' | 'destructive' | 'accent' | 'info' | 'foreground';
+  hint?: string;
 }) => {
   const toneCls: Record<string, string> = {
     primary: 'text-primary',
@@ -1047,15 +1049,26 @@ const Kpi = ({
     foreground: 'text-foreground',
   };
   return (
-    <div className="rounded-xl bg-surface border border-border/40 p-3 shadow-card">
+    <div className="rounded-xl bg-surface border border-border/40 p-3 shadow-card" title={hint}>
       <div className="flex items-center gap-2 mb-1">
         <Icon className={`size-4 ${toneCls[tone]}`} />
-        <span className="label-up text-[10px] text-muted-foreground">{label}</span>
+        <span className="label-up text-[10px] text-muted-foreground flex items-center gap-1">
+          {label}
+          {hint && (
+            <span
+              className="inline-flex items-center justify-center size-3.5 rounded-full bg-surface-high text-[9px] font-bold text-muted-foreground cursor-help"
+              aria-label={hint}
+            >
+              ?
+            </span>
+          )}
+        </span>
       </div>
       <p className={`display text-xl ${toneCls[tone]}`}>{value}</p>
     </div>
   );
 };
+
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="rounded-xl bg-surface border border-border/40 p-4 shadow-card">
