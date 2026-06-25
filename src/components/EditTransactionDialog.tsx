@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
+import { toLocalInput } from '@/lib/format';
 
 export type EditTarget = {
   table: 'routes' | 'daily_totals' | 'expenses';
@@ -101,7 +102,7 @@ export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
       : 'Editar rota';
 
   const dateValue = data?.occurred_at
-    ? new Date(data.occurred_at).toISOString().slice(0, 16)
+    ? toLocalInput(data.occurred_at)
     : '';
 
   return (
@@ -142,28 +143,32 @@ export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
                   <Input
                     type="number"
                     step="0.01"
-                    value={data.tip ?? 0}
+                    value={data.tip || ''}
                     onChange={(e) => setData({ ...data, tip: e.target.value })}
+                    placeholder="Ex: 5,00"
                   />
                 </Field>
                 <Field label="Distância (km)">
                   <Input
                     type="number"
                     step="0.1"
-                    value={data.distance_km ?? 0}
+                    value={data.distance_km || ''}
                     onChange={(e) => setData({ ...data, distance_km: e.target.value })}
+                    placeholder="Ex: 10,5"
                   />
                 </Field>
                 <Field label="Origem">
                   <Input
                     value={data.origin ?? ''}
                     onChange={(e) => setData({ ...data, origin: e.target.value })}
+                    placeholder="Origem da rota"
                   />
                 </Field>
                 <Field label="Destino">
                   <Input
                     value={data.destination ?? ''}
                     onChange={(e) => setData({ ...data, destination: e.target.value })}
+                    placeholder="Destino da rota"
                   />
                 </Field>
               </>

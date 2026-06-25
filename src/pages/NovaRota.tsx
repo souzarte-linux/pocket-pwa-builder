@@ -5,6 +5,7 @@ import { Field, Input, TextArea, Select, SegButton, SubmitButton, FormShell } fr
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { UtensilsCrossed, Package, FileText, Plus, Trash2 } from 'lucide-react';
+import { toLocalInput } from '@/lib/format';
 
 const NovaRota = () => {
   const navigate = useNavigate();
@@ -16,8 +17,8 @@ const NovaRota = () => {
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [distance, setDistance] = useState('');
-  const [smallPackageCount, setSmallPackageCount] = useState('1');
-  const [largePackageCount, setLargePackageCount] = useState('0');
+  const [smallPackageCount, setSmallPackageCount] = useState('');
+  const [largePackageCount, setLargePackageCount] = useState('');
   const [largePackagePrices, setLargePackagePrices] = useState<number[]>([]);
   const [showLargePackageModal, setShowLargePackageModal] = useState(false);
   const [tempLargePackagePrices, setTempLargePackagePrices] = useState<string[]>([]);
@@ -37,6 +38,11 @@ const NovaRota = () => {
     : (smallPkgCount * smallPkgPrice) + largePkgSum;
 
   const handleLargePackageCountChange = (val: string) => {
+    if (val === '') {
+      setLargePackageCount('');
+      setLargePackagePrices([]);
+      return;
+    }
     const count = Math.max(0, parseInt(val) || 0);
     setLargePackageCount(String(count));
     if (count > 0) {
@@ -64,8 +70,7 @@ const NovaRota = () => {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const nowLocal = (offsetMin = 0) => {
-    const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000 + offsetMin * 60000);
-    return d.toISOString().slice(0, 16);
+    return toLocalInput(new Date(Date.now() + offsetMin * 60000));
   };
   const [occurredAt, setOccurredAt] = useState<string>(nowLocal());
   const [startAt, setStartAt] = useState<string>(nowLocal(-60));
@@ -84,17 +89,18 @@ const NovaRota = () => {
           setPlatformId(r.platform_id ?? '');
           setOrigin(r.origin ?? '');
           setDestination(r.destination ?? '');
-          setDistance(String(r.distance_km ?? ''));
-          setSmallPackageCount(String(r.small_packages_count ?? r.package_count ?? '1'));
-          setLargePackageCount(String(r.large_packages_count ?? '0'));
+          setDistance(r.distance_km ? String(r.distance_km) : '');
+          const smallPkgVal = r.small_packages_count ?? r.package_count;
+          setSmallPackageCount(smallPkgVal ? String(smallPkgVal) : '');
+          setLargePackageCount(r.large_packages_count ? String(r.large_packages_count) : '');
           setLargePackagePrices((r.large_packages_prices as number[]) ?? []);
-          setPackageUnitPrice(String(r.package_unit_price ?? ''));
-          setFixedAmount(String(r.amount ?? ''));
-          setTip(String(r.tip ?? ''));
+          setPackageUnitPrice(r.package_unit_price ? String(r.package_unit_price) : '');
+          setFixedAmount(r.amount ? String(r.amount) : '');
+          setTip(r.tip ? String(r.tip) : '');
           setType(r.product_type as 'alimento' | 'pacote' | 'documento');
-          setOccurredAt(new Date(r.occurred_at).toISOString().slice(0, 16));
-          if (r.started_at) setStartAt(new Date(r.started_at).toISOString().slice(0, 16));
-          if (r.ended_at) setEndAt(new Date(r.ended_at).toISOString().slice(0, 16));
+          setOccurredAt(toLocalInput(r.occurred_at));
+          if (r.started_at) setStartAt(toLocalInput(r.started_at));
+          if (r.ended_at) setEndAt(toLocalInput(r.ended_at));
           setBreakMin(String(r.break_minutes ?? '0'));
           setStartKm(String(r.start_km ?? '0'));
           setEndKm(String(r.end_km ?? '0'));
@@ -303,25 +309,25 @@ const NovaRota = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Distância (km)">
-              <Input inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="0.00" />
+              <Input inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="Ex: 10,5" />
             </Field>
             <Field label="Gorjeta (R$)">
-              <Input inputMode="decimal" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="0,00" />
+              <Input inputMode="decimal" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="Ex: 5,00" />
             </Field>
           </div>
 
           {!isDelivery && !isDiaria && (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Pacotinhos">
-                <Input inputMode="numeric" value={smallPackageCount} onChange={(e) => setSmallPackageCount(e.target.value)} placeholder="0" />
+                <Input inputMode="numeric" value={smallPackageCount} onChange={(e) => setSmallPackageCount(e.target.value)} placeholder="Ex: 10" />
               </Field>
               <Field label="Valor do Pacotinho (R$)">
-                <Input inputMode="decimal" value={packageUnitPrice} onChange={(e) => setPackageUnitPrice(e.target.value)} placeholder="0,00" />
+                <Input inputMode="decimal" value={packageUnitPrice} onChange={(e) => setPackageUnitPrice(e.target.value)} placeholder="Ex: 1,50" />
               </Field>
               
               <Field label="Volumosos">
                 <div className="flex gap-2">
-                  <Input inputMode="numeric" value={largePackageCount} onChange={(e) => handleLargePackageCountChange(e.target.value)} placeholder="0" />
+                  <Input inputMode="numeric" value={largePackageCount} onChange={(e) => handleLargePackageCountChange(e.target.value)} placeholder="Ex: 2" />
                   {Number(largePackageCount) > 0 && (
                     <button
                       type="button"
@@ -339,7 +345,12 @@ const NovaRota = () => {
                 </div>
               </Field>
               <Field label="Quantidade Pacotes Total">
-                <Input readOnly disabled value={String(smallPkgCount + (Number(largePackageCount) || 0))} />
+                <Input 
+                  readOnly 
+                  disabled 
+                  value={smallPackageCount || largePackageCount ? String(smallPkgCount + (Number(largePackageCount) || 0)) : ''} 
+                  placeholder="Total automático"
+                />
               </Field>
             </div>
           )}

@@ -53,3 +53,12 @@ export const formatHours = (ms: number) => {
   const h = ms / 3600000;
   return `${h.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}h`;
 };
+
+export const toLocalInput = (dateOrStr: Date | string | null | undefined): string => {
+  if (!dateOrStr) return '';
+  const d = new Date(dateOrStr);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
