@@ -35,6 +35,7 @@ const Despesa = () => {
   const [description, setDescription] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao' | 'dinheiro' | 'carteira'>('pix');
+  const [isFullTank, setIsFullTank] = useState(true);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   
