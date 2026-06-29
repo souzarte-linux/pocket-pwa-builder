@@ -17,12 +17,15 @@ interface Tx {
   kind: 'route' | 'daily' | 'expense';
   title: string;
   subtitle: string;
+  meta1?: string;
+  meta2?: string;
   amount: number;
   positive: boolean;
   tag?: string;
   iconKey: 'fuel' | 'wrench' | 'food' | 'package' | 'doc';
   occurred_at: string;
 }
+
 
 const iconFor = (k: Tx['iconKey']) => {
   switch (k) {
