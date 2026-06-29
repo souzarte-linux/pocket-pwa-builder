@@ -255,7 +255,7 @@ const Historico = () => {
         kind: 'route',
         title: platName.toUpperCase(),
         subtitle: `${abbr(r.origin)} - ${abbr(r.destination)} • ${formatTime(r.occurred_at)}`,
-        meta1: `${pkgs} PACOTE${pkgs === 1 ? '' : 'S'} • ${km.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} KM`,
+        meta1: `${pkgs} Pac${pkgs === 1 ? '' : 's'} • ${km.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} KM`,
         meta2: hoursStr || undefined,
         amount: Number(r.amount) + Number(r.tip),
         positive: true,
