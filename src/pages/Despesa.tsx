@@ -62,6 +62,7 @@ const Despesa = () => {
           setDescription(e.description ?? '');
           setReceiptNumber(e.receipt_number ?? '');
           if (e.payment_method) setPaymentMethod(e.payment_method as any);
+          setIsFullTank(e.is_full_tank ?? true);
         }
       });
     }
