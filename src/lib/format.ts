@@ -22,9 +22,9 @@ export const todayBoundaries = () => {
   return { start: start.toISOString(), end: end.toISOString() };
 };
 
-export const startOfWeek = () => {
-  const d = new Date();
-  const diff = d.getDay();
+export const startOfWeek = (date: Date = new Date()) => {
+  const d = new Date(date);
+  const diff = (d.getDay() + 6) % 7;
   d.setDate(d.getDate() - diff);
   d.setHours(0, 0, 0, 0);
   return d.toISOString();

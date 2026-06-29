@@ -17,6 +17,7 @@ const Painel = () => {
   const [goal, setGoal] = useState(3450);
   const [monthly, setMonthly] = useState(0);
   const [todayPackages, setTodayPackages] = useState(0);
+  const [weeklyPackages, setWeeklyPackages] = useState(0);
   const [platforms, setPlatforms] = useState<PlatformStat[]>([]);
   const [exp, setExp] = useState({ combustivel: 0, manutencao: 0, alimentacao: 0 });
   const [trend, setTrend] = useState<number[]>([]);
@@ -71,7 +72,9 @@ const Painel = () => {
       setMonthly(sum(month_r) + sum(month_d));
       
       const totalTodayPackages = sumPackages(today_r);
+      const totalWeeklyPackages = sumPackages(week_r);
       setTodayPackages(totalTodayPackages);
+      setWeeklyPackages(totalWeeklyPackages);
 
       // Earnings by platform (current month)
       const { data: plats } = await supabase.from('platforms').select('id, name');
@@ -145,6 +148,7 @@ const Painel = () => {
           value={formatBRL(weekly)}
           trend={`${Math.round(weeklyPct)}%`}
           progress={weeklyPct}
+          hint={`${weeklyPackages} pacotes esta semana`}
         />
         <StatCard
           label="Meta Mensal"
