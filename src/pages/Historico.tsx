@@ -118,7 +118,7 @@ const WeekSection = ({ week, onEdit }: { week: WeekGroup, onEdit: (x: Tx) => voi
       </button>
       
       {open && (
-        <div className="mt-3 space-y-5 pl-2 border-l-2 border-border/20 ml-2 pb-2">
+        <div className="mt-3 space-y-4 pl-1 border-l-2 border-border/20 ml-1 pb-2">
           {week.days.map(day => (
              <div key={day.date}>
                 <div className="flex items-center gap-2 mb-2">
