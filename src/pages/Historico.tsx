@@ -231,14 +231,31 @@ const Historico = () => {
     const platMap = new Map((plats.data ?? []).map((p: any) => [p.id, p.name]));
 
     const txs: Tx[] = [];
+    const abbr = (s: string | null | undefined) =>
+      (s ?? '').trim().slice(0, 3).toUpperCase() || '---';
     (routesRes.data ?? []).forEach((r: any) => {
+      const platName = (platMap.get(r.platform_id) as string) ?? 'AVULSO';
+      const pkgs =
+        Number(r.package_count ?? 0) ||
+        (Number(r.small_packages_count ?? 0) + Number(r.large_packages_count ?? 0));
+      const km = Number(r.distance_km ?? 0);
+      let hoursStr = '';
+      if (r.started_at && r.ended_at) {
+        const ms = new Date(r.ended_at).getTime() - new Date(r.started_at).getTime();
+        const mins = Math.max(0, Math.round(ms / 60000) - Number(r.break_minutes ?? 0));
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        hoursStr = `${h}H ${String(m).padStart(2, '0')}MIN TRABALHADOS`;
+      }
       txs.push({
         id: 'r' + r.id,
         raw_id: r.id,
         table: 'routes',
         kind: 'route',
-        title: r.product_type === 'pacote' ? 'Entrega Expressa' : r.product_type === 'documento' ? 'Entrega de Docs' : 'Delivery Comida',
-        subtitle: `${platMap.get(r.platform_id) ?? 'AVULSO'} • ${formatTime(r.occurred_at)}`,
+        title: platName.toUpperCase(),
+        subtitle: `${abbr(r.origin)} - ${abbr(r.destination)} • ${formatTime(r.occurred_at)}`,
+        meta1: `${pkgs} PACOTE${pkgs === 1 ? '' : 'S'} • ${km.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} KM`,
+        meta2: hoursStr || undefined,
         amount: Number(r.amount) + Number(r.tip),
         positive: true,
         tag: 'PAGO',
@@ -246,6 +263,7 @@ const Historico = () => {
         occurred_at: r.occurred_at,
       });
     });
+
     (dailyRes.data ?? []).forEach((d: any) => {
       txs.push({
         id: 'd' + d.id,
