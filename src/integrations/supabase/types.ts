@@ -120,6 +120,7 @@ export type Database = {
           description: string | null
           fuel_type: string | null
           id: string
+          is_full_tank: boolean
           liters: number | null
           occurred_at: string
           odometer_km: number | null
@@ -137,6 +138,7 @@ export type Database = {
           description?: string | null
           fuel_type?: string | null
           id?: string
+          is_full_tank?: boolean
           liters?: number | null
           occurred_at?: string
           odometer_km?: number | null
@@ -154,6 +156,7 @@ export type Database = {
           description?: string | null
           fuel_type?: string | null
           id?: string
+          is_full_tank?: boolean
           liters?: number | null
           occurred_at?: string
           odometer_km?: number | null

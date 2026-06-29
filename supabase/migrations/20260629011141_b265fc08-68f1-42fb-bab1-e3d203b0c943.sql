@@ -1,0 +1,1 @@
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS is_full_tank BOOLEAN NOT NULL DEFAULT true;

@@ -35,6 +35,7 @@ const Despesa = () => {
   const [description, setDescription] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao' | 'dinheiro' | 'carteira'>('pix');
+  const [isFullTank, setIsFullTank] = useState(true);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   
@@ -61,6 +62,7 @@ const Despesa = () => {
           setDescription(e.description ?? '');
           setReceiptNumber(e.receipt_number ?? '');
           if (e.payment_method) setPaymentMethod(e.payment_method as any);
+          setIsFullTank(e.is_full_tank ?? true);
         }
       });
     }
@@ -125,6 +127,7 @@ const Despesa = () => {
 
     if (cat === 'combustivel') {
       payload.receipt_number = receiptNumber || null;
+      payload.is_full_tank = isFullTank;
       if (vendor) {
         payload.vendor = vendor;
       }
@@ -234,6 +237,19 @@ const Despesa = () => {
               </div>
               <Field label="Odômetro (km)">
                 <Input inputMode="decimal" value={odometer} onChange={(e) => setOdometer(e.target.value)} placeholder="Ex: 125450" />
+              </Field>
+              <Field label="Completou o tanque?">
+                <div className="grid grid-cols-2 gap-2">
+                  <SegButton active={isFullTank} onClick={() => setIsFullTank(true)}>
+                    SIM, TANQUE CHEIO
+                  </SegButton>
+                  <SegButton active={!isFullTank} onClick={() => setIsFullTank(false)}>
+                    NÃO, PARCIAL
+                  </SegButton>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                  Informe corretamente — o cálculo de <strong>km/L real</strong> usa o método tanque-a-tanque entre dois abastecimentos completos.
+                </p>
               </Field>
             </>
           )}
