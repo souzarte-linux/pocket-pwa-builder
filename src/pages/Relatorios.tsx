@@ -265,7 +265,7 @@ const Relatorios = () => {
       const [profRes, oilRes, expAllRes, routesAllRes] = await Promise.all([
         supabase.from('profiles').select('oil_change_km, last_oil_change_at').maybeSingle(),
         supabase.from('oil_changes').select('changed_at, km_at_change').order('changed_at', { ascending: false }),
-        supabase.from('expenses').select('amount, category, occurred_at, title, liters, odometer_km')
+        supabase.from('expenses').select('amount, category, occurred_at, title, liters, odometer_km, is_full_tank')
           .in('category', ['combustivel', 'manutencao']),
         supabase.from('routes').select('end_km, start_km'),
       ]);
