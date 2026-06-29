@@ -58,7 +58,18 @@ const TxRow = ({ x, onEdit }: { x: Tx, onEdit: (x: Tx) => void }) => {
         <p className="text-[11px] text-muted-foreground uppercase truncate">
           {x.subtitle}
         </p>
+        {x.meta1 && (
+          <p className="text-[11px] text-foreground/80 font-bold uppercase truncate mt-0.5">
+            {x.meta1}
+          </p>
+        )}
+        {x.meta2 && (
+          <p className="text-[11px] text-muted-foreground uppercase truncate">
+            {x.meta2}
+          </p>
+        )}
       </div>
+
       <div className="text-right">
         <p className={`font-bold ${x.positive ? 'text-primary' : 'text-destructive'}`}>
           {x.positive ? '+' : '-'}
