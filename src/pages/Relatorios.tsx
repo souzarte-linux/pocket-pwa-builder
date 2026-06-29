@@ -361,13 +361,70 @@ const Relatorios = () => {
     };
   }, [routes, dailies, expenses, selectedPlatform, range.since, range.until, platformName]);
 
-  // Real fuel consumption in the period (km/L)
+  // Real fuel consumption (km/L) — tank-to-tank method.
+  // For each pair of consecutive FULL-TANK fills, km traveled = odometer delta,
+  // liters consumed = sum of all fills (partial + the full) AFTER the previous full
+  // up to and including the current full. We attribute the segment to the current
+  // full-tank fill date and include it when that date falls in the selected period.
   const realConsumption = useMemo(() => {
-    const periodFuel = expenses.filter((e) => e.category === 'combustivel');
-    const liters = periodFuel.reduce((s, e) => s + Number(e.liters ?? 0), 0);
-    if (liters <= 0) return 0;
-    return stats.totalKm / liters;
-  }, [expenses, stats.totalKm]);
+    const fills = allFuelExpenses
+      .filter((e) => Number(e.liters ?? 0) > 0 && Number(e.odometer_km ?? 0) > 0)
+      .slice()
+      .sort((a, b) => Number(a.odometer_km ?? 0) - Number(b.odometer_km ?? 0));
+
+    const sinceMs = range.since.getTime();
+    const untilMs = range.until.getTime();
+    let totalKm = 0;
+    let totalLiters = 0;
+    let prevFullIdx = -1;
+    let segmentLiters = 0;
+
+    for (let i = 0; i < fills.length; i++) {
+      const f = fills[i];
+      const isFull = f.is_full_tank !== false; // default true
+      if (prevFullIdx >= 0) segmentLiters += Number(f.liters ?? 0);
+      if (isFull) {
+        if (prevFullIdx >= 0) {
+          const prev = fills[prevFullIdx];
+          const km = Number(f.odometer_km ?? 0) - Number(prev.odometer_km ?? 0);
+          const t = new Date(f.occurred_at).getTime();
+          if (km > 0 && segmentLiters > 0 && t >= sinceMs && t <= untilMs) {
+            totalKm += km;
+            totalLiters += segmentLiters;
+          }
+        }
+        prevFullIdx = i;
+        segmentLiters = 0;
+      }
+    }
+
+    if (totalLiters > 0) return totalKm / totalLiters;
+
+    // Fallback: latest tank-to-tank segment overall (ignoring period) so the user
+    // still sees a meaningful number when the period has no closed segment.
+    let lastKm = 0;
+    let lastLit = 0;
+    prevFullIdx = -1;
+    segmentLiters = 0;
+    for (let i = 0; i < fills.length; i++) {
+      const f = fills[i];
+      const isFull = f.is_full_tank !== false;
+      if (prevFullIdx >= 0) segmentLiters += Number(f.liters ?? 0);
+      if (isFull) {
+        if (prevFullIdx >= 0) {
+          const prev = fills[prevFullIdx];
+          const km = Number(f.odometer_km ?? 0) - Number(prev.odometer_km ?? 0);
+          if (km > 0 && segmentLiters > 0) {
+            lastKm = km;
+            lastLit = segmentLiters;
+          }
+        }
+        prevFullIdx = i;
+        segmentLiters = 0;
+      }
+    }
+    return lastLit > 0 ? lastKm / lastLit : 0;
+  }, [allFuelExpenses, range.since, range.until]);
 
   // Estimated current odometer
   const currentOdometer = useMemo(() => {
