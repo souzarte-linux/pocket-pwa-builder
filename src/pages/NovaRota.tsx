@@ -37,21 +37,32 @@ const NovaRota = () => {
     ? (Number(fixedAmount.replace(',', '.')) || 0)
     : (smallPkgCount * smallPkgPrice) + largePkgSum;
 
+  const openLargePackageModal = (countOverride?: number) => {
+    const count = Math.max(0, (countOverride ?? Number(largePackageCount)) || 0);
+    if (count <= 0) {
+      setShowLargePackageModal(false);
+      return;
+    }
+
+    const newTemp = Array.from({ length: count }, (_, i) => String(largePackagePrices[i] ?? ''));
+    setTempLargePackagePrices(newTemp);
+    setShowLargePackageModal(true);
+  };
+
   const handleLargePackageCountChange = (val: string) => {
     if (val === '') {
       setLargePackageCount('');
       setLargePackagePrices([]);
+      setShowLargePackageModal(false);
       return;
     }
     const count = Math.max(0, parseInt(val) || 0);
     setLargePackageCount(String(count));
     if (count > 0) {
-      // prefill temp array with existing prices or empty strings
-      const newTemp = Array.from({ length: count }, (_, i) => String(largePackagePrices[i] ?? ''));
-      setTempLargePackagePrices(newTemp);
-      setShowLargePackageModal(true);
+      openLargePackageModal(count);
     } else {
       setLargePackagePrices([]);
+      setShowLargePackageModal(false);
     }
   };
 
@@ -337,18 +348,21 @@ const NovaRota = () => {
               </Field>
               
               <Field label="Volumosos">
-                <div className="flex gap-2">
-                  <Input inputMode="numeric" value={largePackageCount} onChange={(e) => handleLargePackageCountChange(e.target.value)} placeholder="Ex: 2" />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                  <Input
+                    inputMode="numeric"
+                    value={largePackageCount}
+                    onChange={(e) => handleLargePackageCountChange(e.target.value)}
+                    onClick={() => {
+                      if (Number(largePackageCount) > 0) openLargePackageModal(Number(largePackageCount));
+                    }}
+                    placeholder="Ex: 2"
+                  />
                   {Number(largePackageCount) > 0 && (
                     <button
                       type="button"
-                      onClick={() => {
-                        const count = Number(largePackageCount);
-                        const newTemp = Array.from({ length: count }, (_, i) => String(largePackagePrices[i] ?? ''));
-                        setTempLargePackagePrices(newTemp);
-                        setShowLargePackageModal(true);
-                      }}
-                      className="px-3 rounded-xl bg-surface-bright text-xs text-primary font-bold hover:bg-surface-bright/80 transition shrink-0"
+                      onClick={() => openLargePackageModal(Number(largePackageCount))}
+                      className="w-full sm:w-auto px-3 h-14 rounded-xl bg-surface-bright text-xs text-primary font-bold hover:bg-surface-bright/80 transition shrink-0"
                     >
                       Valores
                     </button>
@@ -410,10 +424,10 @@ const NovaRota = () => {
       {showLargePackageModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowLargePackageModal(false)}>
           <div
-            className="w-full max-w-lg bg-surface-container rounded-t-3xl p-6 space-y-5 border-t border-border/40 shadow-2xl"
+            className="w-full max-w-lg bg-surface-container rounded-t-3xl p-4 sm:p-6 space-y-4 border-t border-border/40 shadow-2xl max-h-[90vh] overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="display text-xl">VALORES DOS VOLUMOSOS</h2>
                 <p className="text-sm text-primary font-bold">{largePackageCount} pacote(s) volumoso(s)</p>
@@ -433,24 +447,26 @@ const NovaRota = () => {
               </button>
             )}
 
-            <div className="max-h-[40vh] overflow-y-auto space-y-3 pr-1">
+            <div className="max-h-[45vh] overflow-y-auto space-y-4 pr-1">
               {tempLargePackagePrices.map((price, idx) => (
-                <Field key={idx} label={`Valor do Volume #${idx + 1} (R$)`}>
-                  <Input
-                    inputMode="decimal"
-                    value={price}
-                    onChange={(e) => {
-                      const updated = [...tempLargePackagePrices];
-                      updated[idx] = e.target.value;
-                      setTempLargePackagePrices(updated);
-                    }}
-                    placeholder="0,00"
-                  />
-                </Field>
+                <div key={idx} className="w-full">
+                  <Field label={`Valor do Volume #${idx + 1} (R$)`}>
+                    <Input
+                      inputMode="decimal"
+                      value={price}
+                      onChange={(e) => {
+                        const updated = [...tempLargePackagePrices];
+                        updated[idx] = e.target.value;
+                        setTempLargePackagePrices(updated);
+                      }}
+                      placeholder="0,00"
+                    />
+                  </Field>
+                </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setShowLargePackageModal(false)}
