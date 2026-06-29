@@ -339,44 +339,51 @@ const NovaRota = () => {
           </div>
 
           {!isDelivery && !isDiaria && (
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Pacotinhos">
-                <Input inputMode="numeric" value={smallPackageCount} onChange={(e) => setSmallPackageCount(e.target.value)} placeholder="Ex: 10" />
-              </Field>
-              <Field label="Valor do Pacotinho (R$)">
-                <Input inputMode="decimal" value={packageUnitPrice} onChange={(e) => setPackageUnitPrice(e.target.value)} placeholder="Ex: 1,50" />
-              </Field>
-              
-              <Field label="Volumosos">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                  <Input
-                    inputMode="numeric"
-                    value={largePackageCount}
-                    onChange={(e) => handleLargePackageCountChange(e.target.value)}
-                    onClick={() => {
-                      if (Number(largePackageCount) > 0) openLargePackageModal(Number(largePackageCount));
-                    }}
-                    placeholder="Ex: 2"
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex flex-col justify-between h-full">
+                <Field label="Pacotinhos">
+                  <Input inputMode="numeric" value={smallPackageCount} onChange={(e) => setSmallPackageCount(e.target.value)} placeholder="Ex: 10" />
+                </Field>
+              </div>
+              <div className="flex flex-col justify-between h-full">
+                <Field label="Valor do Pacotinho (R$)">
+                  <Input inputMode="decimal" value={packageUnitPrice} onChange={(e) => setPackageUnitPrice(e.target.value)} placeholder="Ex: 1,50" />
+                </Field>
+              </div>
+              <div className="flex flex-col justify-between h-full">
+                <Field label="Volumosos">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                    <Input
+                      inputMode="numeric"
+                      value={largePackageCount}
+                      onChange={(e) => handleLargePackageCountChange(e.target.value)}
+                      onClick={() => {
+                        if (Number(largePackageCount) > 0) openLargePackageModal(Number(largePackageCount));
+                      }}
+                      placeholder="Ex: 2"
+                    />
+                    {Number(largePackageCount) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => openLargePackageModal(Number(largePackageCount))}
+                        className="w-full sm:w-auto px-3 h-14 rounded-xl bg-surface-bright text-xs text-primary font-bold hover:bg-surface-bright/80 transition shrink-0"
+                      >
+                        Valores
+                      </button>
+                    )}
+                  </div>
+                </Field>
+              </div>
+              <div className="flex flex-col justify-between h-full">
+                <Field label="Quantidade Pacotes Total">
+                  <Input 
+                    readOnly 
+                    disabled 
+                    value={smallPackageCount || largePackageCount ? String(smallPkgCount + (Number(largePackageCount) || 0)) : ''} 
+                    placeholder="Total automático"
                   />
-                  {Number(largePackageCount) > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => openLargePackageModal(Number(largePackageCount))}
-                      className="w-full sm:w-auto px-3 h-14 rounded-xl bg-surface-bright text-xs text-primary font-bold hover:bg-surface-bright/80 transition shrink-0"
-                    >
-                      Valores
-                    </button>
-                  )}
-                </div>
-              </Field>
-              <Field label="Quantidade Pacotes Total">
-                <Input 
-                  readOnly 
-                  disabled 
-                  value={smallPackageCount || largePackageCount ? String(smallPkgCount + (Number(largePackageCount) || 0)) : ''} 
-                  placeholder="Total automático"
-                />
-              </Field>
+                </Field>
+              </div>
             </div>
           )}
 
