@@ -238,6 +238,19 @@ const Despesa = () => {
               <Field label="Odômetro (km)">
                 <Input inputMode="decimal" value={odometer} onChange={(e) => setOdometer(e.target.value)} placeholder="Ex: 125450" />
               </Field>
+              <Field label="Completou o tanque?">
+                <div className="grid grid-cols-2 gap-2">
+                  <SegButton active={isFullTank} onClick={() => setIsFullTank(true)}>
+                    SIM, TANQUE CHEIO
+                  </SegButton>
+                  <SegButton active={!isFullTank} onClick={() => setIsFullTank(false)}>
+                    NÃO, PARCIAL
+                  </SegButton>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                  Informe corretamente — o cálculo de <strong>km/L real</strong> usa o método tanque-a-tanque entre dois abastecimentos completos.
+                </p>
+              </Field>
             </>
           )}
 
