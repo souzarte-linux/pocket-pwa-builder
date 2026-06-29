@@ -127,6 +127,7 @@ const Despesa = () => {
 
     if (cat === 'combustivel') {
       payload.receipt_number = receiptNumber || null;
+      payload.is_full_tank = isFullTank;
       if (vendor) {
         payload.vendor = vendor;
       }
