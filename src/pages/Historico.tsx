@@ -49,46 +49,47 @@ interface MonthGroup { label: string; month: Date; weeks: WeekGroup[]; balance: 
 const TxRow = ({ x, onEdit }: { x: Tx, onEdit: (x: Tx) => void }) => {
   const { Icon, color } = iconFor(x.iconKey);
   return (
-    <li className="rounded-xl bg-surface border border-border/40 p-3 flex items-center gap-3">
-      <span className={`size-11 rounded-lg grid place-items-center ${color}`}>
-        <Icon className="size-5" />
-      </span>
-      <div className="flex-1 min-w-0">
-        <p className="font-bold text-sm uppercase truncate">{x.title}</p>
-        <p className="text-[11px] text-muted-foreground uppercase truncate">
+    <li className="rounded-xl bg-surface border border-border/40 p-2.5 flex gap-3">
+      <div className="flex-1 min-w-0 flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <span className={`size-8 shrink-0 rounded-lg grid place-items-center ${color}`}>
+            <Icon className="size-4" />
+          </span>
+          <p className="font-bold text-sm uppercase truncate leading-tight">{x.title}</p>
+        </div>
+        <p className="text-[11px] text-muted-foreground uppercase truncate leading-tight">
           {x.subtitle}
         </p>
         {x.meta1 && (
-          <p className="text-[11px] text-foreground/80 font-bold uppercase truncate mt-0.5">
+          <p className="text-[11px] text-foreground/80 font-bold uppercase truncate leading-tight">
             {x.meta1}
           </p>
         )}
         {x.meta2 && (
-          <p className="text-[11px] text-muted-foreground uppercase truncate">
+          <p className="text-[11px] text-muted-foreground uppercase truncate leading-tight">
             {x.meta2}
           </p>
         )}
       </div>
 
-      <div className="text-right">
-        <p className={`font-bold ${x.positive ? 'text-primary' : 'text-destructive'}`}>
-          {x.positive ? '+' : '-'}
-          {formatBRL(x.amount)}
+      <div className="flex flex-col items-end justify-between shrink-0 min-w-[4.5rem]">
+        <p className={`font-bold text-sm leading-tight ${x.positive ? 'text-primary' : 'text-destructive'}`}>
+          {x.positive ? '+' : '-'}{formatBRL(x.amount)}
         </p>
+        <button
+          type="button"
+          onClick={() => onEdit(x)}
+          aria-label="Editar"
+          className="size-8 rounded-lg grid place-items-center bg-surface-high text-muted-foreground hover:text-primary hover:bg-primary/10 transition active:scale-95"
+        >
+          <Settings className="size-4" />
+        </button>
         {x.tag && (
           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${x.positive ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
             {x.tag}
           </span>
         )}
       </div>
-      <button
-        type="button"
-        onClick={() => onEdit(x)}
-        aria-label="Editar"
-        className="size-9 shrink-0 rounded-lg grid place-items-center bg-surface-high text-muted-foreground hover:text-primary hover:bg-primary/10 transition active:scale-95"
-      >
-        <Settings className="size-4" />
-      </button>
     </li>
   );
 };
