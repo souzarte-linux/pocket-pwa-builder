@@ -5,7 +5,7 @@ import { Field, Input, TextArea, Select, SegButton, SubmitButton, FormShell } fr
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { UtensilsCrossed, Package, FileText, Plus, Trash2 } from 'lucide-react';
-import { toLocalInput } from '@/lib/format';
+import { getRouteInitialKmValue, toLocalInput } from '@/lib/format';
 
 const NovaRota = () => {
   const navigate = useNavigate();
@@ -75,13 +75,21 @@ const NovaRota = () => {
   const [occurredAt, setOccurredAt] = useState<string>(nowLocal());
   const [startAt, setStartAt] = useState<string>(nowLocal(-60));
   const [endAt, setEndAt] = useState<string>(nowLocal());
-  const [breakMin, setBreakMin] = useState<string>('0');
-  const [startKm, setStartKm] = useState<string>('0');
-  const [endKm, setEndKm] = useState<string>('0');
+  const [breakMin, setBreakMin] = useState<string>('');
+  const [startKm, setStartKm] = useState<string>('');
+  const [endKm, setEndKm] = useState<string>('');
 
   useEffect(() => {
     supabase.from('platforms').select('id, name, segment, payment_model').eq('active', true).then(async ({ data }) => {
       setPlatforms(data ?? []);
+
+      const { data: latestRoute } = await supabase
+        .from('routes')
+        .select('end_km')
+        .order('occurred_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const fallbackStartKm = getRouteInitialKmValue((latestRoute as { end_km?: number | null } | null)?.end_km ?? null);
 
       if (editId) {
         const { data: r } = await supabase.from('routes').select('*').eq('id', editId).maybeSingle();
@@ -101,14 +109,17 @@ const NovaRota = () => {
           setOccurredAt(toLocalInput(r.occurred_at));
           if (r.started_at) setStartAt(toLocalInput(r.started_at));
           if (r.ended_at) setEndAt(toLocalInput(r.ended_at));
-          setBreakMin(String(r.break_minutes ?? '0'));
-          setStartKm(String(r.start_km ?? '0'));
-          setEndKm(String(r.end_km ?? '0'));
+          setBreakMin(r.break_minutes ? String(r.break_minutes) : '');
+          setStartKm(r.start_km != null ? String(r.start_km) : '');
+          setEndKm(r.end_km != null ? String(r.end_km) : '');
         }
-      } else if (data?.[0]) {
-        setPlatformId(data[0].id);
-        if (data[0].segment === 'delivery') setType('alimento');
-        else setType('pacote');
+      } else {
+        setStartKm(fallbackStartKm);
+        if (data?.[0]) {
+          setPlatformId(data[0].id);
+          if (data[0].segment === 'delivery') setType('alimento');
+          else setType('pacote');
+        }
       }
     });
   }, [editId]);
@@ -244,7 +255,7 @@ const NovaRota = () => {
           <div className="grid grid-cols-1 gap-3 mt-4 pt-4 border-t border-border/40">
             <h3 className="text-sm font-semibold text-primary uppercase">Jornada de Trabalho</h3>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Início (data e hora)">
+              <Field label="Início (d/h)">
                 <Input
                   type="datetime-local"
                   value={startAt}
@@ -252,7 +263,7 @@ const NovaRota = () => {
                   required
                 />
               </Field>
-              <Field label="Fim (data e hora)">
+              <Field label="Fim (d/h)">
                 <Input
                   type="datetime-local"
                   value={endAt}
@@ -262,7 +273,7 @@ const NovaRota = () => {
               </Field>
             </div>
 
-            <Field label="Intervalo / descanso (minutos)">
+            <Field label="Intervalo / descanso (min)">
               <Input
                 type="number"
                 min="0"

@@ -63,6 +63,13 @@ export const getDaysInRange = (since: Date, until: Date) => {
   return Number.isFinite(diff) && diff > 0 ? diff : 1;
 };
 
+export const getRouteInitialKmValue = (lastKnownKm: number | null | undefined) => {
+  if (typeof lastKnownKm === 'number' && Number.isFinite(lastKnownKm)) {
+    return String(lastKnownKm);
+  }
+  return '';
+};
+
 export const toLocalInput = (dateOrStr: Date | string | null | undefined): string => {
   if (!dateOrStr) return '';
   const d = new Date(dateOrStr);

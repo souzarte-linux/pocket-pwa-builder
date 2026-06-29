@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getDaysInRange, startOfWeek } from './format';
+import { getDaysInRange, getRouteInitialKmValue, startOfWeek } from './format';
 
 describe('startOfWeek', () => {
   it('returns the Monday of the current week when the date is Sunday', () => {
@@ -18,5 +18,12 @@ describe('getDaysInRange', () => {
     const until = new Date('2026-06-24T23:59:59');
 
     expect(getDaysInRange(since, until)).toBe(3);
+  });
+});
+
+describe('getRouteInitialKmValue', () => {
+  it('returns the latest known kilometer as a string and falls back to an empty value', () => {
+    expect(getRouteInitialKmValue(12345.6)).toBe('12345.6');
+    expect(getRouteInitialKmValue(null)).toBe('');
   });
 });
