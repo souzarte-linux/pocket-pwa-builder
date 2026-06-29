@@ -138,6 +138,7 @@ interface Expense {
   title?: string | null;
   liters?: number | null;
   odometer_km?: number | null;
+  is_full_tank?: boolean | null;
 }
 interface Platform {
   id: string;
