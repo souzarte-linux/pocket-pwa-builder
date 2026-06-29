@@ -234,7 +234,7 @@ const Relatorios = () => {
           .select('amount, distance_km, platform_id, product_type, occurred_at, subtract_routes')
           .gte('occurred_at', sinceISO)
           .lte('occurred_at', untilISO),
-        supabase.from('expenses').select('amount, category, occurred_at, title, liters, odometer_km')
+        supabase.from('expenses').select('amount, category, occurred_at, title, liters, odometer_km, is_full_tank')
           .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
         supabase.from('platforms').select('id, name'),
         supabase.from('billing_cycles').select('id, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
