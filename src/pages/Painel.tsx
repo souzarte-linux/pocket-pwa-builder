@@ -18,6 +18,7 @@ const Painel = () => {
   const [monthly, setMonthly] = useState(0);
   const [todayPackages, setTodayPackages] = useState(0);
   const [weeklyPackages, setWeeklyPackages] = useState(0);
+  const [monthlyPackages, setMonthlyPackages] = useState(0);
   const [platforms, setPlatforms] = useState<PlatformStat[]>([]);
   const [exp, setExp] = useState({ combustivel: 0, manutencao: 0, alimentacao: 0 });
   const [trend, setTrend] = useState<number[]>([]);
@@ -73,8 +74,10 @@ const Painel = () => {
       
       const totalTodayPackages = sumPackages(today_r);
       const totalWeeklyPackages = sumPackages(week_r);
+      const totalMonthlyPackages = sumPackages(month_r);
       setTodayPackages(totalTodayPackages);
       setWeeklyPackages(totalWeeklyPackages);
+      setMonthlyPackages(totalMonthlyPackages);
 
       // Earnings by platform (current month)
       const { data: plats } = await supabase.from('platforms').select('id, name');
@@ -155,7 +158,7 @@ const Painel = () => {
           value={formatBRL(goal)}
           highlight
           progress={monthlyPct}
-          hint={`Progresso ${Math.round(monthlyPct)}% • ${formatBRL(monthly)}`}
+          hint={`Progresso ${Math.round(monthlyPct)}% • ${formatBRL(monthly)} • ${monthlyPackages} pacotes este mês`}
           right={<TrendingUp className="size-5 text-primary" />}
         />
 
