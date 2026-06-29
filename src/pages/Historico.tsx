@@ -209,7 +209,7 @@ const Historico = () => {
     const [routesRes, expRes, dailyRes, plats, prof] = await Promise.all([
       supabase
         .from('routes')
-        .select('id, amount, tip, distance_km, product_type, occurred_at, platform_id, origin, destination')
+        .select('id, amount, tip, distance_km, product_type, occurred_at, platform_id, origin, destination, package_count, small_packages_count, large_packages_count, started_at, ended_at, break_minutes')
         .gte('occurred_at', since.toISOString())
         .order('occurred_at', { ascending: false }),
       supabase
