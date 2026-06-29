@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { supabase } from '@/integrations/supabase/client';
-import { formatBRL, formatKm, formatHours } from '@/lib/format';
+import { formatBRL, formatKm, formatHours, getDaysInRange } from '@/lib/format';
 import {
   Bar,
   BarChart,
@@ -708,6 +708,9 @@ const Relatorios = () => {
       }));
   }, [billingCycles]);
 
+  const daysInRange = getDaysInRange(range.since, range.until);
+  const averageDailyHours = stats.hours / daysInRange;
+
   return (
     <AppShell title={'RELATÓRIOS\nINSIGHTS'}>
       <div className="space-y-4">
@@ -876,6 +879,12 @@ const Relatorios = () => {
           <Kpi Icon={Clock} label="Receita / Hora" value={formatBRL(stats.revPerHour)} />
           <Kpi Icon={RouteIcon} label="KM rodados" value={formatKm(stats.totalKm)} />
           <Kpi Icon={Clock} label="Horas trab." value={formatHours(stats.hours * 3600000)} />
+          <Kpi
+            Icon={Clock}
+            label="Média diária de horas"
+            value={formatHours(averageDailyHours * 3600000)}
+            hint="Total de horas trabalhadas dividido pelo número de dias do período selecionado."
+          />
           <Kpi
             Icon={TrendingDown}
             label="Custo Op. / KM"

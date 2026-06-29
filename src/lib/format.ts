@@ -54,6 +54,15 @@ export const formatHours = (ms: number) => {
   return `${h.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}h`;
 };
 
+export const getDaysInRange = (since: Date, until: Date) => {
+  const start = new Date(since);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(until);
+  end.setHours(23, 59, 59, 999);
+  const diff = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+  return Number.isFinite(diff) && diff > 0 ? diff : 1;
+};
+
 export const toLocalInput = (dateOrStr: Date | string | null | undefined): string => {
   if (!dateOrStr) return '';
   const d = new Date(dateOrStr);
