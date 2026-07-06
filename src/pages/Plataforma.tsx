@@ -116,7 +116,7 @@ const Plataforma = () => {
       ? await supabase.from('platforms').update(payload).eq('id', id!)
       : await supabase.from('platforms').insert(payload);
     setLoading(false);
-    if (error) return toast.error(error.message);
+    if (error) return (console.error(error), toast.error("Erro ao salvar. Tente novamente."));
     toast.success(isEdit ? 'Plataforma atualizada!' : 'Plataforma vinculada!');
     navigate('/apps');
   };
