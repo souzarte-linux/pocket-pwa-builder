@@ -95,9 +95,9 @@
     overscroll-behavior-y: none;
   }
 
-  /* Mobile-first: clamp main app width to a phone-sized viewport on desktop */
+  /* Mobile-first: comfortable phone width, expanding to tablet/desktop */
   .app-shell {
-    @apply mx-auto w-full max-w-[480px] min-h-screen relative;
+    @apply mx-auto w-full max-w-[480px] sm:max-w-[640px] md:max-w-[860px] lg:max-w-[1120px] xl:max-w-[1280px] min-h-screen relative;
     background: hsl(var(--background));
   }
 
