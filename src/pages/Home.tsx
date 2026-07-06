@@ -210,14 +210,14 @@ const Home = () => {
             <span className="text-primary font-semibold">Toque em "Lançar Ganhos por Rota".</span>
           </p>
         ) : (
-          <ul className="space-y-2.5">
+          <ul className="space-y-2.5 md:space-y-0 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-4">
             {recent.map((r) => (
               <li
                 key={r.id}
                 className="relative pl-3 rounded-xl bg-surface border border-border/40 p-3 flex items-center gap-3"
               >
                 <span className="absolute left-0 top-3 bottom-3 w-1 rounded-full bg-primary" />
-                <span className="size-11 rounded-lg bg-surface-high grid place-items-center text-primary">
+                <span className="size-11 rounded-lg bg-surface-high grid place-items-center text-primary shrink-0">
                   {r.product_type === 'pacote' ? (
                     <Package className="size-5" />
                   ) : r.product_type === 'documento' ? (
