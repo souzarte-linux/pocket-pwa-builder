@@ -25,7 +25,7 @@ export const AppShell = ({
     {!hideHeader && (
       <AppHeader title={title} subtitle={subtitle} back={back} right={headerRight} />
     )}
-    <main className="px-5 pt-4 pb-6 animate-fade-in">{children}</main>
+    <main className="px-5 sm:px-6 md:px-8 pt-4 md:pt-6 pb-6 animate-fade-in">{children}</main>
     {!hideNav && <BottomNav />}
   </div>
 );

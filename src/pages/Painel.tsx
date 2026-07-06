@@ -138,7 +138,7 @@ const Painel = () => {
 
   return (
     <AppShell>
-      <div className="space-y-4">
+      <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 lg:grid-cols-3 md:items-start">
         <StatCard
           label="Lucro Diário"
           value={formatBRL(daily)}
@@ -163,7 +163,7 @@ const Painel = () => {
         />
 
         {/* By platform */}
-        <section className="rounded-2xl bg-surface border border-border/40 p-4 shadow-card">
+        <section className="rounded-2xl bg-surface border border-border/40 p-4 shadow-card md:col-span-2 lg:col-span-2">
           <h3 className="display text-lg mb-3">GANHOS POR PLATAFORMA</h3>
           {platforms.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
@@ -203,7 +203,7 @@ const Painel = () => {
         </section>
 
         {/* Trend chart */}
-        <section className="rounded-2xl bg-surface border border-border/40 p-4 shadow-card">
+        <section className="rounded-2xl bg-surface border border-border/40 p-4 shadow-card md:col-span-2 lg:col-span-3">
           <div className="flex items-center justify-between mb-4">
             <h3 className="display text-lg">TENDÊNCIA DE DESEMPENHO</h3>
             <div className="flex items-center bg-surface-high rounded-lg p-0.5">

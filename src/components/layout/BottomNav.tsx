@@ -12,7 +12,7 @@ const items = [
 
 export const BottomNav = () => (
   <nav
-    className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-40 border-t border-border/60 bg-surface-low/95 backdrop-blur-xl safe-bottom px-2 pt-2"
+    className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] sm:max-w-[640px] md:max-w-[860px] lg:max-w-[1120px] xl:max-w-[1280px] z-40 border-t border-border/60 bg-surface-low/95 backdrop-blur-xl safe-bottom px-2 pt-2"
     aria-label="Navegação principal"
   >
     <ul className="grid grid-cols-5 gap-1">
