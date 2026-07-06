@@ -39,7 +39,7 @@ export const QuickActionsFab = () => {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', damping: 24, stiffness: 280 }}
-            className="fixed inset-x-0 bottom-28 z-50 mx-auto w-full max-w-[480px] px-5"
+            className="fixed inset-x-0 bottom-28 z-50 mx-auto w-full max-w-[480px] sm:max-w-[640px] md:max-w-[860px] lg:max-w-[1120px] xl:max-w-[1280px] px-5 sm:px-6 md:px-8"
           >
             <div className="space-y-3">
               {groups.map((g) => (
