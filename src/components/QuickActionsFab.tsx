@@ -74,16 +74,19 @@ export const QuickActionsFab = () => {
         )}
       </AnimatePresence>
 
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? 'Fechar ações rápidas' : 'Abrir ações rápidas'}
-        className="fixed bottom-24 right-5 z-50 size-14 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-fab active:scale-95 transition"
-        style={{ left: 'auto' }}
-      >
-        <motion.span animate={{ rotate: open ? 45 : 0 }}>
-          {open ? <X className="size-6" /> : <Plus className="size-6" strokeWidth={3} />}
-        </motion.span>
-      </button>
+      <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none">
+        <div className="relative mx-auto w-full max-w-[480px] sm:max-w-[640px] md:max-w-[860px] lg:max-w-[1120px] xl:max-w-[1280px] h-0">
+          <button
+            onClick={() => setOpen((v) => !v)}
+            aria-label={open ? 'Fechar ações rápidas' : 'Abrir ações rápidas'}
+            className="pointer-events-auto absolute bottom-24 right-5 size-14 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-fab active:scale-95 transition"
+          >
+            <motion.span animate={{ rotate: open ? 45 : 0 }}>
+              {open ? <X className="size-6" /> : <Plus className="size-6" strokeWidth={3} />}
+            </motion.span>
+          </button>
+        </div>
+      </div>
     </>
   );
 };
