@@ -96,79 +96,83 @@ const Home = () => {
         </button>
       }
     >
-      {/* Lucro líquido card */}
-      <motion.section
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl bg-surface border border-border/40 p-5 shadow-card"
-      >
-        <div className="flex items-center justify-between">
-          <span className="label-up text-xs text-muted-foreground">Lucro líquido hoje</span>
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-secondary text-secondary-foreground">
-            Sessão ativa
-          </span>
-        </div>
-        <div className="mt-2 flex items-end gap-3">
-          <span className={`display text-4xl ${todayNet < 0 ? 'text-destructive' : 'text-primary'}`}>
-            {loading ? '—' : formatBRL(todayNet)}
-          </span>
-          {!loading && pct > 0 && (
-            <span className="mb-1.5 text-success font-bold text-sm">↑ {Math.round(pct)}%</span>
-          )}
-        </div>
-        <div className="mt-3 h-2 rounded-full bg-surface-bright overflow-hidden">
-          <div
-            className="h-full bg-gradient-primary transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-          <span className="font-bold">META: {formatBRL(goal)}</span>
-          <span className="font-bold">FALTAM {formatBRL(remaining)}</span>
-        </div>
-      </motion.section>
-
-      <OilChangeAlert />
-
-      {/* Big actions */}
-      <section className="mt-5 space-y-4">
-        <button
-          onClick={() => navigate('/rota/nova')}
-          className="w-full p-5 rounded-xl bg-primary text-primary-foreground text-left shadow-fab active:scale-[0.98] transition flex items-center gap-4"
+      <div className="md:grid md:grid-cols-2 md:gap-5 lg:grid-cols-3 md:items-start">
+        {/* Lucro líquido card */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl bg-surface border border-border/40 p-5 shadow-card lg:col-span-3"
         >
-          <div className="flex-1">
-            <h2 className="display text-xl leading-tight">LANÇAR GANHOS POR ROTA</h2>
-            <p className="mt-1 text-xs label-up opacity-80">Distância • Valor • Tipo</p>
+          <div className="flex items-center justify-between">
+            <span className="label-up text-xs text-muted-foreground">Lucro líquido hoje</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-secondary text-secondary-foreground">
+              Sessão ativa
+            </span>
           </div>
-          <Route className="size-9" strokeWidth={2.4} />
-        </button>
+          <div className="mt-2 flex items-end gap-3 flex-wrap">
+            <span className={`display text-4xl md:text-5xl ${todayNet < 0 ? 'text-destructive' : 'text-primary'}`}>
+              {loading ? '—' : formatBRL(todayNet)}
+            </span>
+            {!loading && pct > 0 && (
+              <span className="mb-1.5 text-success font-bold text-sm">↑ {Math.round(pct)}%</span>
+            )}
+          </div>
+          <div className="mt-3 h-2 rounded-full bg-surface-bright overflow-hidden">
+            <div
+              className="h-full bg-gradient-primary transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+            <span className="font-bold">META: {formatBRL(goal)}</span>
+            <span className="font-bold">FALTAM {formatBRL(remaining)}</span>
+          </div>
+        </motion.section>
 
-        <button
-          onClick={() => navigate('/total-dia')}
-          className="w-full p-5 rounded-xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center gap-4"
-        >
-          <div className="flex-1">
-            <h2 className="display text-xl text-primary leading-tight">LANÇAR TOTAL DO DIA</h2>
-            <p className="mt-1 text-xs label-up text-muted-foreground">
-              Sincronização final do turno
-            </p>
-          </div>
-          <Calendar className="size-8 text-primary" strokeWidth={2.4} />
-        </button>
+        <div className="md:col-span-2 lg:col-span-3 mt-5 md:mt-0">
+          <OilChangeAlert />
+        </div>
 
-        <button
-          onClick={() => navigate('/faturas')}
-          className="w-full p-5 rounded-xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center gap-4"
-        >
-          <div className="flex-1">
-            <h2 className="display text-xl text-success leading-tight">CONTAS A RECEBER</h2>
-            <p className="mt-1 text-xs label-up text-muted-foreground">
-              Fechar faturas e baixar pagamentos
-            </p>
-          </div>
-          <Wallet className="size-8 text-success" strokeWidth={2.4} />
-        </button>
-      </section>
+        {/* Big actions */}
+        <section className="mt-5 md:mt-0 space-y-4 md:contents">
+          <button
+            onClick={() => navigate('/rota/nova')}
+            className="w-full p-5 rounded-xl bg-primary text-primary-foreground text-left shadow-fab active:scale-[0.98] transition flex items-center gap-4"
+          >
+            <div className="flex-1">
+              <h2 className="display text-xl leading-tight">LANÇAR GANHOS POR ROTA</h2>
+              <p className="mt-1 text-xs label-up opacity-80">Distância • Valor • Tipo</p>
+            </div>
+            <Route className="size-9" strokeWidth={2.4} />
+          </button>
+
+          <button
+            onClick={() => navigate('/total-dia')}
+            className="w-full p-5 rounded-xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center gap-4"
+          >
+            <div className="flex-1">
+              <h2 className="display text-xl text-primary leading-tight">LANÇAR TOTAL DO DIA</h2>
+              <p className="mt-1 text-xs label-up text-muted-foreground">
+                Sincronização final do turno
+              </p>
+            </div>
+            <Calendar className="size-8 text-primary" strokeWidth={2.4} />
+          </button>
+
+          <button
+            onClick={() => navigate('/faturas')}
+            className="w-full p-5 rounded-xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center gap-4"
+          >
+            <div className="flex-1">
+              <h2 className="display text-xl text-success leading-tight">CONTAS A RECEBER</h2>
+              <p className="mt-1 text-xs label-up text-muted-foreground">
+                Fechar faturas e baixar pagamentos
+              </p>
+            </div>
+            <Wallet className="size-8 text-success" strokeWidth={2.4} />
+          </button>
+        </section>
+      </div>
 
       {/* Quick expense */}
       <section className="mt-7">
