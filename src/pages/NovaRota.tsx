@@ -194,7 +194,7 @@ const NovaRota = () => {
     }
 
     setLoading(false);
-    if (error) return toast.error(error.message);
+    if (error) return (console.error(error), toast.error("Erro ao salvar. Tente novamente."));
     toast.success(isEdit ? 'Rota atualizada!' : 'Rota registrada!');
     navigate(isEdit ? '/historico' : '/');
   };
@@ -204,7 +204,7 @@ const NovaRota = () => {
     setDeleting(true);
     const { error } = await supabase.from('routes').delete().eq('id', editId);
     setDeleting(false);
-    if (error) return toast.error(error.message);
+    if (error) return (console.error(error), toast.error("Erro ao salvar. Tente novamente."));
     toast.success('Rota excluída!');
     navigate('/historico');
   };
