@@ -143,7 +143,7 @@ const Despesa = () => {
     }
 
     setLoading(false);
-    if (error) return toast.error(error.message);
+    if (error) return (console.error(error), toast.error("Erro ao salvar. Tente novamente."));
     toast.success(isEdit ? 'Despesa atualizada!' : 'Despesa registrada!');
     navigate(isEdit ? '/historico' : '/');
   };
@@ -153,7 +153,7 @@ const Despesa = () => {
     setDeleting(true);
     const { error } = await supabase.from('expenses').delete().eq('id', editId);
     setDeleting(false);
-    if (error) return toast.error(error.message);
+    if (error) return (console.error(error), toast.error("Erro ao salvar. Tente novamente."));
     toast.success('Despesa excluída!');
     navigate('/historico');
   };

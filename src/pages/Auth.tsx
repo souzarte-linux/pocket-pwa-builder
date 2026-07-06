@@ -51,7 +51,8 @@ const Auth = () => {
         navigate('/', { replace: true });
       }
     } catch (err: any) {
-      toast.error('Erro ao fazer login com Google: ' + (err?.message ?? String(err)));
+      console.error(err);
+      toast.error('Erro ao fazer login com Google. Tente novamente.');
     } finally {
       setOauthLoading(null);
     }
@@ -69,7 +70,8 @@ const Auth = () => {
         navigate('/', { replace: true });
       }
     } catch (err: any) {
-      toast.error('Erro ao fazer login com Apple: ' + (err?.message ?? String(err)));
+      console.error(err);
+      toast.error('Erro ao fazer login com Apple. Tente novamente.');
     } finally {
       setOauthLoading(null);
     }
