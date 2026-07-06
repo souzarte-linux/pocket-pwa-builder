@@ -1089,7 +1089,6 @@ const Relatorios = () => {
                       }}
                       labelStyle={{ color: '#ffb599', fontWeight: 'bold', marginBottom: 4 }}
                       itemStyle={{ color: '#e5e2e1' }}
-                      label="Projeção"
                       formatter={(v: number) => formatBRL(v)}
                       cursor={{ fill: 'rgba(255, 181, 153, 0.1)' }}
                     />
@@ -1127,7 +1126,6 @@ const Relatorios = () => {
                       }}
                       labelStyle={{ color: '#ffb599', fontWeight: 'bold', marginBottom: 4 }}
                       itemStyle={{ color: '#e5e2e1' }}
-                      label="Rentabilidade"
                       formatter={(v: number) => formatBRL(v) + '/hora'}
                       cursor={{ fill: 'rgba(255, 181, 153, 0.1)' }}
                     />
