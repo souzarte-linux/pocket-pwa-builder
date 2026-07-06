@@ -32,6 +32,7 @@ import {
   Wrench,
   Fuel,
   Droplet,
+  Pencil,
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-react';
@@ -132,6 +133,7 @@ interface DailyTotal {
   subtract_routes: boolean;
 }
 interface Expense {
+  id: string;
   amount: number;
   category: string;
   occurred_at: string;
@@ -234,7 +236,7 @@ const Relatorios = () => {
           .select('amount, distance_km, platform_id, product_type, occurred_at, subtract_routes')
           .gte('occurred_at', sinceISO)
           .lte('occurred_at', untilISO),
-        supabase.from('expenses').select('amount, category, occurred_at, title, liters, odometer_km, is_full_tank')
+        supabase.from('expenses').select('id, amount, category, occurred_at, title, liters, odometer_km, is_full_tank')
           .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
         supabase.from('platforms').select('id, name'),
         supabase.from('billing_cycles').select('id, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
@@ -265,7 +267,7 @@ const Relatorios = () => {
       const [profRes, oilRes, expAllRes, routesAllRes] = await Promise.all([
         supabase.from('profiles').select('oil_change_km, last_oil_change_at').maybeSingle(),
         supabase.from('oil_changes').select('changed_at, km_at_change').order('changed_at', { ascending: false }),
-        supabase.from('expenses').select('amount, category, occurred_at, title, liters, odometer_km, is_full_tank')
+        supabase.from('expenses').select('id, amount, category, occurred_at, title, liters, odometer_km, is_full_tank')
           .in('category', ['combustivel', 'manutencao']),
         supabase.from('routes').select('end_km, start_km'),
       ]);
@@ -463,32 +465,39 @@ const Relatorios = () => {
 
   // Preventive maintenance schedule
   const maintSchedule = useMemo(() => {
-    const findLastKm = (regex: RegExp): number | null => {
-      let best: { km: number; date: string } | null = null;
+    const findLast = (regex: RegExp): { km: number; date: string; id: string } | null => {
+      let best: { km: number; date: string; id: string } | null = null;
       allMaintExpenses.forEach((e) => {
         if (!e.title || !regex.test(e.title)) return;
         const km = Number(e.odometer_km ?? 0);
         if (!best || new Date(e.occurred_at) > new Date(best.date)) {
-          best = { km, date: e.occurred_at };
+          best = { km, date: e.occurred_at, id: e.id };
         }
       });
-      return best ? best.km : null;
+      return best;
     };
 
     // Last oil change: prefer oil_changes table, fall back to expenses
     let lastOilKm: number | null = null;
     if (oilChanges.length > 0) lastOilKm = Number(oilChanges[0].km_at_change ?? 0);
-    if (lastOilKm == null) lastOilKm = findLastKm(/\b(oleo|óleo)\b/i);
+    const lastOilExpense = findLast(/\b(oleo|óleo)\b/i);
+    if (lastOilKm == null) lastOilKm = lastOilExpense?.km ?? null;
 
     const oilLife = Number(maintProfile?.oil_change_km ?? 3000) || 3000;
 
-    const items: { name: string; lifeKm: number; lastKm: number | null }[] = [
-      { name: 'Troca de Óleo', lifeKm: oilLife, lastKm: lastOilKm },
-      { name: 'Kit Relação', lifeKm: 15000, lastKm: findLastKm(/relaç|relac|corrent|coroa|pinhão|pinhao/i) },
-      { name: 'Pneu Dianteiro', lifeKm: 15000, lastKm: findLastKm(/pneu.*diant|diant.*pneu/i) },
-      { name: 'Pneu Traseiro', lifeKm: 10000, lastKm: findLastKm(/pneu.*tras|tras.*pneu/i) },
-      { name: 'Pastilhas de Freio', lifeKm: 5000, lastKm: findLastKm(/pastilh|freio/i) },
-      { name: 'Vela de Ignição', lifeKm: 10000, lastKm: findLastKm(/vela|igniç|ignic/i) },
+    const kitRelacao = findLast(/relaç|relac|corrent|coroa|pinhão|pinhao/i);
+    const pneuDianteiro = findLast(/pneu.*diant|diant.*pneu/i);
+    const pneuTraseiro = findLast(/pneu.*tras|tras.*pneu/i);
+    const pastilhasFreio = findLast(/pastilh|freio/i);
+    const velaIgniçao = findLast(/vela|igniç|ignic/i);
+
+    const items: { name: string; lifeKm: number; lastKm: number | null; expenseId?: string }[] = [
+      { name: 'Troca de Óleo', lifeKm: oilLife, lastKm: lastOilKm, expenseId: lastOilExpense?.id },
+      { name: 'Kit Relação', lifeKm: 15000, lastKm: kitRelacao?.km ?? null, expenseId: kitRelacao?.id },
+      { name: 'Pneu Dianteiro', lifeKm: 15000, lastKm: pneuDianteiro?.km ?? null, expenseId: pneuDianteiro?.id },
+      { name: 'Pneu Traseiro', lifeKm: 10000, lastKm: pneuTraseiro?.km ?? null, expenseId: pneuTraseiro?.id },
+      { name: 'Pastilhas de Freio', lifeKm: 5000, lastKm: pastilhasFreio?.km ?? null, expenseId: pastilhasFreio?.id },
+      { name: 'Vela de Ignição', lifeKm: 10000, lastKm: velaIgniçao?.km ?? null, expenseId: velaIgniçao?.id },
     ];
 
     return items.map((it) => {
@@ -1002,12 +1011,24 @@ const Relatorios = () => {
                   key={it.name}
                   className={`rounded-xl border p-3 ${toneBg}`}
                 >
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-1 gap-2">
                     <span className="font-bold text-sm">{it.name}</span>
-                    <span className={`inline-flex items-center gap-1 text-[11px] font-bold uppercase ${toneText}`}>
-                      <StatusIcon className="size-3.5" />
-                      {statusLabel}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {it.expenseId && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/despesa/manutencao?id=${it.expenseId}`)}
+                          className="size-9 grid place-items-center rounded-lg bg-surface-high text-muted-foreground hover:text-primary hover:bg-primary/10 transition"
+                          aria-label={`Editar ${it.name}`}
+                        >
+                          <Pencil className="size-4" />
+                        </button>
+                      )}
+                      <span className={`inline-flex items-center gap-1 text-[11px] font-bold uppercase ${toneText}`}>
+                        <StatusIcon className="size-3.5" />
+                        {statusLabel}
+                      </span>
+                    </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-[11px] text-muted-foreground">
                     <div>
