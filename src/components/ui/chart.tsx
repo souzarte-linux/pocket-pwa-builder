@@ -98,7 +98,11 @@ const ChartTooltipContent = React.forwardRef<
       indicator?: "line" | "dot" | "dashed";
       nameKey?: string;
       labelKey?: string;
+      // recharts v3 injects these at runtime
+      payload?: any[];
+      label?: any;
     }
+
 >(
   (
     {
