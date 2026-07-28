@@ -103,11 +103,15 @@ const Painel = () => {
       });
       setExp(eAgg);
 
-      // Trend (last 7/30 days)
+      // Trend — "7d" = current week starting Monday; "30d" = last 30 days
       const days = range === '7d' ? 7 : 30;
       const since = new Date();
-      since.setDate(since.getDate() - (days - 1));
       since.setHours(0, 0, 0, 0);
+      if (range === '7d') {
+        since.setDate(since.getDate() - ((since.getDay() + 6) % 7));
+      } else {
+        since.setDate(since.getDate() - (days - 1));
+      }
       const { data: tr } = await supabase
         .from('routes')
         .select('amount, tip, occurred_at')
