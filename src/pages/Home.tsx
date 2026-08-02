@@ -5,7 +5,7 @@ import { Route, Calendar, Clock, Fuel, Wrench, UtensilsCrossed, Package, FileTex
 import { AppShell } from '@/components/layout/AppShell';
 import { QuickActionsFab } from '@/components/QuickActionsFab';
 import { OilChangeAlert } from '@/components/OilChangeAlert';
-import { PartMaintenanceAlert } from '@/components/PartMaintenanceAlert';
+import { PartMaintenanceAlerts } from '@/components/PartMaintenanceAlerts';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, todayBoundaries, relativeFromNow } from '@/lib/format';
 import { toast } from 'sonner';
@@ -132,7 +132,7 @@ const Home = () => {
 
         <div className="md:col-span-2 lg:col-span-3 mt-5 md:mt-0 space-y-3">
           <OilChangeAlert />
-          <PartMaintenanceAlert />
+          <PartMaintenanceAlerts />
         </div>
 
         {/* Big actions */}

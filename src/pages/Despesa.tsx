@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { Field, Input, TextArea, SegButton, SubmitButton, FormShell, Select } from '@/components/forms/Form';
-import { QuickCombobox } from '@/components/forms/QuickCombobox';
-import { CardPaymentDialog, CardDetails } from '@/components/forms/CardPaymentDialog';
+import { QuickCombobox } from '@/components/QuickCombobox';
+import { CardPaymentDialog, CardDetails } from '@/components/CardPaymentDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CreditCard, QrCode, Banknote, Plus, Trash2 } from 'lucide-react';
+import { CreditCard, QrCode, Banknote, Plus, Trash2, History } from 'lucide-react';
 
 type Cat = 'combustivel' | 'manutencao' | 'alimentacao';
 
@@ -18,28 +18,27 @@ const titles: Record<Cat, { title: string; defaultTitle: string }> = {
 
 const allFuelTypes = ['Etanol', 'Gasolina Comum', 'Gasolina Aditivada', 'GNV', 'Diesel'];
 
-const PART_LIFE_SUGGESTIONS: Record<string, number> = {
-  óleo: 3000,
-  oleo: 3000,
-  'troca de óleo': 3000,
-  'troca de oleo': 3000,
-  pastilha: 10000,
-  'pastilha de freio': 10000,
-  freio: 10000,
-  relação: 20000,
-  relacao: 20000,
-  corrente: 20000,
-  'kit relação': 20000,
-  pneu: 25000,
-  pneus: 25000,
-  'filtro de ar': 10000,
-  'filtro de óleo': 3000,
-  'filtro de oleo': 3000,
-  vela: 15000,
-  'vela de ignição': 15000,
+/** Vida útil de referência (km) por tipo de peça/serviço */
+const LIFE_REFERENCE: { match: string[]; km: number }[] = [
+  { match: ['oleo', 'óleo'], km: 3000 },
+  { match: ['filtro'], km: 6000 },
+  { match: ['pastilha', 'freio'], km: 10000 },
+  { match: ['vela'], km: 10000 },
+  { match: ['relacao', 'relação', 'corrente', 'coroa', 'pinhao', 'pinhão'], km: 20000 },
+  { match: ['pneu'], km: 25000 },
+];
+
+const suggestLife = (title: string) => {
+  const t = title.toLowerCase();
+  const hit = LIFE_REFERENCE.find((r) => r.match.some((m) => t.includes(m)));
+  return hit ? String(hit.km) : '';
 };
 
-const DEFAULT_COMPANIES = ['Oficina do João', 'Auto Peças Silva', 'Mecânica Central', 'Concessionária'];
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
+};
 
 const Despesa = () => {
   const { categoria } = useParams<{ categoria: Cat }>();
@@ -56,31 +55,23 @@ const Despesa = () => {
   const [pricePerLiter, setPricePerLiter] = useState('');
   const [fuelType, setFuelType] = useState('Gasolina Comum');
   const [odometer, setOdometer] = useState('');
-
-  // Date and Time inputs
-  const now = new Date();
-  const [date, setDate] = useState(now.toISOString().slice(0, 10));
-  const [time, setTime] = useState(now.toTimeString().slice(0, 5));
-
+  const [lifeKm, setLifeKm] = useState('');
+  const [lifeTouched, setLifeTouched] = useState(false);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [partBrand, setPartBrand] = useState('');
+  const [partModel, setPartModel] = useState('');
+  const [when, setWhen] = useState(toLocalInput(new Date().toISOString()));
   const [description, setDescription] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao' | 'dinheiro'>('pix');
+  const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
+  const [cardDialogOpen, setCardDialogOpen] = useState(false);
   const [isFullTank, setIsFullTank] = useState(true);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // New maintenance fields
-  const [partLifeKm, setPartLifeKm] = useState('');
-  const [partBrand, setPartBrand] = useState('');
-  const [partModel, setPartModel] = useState('');
-
-  // Card details & modal
-  const [cardDialogOpen, setCardDialogOpen] = useState(false);
-  const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
-
-  // Gas stations & Companies
   const [gasStations, setGasStations] = useState<any[]>([]);
-  const [companies, setCompanies] = useState<string[]>(DEFAULT_COMPANIES);
+  const [partHistory, setPartHistory] = useState<any[]>([]);
 
   useEffect(() => {
     if (cat === 'combustivel') {
@@ -91,90 +82,82 @@ const Despesa = () => {
         .then(({ data }) => {
           setGasStations(data ?? []);
         });
-    } else if (cat === 'manutencao') {
-      supabase
-        .from('companies')
-        .select('name')
-        .order('name')
-        .then(({ data }) => {
-          if (data) {
-            const dbCompanies = data.map((c) => c.name);
-            setCompanies(Array.from(new Set([...DEFAULT_COMPANIES, ...dbCompanies])));
-          }
-        });
+    }
+    if (cat === 'manutencao' && !isEdit) {
+      const last = localStorage.getItem('lastCompany');
+      if (last) setVendor(last);
     }
 
     if (editId) {
-      supabase
-        .from('expenses')
-        .select('*')
-        .eq('id', editId)
-        .maybeSingle()
-        .then(({ data: e }) => {
-          if (e) {
-            setVendor(e.vendor ?? '');
-            setTitle(e.title ?? '');
-            setAmount(String(e.amount ?? ''));
-            setLiters(String(e.liters ?? ''));
-            setPricePerLiter(String(e.price_per_liter ?? ''));
-            if (e.fuel_type) setFuelType(e.fuel_type);
-            setOdometer(String(e.odometer_km ?? ''));
-
-            if (e.occurred_at) {
-              const dt = new Date(e.occurred_at);
-              setDate(dt.toISOString().slice(0, 10));
-              setTime(dt.toTimeString().slice(0, 5));
-            }
-
-            setDescription(e.description ?? '');
-            setReceiptNumber(e.receipt_number ?? '');
-
-            if (e.payment_method && e.payment_method !== 'carteira') {
-              setPaymentMethod(e.payment_method as any);
-            } else {
-              setPaymentMethod('dinheiro');
-            }
-
-            setIsFullTank(e.is_full_tank ?? true);
-            if (e.part_life_km) setPartLifeKm(String(e.part_life_km));
-            if (e.part_brand) setPartBrand(e.part_brand);
-            if (e.part_model) setPartModel(e.part_model);
-
-            if (e.card_brand || e.card_operator) {
-              setCardDetails({
-                cardBrand: e.card_brand || '',
-                cardOperator: e.card_operator || '',
-                isInstallment: (e.installment_total ?? 1) > 1,
-                installmentTotal: e.installment_total || 1,
-                firstInstallmentDate: date,
-              });
-            }
+      supabase.from('expenses').select('*').eq('id', editId).maybeSingle().then(({ data: e }) => {
+        if (e) {
+          const ex = e as any;
+          setVendor(ex.vendor ?? '');
+          setTitle(ex.title ?? '');
+          setAmount(String(ex.amount ?? ''));
+          setLiters(String(ex.liters ?? ''));
+          setPricePerLiter(String(ex.price_per_liter ?? ''));
+          if (ex.fuel_type) setFuelType(ex.fuel_type);
+          setOdometer(ex.odometer_km != null ? String(ex.odometer_km) : '');
+          setWhen(toLocalInput(ex.occurred_at));
+          setDescription(ex.description ?? '');
+          setReceiptNumber(ex.receipt_number ?? '');
+          setInvoiceNumber(ex.invoice_number ?? '');
+          setPartBrand(ex.part_brand ?? '');
+          setPartModel(ex.part_model ?? '');
+          if (ex.payment_method && ex.payment_method !== 'carteira') setPaymentMethod(ex.payment_method);
+          if (ex.payment_method === 'cartao') {
+            setCardDetails({
+              brand: ex.card_brand ?? '',
+              operator: ex.card_operator ?? '',
+              installments: ex.installment_total ?? 1,
+              firstMonth: String(ex.occurred_at).slice(0, 7),
+            });
           }
-        });
-    }
-  }, [cat, editId]);
-
-  // Handle title auto suggestion for part life km
-  const handleTitleChange = (val: string) => {
-    setTitle(val);
-    if (cat === 'manutencao') {
-      const lower = val.toLowerCase().trim();
-      if (PART_LIFE_SUGGESTIONS[lower]) {
-        setPartLifeKm(String(PART_LIFE_SUGGESTIONS[lower]));
-      }
-    }
-  };
-
-  const handleAddNewCompany = async (name: string) => {
-    const { data: u } = await supabase.auth.getUser();
-    if (u.user) {
-      await supabase.from('companies').insert({
-        user_id: u.user.id,
-        name,
+          setIsFullTank(ex.is_full_tank ?? true);
+          setLifeTouched(true);
+        }
       });
     }
-    setCompanies((prev) => Array.from(new Set([...prev, name])));
-  };
+  }, [cat, editId, isEdit]);
+
+  // sugestão automática de vida útil a partir do nome da peça
+  useEffect(() => {
+    if (cat !== 'manutencao' || lifeTouched) return;
+    setLifeKm(suggestLife(title));
+  }, [title, cat, lifeTouched]);
+
+  // histórico da mesma peça/serviço
+  useEffect(() => {
+    if (cat !== 'manutencao' || title.trim().length < 3) {
+      setPartHistory([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from('expenses')
+        .select('id, title, amount, odometer_km, occurred_at')
+        .eq('category', 'manutencao')
+        .ilike('title', title.trim())
+        .order('occurred_at', { ascending: false })
+        .limit(6);
+      setPartHistory((data ?? []).filter((d: any) => d.id !== editId));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [title, cat, editId]);
+
+  const historyWithDelta = useMemo(
+    () =>
+      partHistory.map((h, i) => {
+        const prev = partHistory[i + 1];
+        const delta =
+          prev && h.odometer_km != null && prev.odometer_km != null
+            ? Number(h.odometer_km) - Number(prev.odometer_km)
+            : null;
+        return { ...h, delta };
+      }),
+    [partHistory],
+  );
 
   const handlePriceChange = (val: string) => {
     setPricePerLiter(val);
@@ -206,148 +189,106 @@ const Despesa = () => {
     else if (a > 0 && l > 0) setPricePerLiter((a / l).toFixed(2).replace('.', ','));
   };
 
-  const selectedStation = gasStations.find((g) => g.name === vendor);
-  const availableFuels =
-    selectedStation?.fuel_types && selectedStation.fuel_types.length > 0
-      ? selectedStation.fuel_types
-      : allFuelTypes;
+  const selectedStation = gasStations.find(g => g.name === vendor);
+  const availableFuels = selectedStation?.fuel_types && selectedStation.fuel_types.length > 0
+    ? selectedStation.fuel_types
+    : allFuelTypes;
 
-  const handleSelectPaymentMethod = (method: 'pix' | 'cartao' | 'dinheiro') => {
-    setPaymentMethod(method);
-    if (method === 'cartao') {
-      setCardDialogOpen(true);
-    }
+  const selectPayment = (m: 'pix' | 'cartao' | 'dinheiro') => {
+    setPaymentMethod(m);
+    if (m === 'cartao') setCardDialogOpen(true);
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
-    const finalAmount = Number(amount.replace(',', '.')) || 0;
+    if (!u.user) {
+      setLoading(false);
+      return;
+    }
+    const final = Number(amount.replace(',', '.')) || 0;
+    const odo = Number(odometer.replace(',', '.')) || null;
+    const occurred = new Date(when);
 
-    // Combine date and time
-    const occurredAtIso = new Date(`${date}T${time || '12:00'}:00`).toISOString();
-
-    const basePayload: any = {
+    const payload: any = {
       user_id: u.user.id,
       category: cat,
       title: title || titles[cat].defaultTitle,
       vendor: vendor || null,
-      amount: finalAmount,
+      amount: final,
       liters: cat === 'combustivel' ? Number(liters.replace(',', '.')) || null : null,
       fuel_type: cat === 'combustivel' ? fuelType : null,
       price_per_liter: cat === 'combustivel' ? Number(pricePerLiter.replace(',', '.')) || null : null,
-      odometer_km:
-        cat === 'combustivel' || cat === 'manutencao'
-          ? Number(odometer.replace(',', '.')) || null
-          : null,
+      odometer_km: cat === 'alimentacao' ? null : odo,
       description: description || null,
       payment_method: paymentMethod,
-      occurred_at: occurredAtIso,
+      occurred_at: occurred.toISOString(),
+      card_brand: paymentMethod === 'cartao' ? cardDetails?.brand || null : null,
+      card_operator: paymentMethod === 'cartao' ? cardDetails?.operator || null : null,
     };
 
     if (cat === 'combustivel') {
-      basePayload.receipt_number = receiptNumber || null;
-      basePayload.is_full_tank = isFullTank;
-    } else if (cat === 'manutencao') {
-      basePayload.receipt_number = receiptNumber || null;
-      basePayload.part_life_km = Number(partLifeKm.replace(',', '.')) || null;
-      basePayload.part_brand = partBrand || null;
-      basePayload.part_model = partModel || null;
+      payload.receipt_number = receiptNumber || null;
+      payload.is_full_tank = isFullTank;
     }
 
-    if (paymentMethod === 'cartao' && cardDetails) {
-      basePayload.card_brand = cardDetails.cardBrand || null;
-      basePayload.card_operator = cardDetails.cardOperator || null;
+    if (cat === 'manutencao') {
+      payload.invoice_number = invoiceNumber || null;
+      payload.part_brand = partBrand || null;
+      payload.part_model = partModel || null;
     }
 
-    let mainError: any = null;
-
-    // Check if card payment with multiple installments
-    if (
-      !isEdit &&
-      paymentMethod === 'cartao' &&
-      cardDetails?.isInstallment &&
-      cardDetails.installmentTotal > 1
-    ) {
-      const totalInstallments = cardDetails.installmentTotal;
-      const groupId = crypto.randomUUID();
-      const perInstallmentAmount = Math.floor((finalAmount / totalInstallments) * 100) / 100;
-      const firstInstallmentAmount =
-        Math.round((finalAmount - perInstallmentAmount * (totalInstallments - 1)) * 100) / 100;
-
-      const rowsToInsert = [];
-      const baseDate = new Date(`${cardDetails.firstInstallmentDate}T${time || '12:00'}:00`);
-
-      for (let i = 0; i < totalInstallments; i++) {
-        const instDate = new Date(baseDate);
-        instDate.setMonth(instDate.getMonth() + i);
-
-        rowsToInsert.push({
-          ...basePayload,
-          title: `${title || titles[cat].defaultTitle} (${i + 1}/${totalInstallments})`,
-          amount: i === 0 ? firstInstallmentAmount : perInstallmentAmount,
-          installment_group_id: groupId,
-          installment_number: i + 1,
-          installment_total: totalInstallments,
-          occurred_at: instDate.toISOString(),
-        });
-      }
-
-      const res = await supabase.from('expenses').insert(rowsToInsert);
-      mainError = res.error;
+    let error;
+    if (isEdit) {
+      const res = await supabase.from('expenses').update(payload).eq('id', editId);
+      error = res.error;
     } else {
-      if (isEdit) {
-        const res = await supabase.from('expenses').update(basePayload).eq('id', editId);
-        mainError = res.error;
+      const total = paymentMethod === 'cartao' ? Math.max(1, cardDetails?.installments ?? 1) : 1;
+      if (total > 1) {
+        const groupId = crypto.randomUUID();
+        const [fy, fm] = (cardDetails?.firstMonth ?? occurred.toISOString().slice(0, 7))
+          .split('-')
+          .map(Number);
+        const rows = Array.from({ length: total }, (_, i) => {
+          const d = new Date(fy, fm - 1 + i, occurred.getDate(), occurred.getHours(), occurred.getMinutes());
+          return {
+            ...payload,
+            occurred_at: d.toISOString(),
+            amount: Number((final / total).toFixed(2)),
+            installment_group_id: groupId,
+            installment_number: i + 1,
+            installment_total: total,
+            title: `${payload.title} (Parcela ${i + 1}/${total})`,
+          };
+        });
+        const res = await supabase.from('expenses').insert(rows);
+        error = res.error;
       } else {
-        const res = await supabase.from('expenses').insert(basePayload);
-        mainError = res.error;
+        const res = await supabase.from('expenses').insert(payload);
+        error = res.error;
       }
     }
 
-    // Upsert into part_maintenance if maintenance with useful life & odometer
-    if (!mainError && cat === 'manutencao' && title.trim() && odometer && partLifeKm) {
-      const lifeKmNum = Number(partLifeKm.replace(',', '.')) || 0;
-      const odoKmNum = Number(odometer.replace(',', '.')) || 0;
-
-      if (lifeKmNum > 0 && odoKmNum > 0) {
-        // Upsert by part_name
-        const { data: existingPart } = await supabase
-          .from('part_maintenance')
-          .select('id')
-          .eq('user_id', u.user.id)
-          .ilike('part_name', title.trim())
-          .maybeSingle();
-
-        if (existingPart) {
-          await supabase
-            .from('part_maintenance')
-            .update({
-              life_km: lifeKmNum,
-              last_change_km: odoKmNum,
-              last_change_at: occurredAtIso,
-            })
-            .eq('id', existingPart.id);
-        } else {
-          await supabase.from('part_maintenance').insert({
-            user_id: u.user.id,
-            part_name: title.trim(),
-            life_km: lifeKmNum,
-            last_change_km: odoKmNum,
-            last_change_at: occurredAtIso,
-          });
-        }
-      }
+    // registra/atualiza controle de vida útil da peça
+    if (!error && cat === 'manutencao' && Number(lifeKm) > 0 && title.trim()) {
+      const { error: pmErr } = await supabase.from('part_maintenance' as any).upsert(
+        {
+          user_id: u.user.id,
+          part_name: title.trim(),
+          life_km: Number(lifeKm),
+          last_change_km: odo ?? 0,
+          last_change_at: occurred.toISOString(),
+        } as any,
+        { onConflict: 'user_id,part_name' },
+      );
+      if (pmErr) console.error(pmErr);
     }
+
+    if (cat === 'manutencao' && vendor) localStorage.setItem('lastCompany', vendor);
 
     setLoading(false);
-    if (mainError) {
-      console.error(mainError);
-      return toast.error('Erro ao salvar despesa. Tente novamente.');
-    }
-
+    if (error) return (console.error(error), toast.error('Erro ao salvar. Tente novamente.'));
     toast.success(isEdit ? 'Despesa atualizada!' : 'Despesa registrada!');
     navigate(isEdit ? '/historico' : '/');
   };
@@ -368,9 +309,7 @@ const Despesa = () => {
         <FormShell
           footer={
             <div className="flex flex-col gap-2 w-full">
-              <SubmitButton loading={loading}>
-                {isEdit ? 'SALVAR ALTERAÇÕES' : 'SALVAR DESPESA'}
-              </SubmitButton>
+              <SubmitButton loading={loading}>{isEdit ? 'SALVAR ALTERAÇÕES' : 'SALVAR DESPESA'}</SubmitButton>
               {isEdit && (
                 <button
                   type="button"
@@ -394,9 +333,7 @@ const Despesa = () => {
                     setVendor(e.target.value);
                     const st = gasStations.find((x) => x.name === e.target.value);
                     if (st && st.fuel_types && st.fuel_types.length > 0) {
-                      if (!st.fuel_types.includes(fuelType)) {
-                        setFuelType(st.fuel_types[0]);
-                      }
+                      if (!st.fuel_types.includes(fuelType)) setFuelType(st.fuel_types[0]);
                     }
                   }}
                 >
@@ -417,26 +354,23 @@ const Despesa = () => {
                 </button>
               </div>
             </Field>
-          ) : cat === 'manutencao' ? (
-            <Field label="Empresa">
-              <QuickCombobox
-                value={vendor}
-                onChange={setVendor}
-                options={companies}
-                placeholder="Selecione ou busque a empresa..."
-                searchPlaceholder="Buscar empresa..."
-                addNewTitle="Cadastrar Nova Empresa"
-                onAddNew={handleAddNewCompany}
-                storageKey="last_company"
-              />
-            </Field>
           ) : (
-            <Field label="Nome do local">
-              <Input
-                value={vendor}
-                onChange={(e) => setVendor(e.target.value)}
-                placeholder="Ex: Restaurante do Silva"
-              />
+            <Field label={cat === 'manutencao' ? 'Empresa' : 'Nome do local'}>
+              {cat === 'manutencao' ? (
+                <QuickCombobox
+                  table="companies"
+                  value={vendor}
+                  onChange={setVendor}
+                  rememberKey="lastCompany"
+                  placeholder="Selecione ou digite a empresa"
+                />
+              ) : (
+                <Input
+                  value={vendor}
+                  onChange={(e) => setVendor(e.target.value)}
+                  placeholder="Ex: Restaurante do Silva"
+                />
+              )}
             </Field>
           )}
 
@@ -444,10 +378,39 @@ const Despesa = () => {
             <Field label={cat === 'manutencao' ? 'Peça/Serviço' : 'O que foi comprado'}>
               <Input
                 value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                placeholder={cat === 'manutencao' ? 'Ex: Troca de óleo, Pastilha de freio…' : 'Ex: Almoço, lanche…'}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={cat === 'manutencao' ? 'Ex: Troca de óleo, pastilha de freio' : 'Ex: Almoço, lanche…'}
               />
             </Field>
+          )}
+
+          {cat === 'manutencao' && historyWithDelta.length > 0 && (
+            <div className="rounded-xl border border-border/40 bg-surface p-3 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground uppercase">
+                <History className="size-3.5 text-primary" />
+                Histórico desta peça/serviço
+              </div>
+              <ul className="divide-y divide-border/20 text-xs">
+                {historyWithDelta.map((h) => (
+                  <li key={h.id} className="py-1.5 flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold text-foreground">{new Date(h.occurred_at).toLocaleDateString('pt-BR')}</span>
+                      {h.odometer_km != null && (
+                        <span className="text-muted-foreground ml-2">({Number(h.odometer_km).toLocaleString('pt-BR')} km)</span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-primary">R$ {Number(h.amount).toFixed(2)}</span>
+                      {h.delta != null && (
+                        <span className="block text-[10px] text-muted-foreground">
+                          +{h.delta.toLocaleString('pt-BR')} km desde a anterior
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {cat === 'combustivel' && (
@@ -464,90 +427,69 @@ const Despesa = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Preço/Litro">
-                  <Input
-                    inputMode="decimal"
-                    value={pricePerLiter}
-                    onChange={(e) => handlePriceChange(e.target.value)}
-                    placeholder="Ex: 5,89"
-                  />
+                  <Input inputMode="decimal" value={pricePerLiter} onChange={(e) => handlePriceChange(e.target.value)} placeholder="Ex: 5,89" />
                 </Field>
                 <Field label="Litros">
-                  <Input
-                    inputMode="decimal"
-                    value={liters}
-                    onChange={(e) => handleLitersChange(e.target.value)}
-                    placeholder="Ex: 20,0"
-                  />
+                  <Input inputMode="decimal" value={liters} onChange={(e) => handleLitersChange(e.target.value)} placeholder="Ex: 20,0" />
                 </Field>
               </div>
+            </>
+          )}
 
-              <Field label="Odômetro (km)">
+          {cat !== 'alimentacao' && (
+            <Field label="Odômetro (km)">
+              <Input
+                inputMode="decimal"
+                value={odometer}
+                onChange={(e) => setOdometer(e.target.value)}
+                placeholder="Ex: 125450"
+              />
+            </Field>
+          )}
+
+          {cat === 'manutencao' && (
+            <>
+              <Field label="Vida útil (km)">
                 <Input
                   inputMode="decimal"
-                  value={odometer}
-                  onChange={(e) => setOdometer(e.target.value)}
-                  placeholder="Ex: 125450"
+                  value={lifeKm}
+                  onChange={(e) => {
+                    setLifeKm(e.target.value);
+                    setLifeTouched(true);
+                  }}
+                  placeholder="Ex: 3000 (dispara alerta ao atingir 90%)"
                 />
               </Field>
 
-              <Field label="Completou o tanque?">
-                <div className="grid grid-cols-2 gap-2">
-                  <SegButton active={isFullTank} onClick={() => setIsFullTank(true)}>
-                    SIM, TANQUE CHEIO
-                  </SegButton>
-                  <SegButton active={!isFullTank} onClick={() => setIsFullTank(false)}>
-                    NÃO, PARCIAL
-                  </SegButton>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                  Informe corretamente — o cálculo de <strong>km/L real</strong> usa o método tanque-a-tanque entre dois abastecimentos completos.
-                </p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Marca da peça">
+                  <Input value={partBrand} onChange={(e) => setPartBrand(e.target.value)} placeholder="Ex: Mobil, Cobreq" />
+                </Field>
+                <Field label="Modelo da peça">
+                  <Input value={partModel} onChange={(e) => setPartModel(e.target.value)} placeholder="Ex: Super 20w50" />
+                </Field>
+              </div>
+
+              <Field label="Nota Fiscal">
+                <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="Nº da NF ou recibo" />
               </Field>
             </>
           )}
 
-          {/* Maintenance Hodometer and Useful Life fields */}
-          {cat === 'manutencao' && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Odômetro (km)">
-                  <Input
-                    inputMode="decimal"
-                    value={odometer}
-                    onChange={(e) => setOdometer(e.target.value)}
-                    placeholder="Ex: 45200"
-                  />
-                </Field>
-                <Field label="Vida útil (km)">
-                  <Input
-                    inputMode="decimal"
-                    value={partLifeKm}
-                    onChange={(e) => setPartLifeKm(e.target.value)}
-                    placeholder="Ex: 3000"
-                  />
-                </Field>
+          {cat === 'combustivel' && (
+            <Field label="Completou o tanque?">
+              <div className="grid grid-cols-2 gap-2">
+                <SegButton active={isFullTank} onClick={() => setIsFullTank(true)}>
+                  SIM, TANQUE CHEIO
+                </SegButton>
+                <SegButton active={!isFullTank} onClick={() => setIsFullTank(false)}>
+                  NÃO, PARCIAL
+                </SegButton>
               </div>
-              <p className="text-[11px] text-muted-foreground -mt-3">
-                * Sugestão preenchida automaticamente. Alerte sobre a próxima troca na Home/Painel.
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                Informe corretamente — o cálculo de <strong>km/L real</strong> usa o método tanque-a-tanque entre dois abastecimentos completos.
               </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Marca da Peça (Opcional)">
-                  <Input
-                    value={partBrand}
-                    onChange={(e) => setPartBrand(e.target.value)}
-                    placeholder="Ex: Mobil, Cobreq…"
-                  />
-                </Field>
-                <Field label="Modelo (Opcional)">
-                  <Input
-                    value={partModel}
-                    onChange={(e) => setPartModel(e.target.value)}
-                    placeholder="Ex: Super 20w50"
-                  />
-                </Field>
-              </div>
-            </>
+            </Field>
           )}
 
           <Field label="Valor total pago">
@@ -561,80 +503,45 @@ const Despesa = () => {
             />
           </Field>
 
-          {/* Date and Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Data">
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-            </Field>
-            <Field label="Hora">
-              <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
-            </Field>
-          </div>
+          <Field label="Data e Hora">
+            <Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} required />
+          </Field>
 
           {cat === 'combustivel' && (
-            <>
-              <Field label="Cupom Fiscal (Opcional)">
-                <Input
-                  value={receiptNumber}
-                  onChange={(e) => setReceiptNumber(e.target.value)}
-                  placeholder="Nº do cupom ou chave de acesso"
-                />
-              </Field>
-              <Field label="Observação (Opcional)">
-                <TextArea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Alguma anotação sobre o abastecimento?"
-                />
-              </Field>
-            </>
-          )}
-
-          {cat === 'manutencao' && (
-            <>
-              <Field label="Nota Fiscal (Opcional)">
-                <Input
-                  value={receiptNumber}
-                  onChange={(e) => setReceiptNumber(e.target.value)}
-                  placeholder="Nº da nota fiscal ou recibo"
-                />
-              </Field>
-              <Field label="Observação (Opcional)">
-                <TextArea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Notas adicionais sobre a manutenção…"
-                />
-              </Field>
-            </>
-          )}
-
-          {cat === 'alimentacao' && (
-            <Field label="O que foi comprado">
-              <TextArea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Descreva os itens consumidos…"
-              />
+            <Field label="Cupom Fiscal (Opcional)">
+              <Input value={receiptNumber} onChange={(e) => setReceiptNumber(e.target.value)} placeholder="Nº do cupom ou chave de acesso" />
             </Field>
           )}
 
-          {/* Payment Method Selector (Pix, Cartão, Dinheiro) */}
+          <Field label="Observação (Opcional)">
+            <TextArea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={
+                cat === 'alimentacao'
+                  ? 'Descreva os itens consumidos…'
+                  : cat === 'manutencao'
+                  ? 'Notas adicionais sobre a manutenção…'
+                  : 'Alguma anotação sobre o abastecimento?'
+              }
+            />
+          </Field>
+
           <Field label="Forma de pagamento">
             <div className="grid grid-cols-3 gap-2">
-              <SegButton active={paymentMethod === 'pix'} onClick={() => handleSelectPaymentMethod('pix')}>
+              <SegButton active={paymentMethod === 'pix'} onClick={() => selectPayment('pix')}>
                 <span className="flex flex-col items-center gap-1">
                   <QrCode className="size-4" />
                   PIX
                 </span>
               </SegButton>
-              <SegButton active={paymentMethod === 'cartao'} onClick={() => handleSelectPaymentMethod('cartao')}>
+              <SegButton active={paymentMethod === 'cartao'} onClick={() => selectPayment('cartao')}>
                 <span className="flex flex-col items-center gap-1">
                   <CreditCard className="size-4" />
                   Cartão
                 </span>
               </SegButton>
-              <SegButton active={paymentMethod === 'dinheiro'} onClick={() => handleSelectPaymentMethod('dinheiro')}>
+              <SegButton active={paymentMethod === 'dinheiro'} onClick={() => selectPayment('dinheiro')}>
                 <span className="flex flex-col items-center gap-1">
                   <Banknote className="size-4" />
                   Dinheiro
@@ -642,22 +549,13 @@ const Despesa = () => {
               </SegButton>
             </div>
             {paymentMethod === 'cartao' && cardDetails && (
-              <div className="mt-2.5 p-3 rounded-xl bg-surface-high border border-primary/20 flex items-center justify-between text-xs">
-                <div>
-                  <span className="font-bold text-primary uppercase">{cardDetails.cardBrand}</span> •{' '}
-                  <span>{cardDetails.cardOperator}</span>
-                  {cardDetails.isInstallment && (
-                    <span className="ml-1 text-muted-foreground">
-                      ({cardDetails.installmentTotal}x parcelado)
-                    </span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCardDialogOpen(true)}
-                  className="text-primary font-bold underline"
-                >
-                  Alterar
+              <div className="mt-2 text-xs text-muted-foreground flex items-center justify-between bg-surface p-2.5 rounded-lg border border-border/40">
+                <span>
+                  {cardDetails.brand || 'Cartão'} {cardDetails.operator && `• ${cardDetails.operator}`}{' '}
+                  {cardDetails.installments > 1 && `(${cardDetails.installments}x)`}
+                </span>
+                <button type="button" onClick={() => setCardDialogOpen(true)} className="text-primary font-bold">
+                  Editar
                 </button>
               </div>
             )}
@@ -665,15 +563,11 @@ const Despesa = () => {
         </FormShell>
       </form>
 
-      {/* Card Details Dialog */}
       <CardPaymentDialog
         open={cardDialogOpen}
         onOpenChange={setCardDialogOpen}
-        onConfirm={(details) => {
-          setCardDetails(details);
-          setPaymentMethod('cartao');
-        }}
-        initialData={cardDetails || undefined}
+        value={cardDetails}
+        onConfirm={setCardDetails}
       />
     </AppShell>
   );
