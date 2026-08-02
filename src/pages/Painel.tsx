@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { StatCard } from '@/components/StatCard';
+import { PartMaintenanceAlert } from '@/components/PartMaintenanceAlert';
 import { QuickActionsFab } from '@/components/QuickActionsFab';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, todayBoundaries, startOfWeek, startOfMonth } from '@/lib/format';
@@ -138,6 +139,9 @@ const Painel = () => {
 
   return (
     <AppShell>
+      <div className="mb-4">
+        <PartMaintenanceAlert />
+      </div>
       <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 lg:grid-cols-3 md:items-start">
         <StatCard
           label="Lucro Diário"

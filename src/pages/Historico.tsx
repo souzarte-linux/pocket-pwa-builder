@@ -215,7 +215,7 @@ const Historico = () => {
         .order('occurred_at', { ascending: false }),
       supabase
         .from('expenses')
-        .select('id, category, title, vendor, amount, occurred_at, payment_method')
+        .select('id, category, title, vendor, amount, occurred_at, payment_method, odometer_km, part_brand, part_model')
         .gte('occurred_at', since.toISOString())
         .order('occurred_at', { ascending: false }),
       supabase
@@ -280,9 +280,53 @@ const Historico = () => {
         occurred_at: d.occurred_at,
       });
     });
-    (expRes.data ?? []).forEach((e: any) => {
+
+    // Map maintenance expenses by title to compute odometer differences
+    const maintenanceByTitle = new Map<string, any[]>();
+    const expensesList = expRes.data ?? [];
+
+    expensesList.forEach((e: any) => {
+      if (e.category === 'manutencao' && e.title && e.odometer_km) {
+        const key = e.title.trim().toLowerCase();
+        if (!maintenanceByTitle.has(key)) maintenanceByTitle.set(key, []);
+        maintenanceByTitle.get(key)!.push(e);
+      }
+    });
+
+    // Sort each maintenance group by occurred_at ascending to compute intervals
+    const intervalMap = new Map<string, number>(); // expense id -> diff km from previous
+    maintenanceByTitle.forEach((group) => {
+      group.sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
+      for (let i = 1; i < group.length; i++) {
+        const currOdo = Number(group[i].odometer_km);
+        const prevOdo = Number(group[i - 1].odometer_km);
+        if (currOdo > prevOdo) {
+          intervalMap.set(group[i].id, currOdo - prevOdo);
+        }
+      }
+    });
+
+    expensesList.forEach((e: any) => {
       const ic =
         e.category === 'combustivel' ? 'fuel' : e.category === 'manutencao' ? 'wrench' : 'food';
+
+      let meta1Str = '';
+      if (e.category === 'manutencao') {
+        const brandModel = [e.part_brand, e.part_model].filter(Boolean).join(' ');
+        if (brandModel) meta1Str = brandModel.toUpperCase();
+        if (e.odometer_km) {
+          meta1Str = meta1Str
+            ? `${meta1Str} • ${Number(e.odometer_km).toLocaleString('pt-BR')} KM`
+            : `${Number(e.odometer_km).toLocaleString('pt-BR')} KM`;
+        }
+      }
+
+      let meta2Str = '';
+      if (intervalMap.has(e.id)) {
+        const diffKm = intervalMap.get(e.id)!;
+        meta2Str = `+${diffKm.toLocaleString('pt-BR')} KM RODADOS DESDE A TROCA ANTERIOR`;
+      }
+
       txs.push({
         id: 'e' + e.id,
         raw_id: e.id,
@@ -290,6 +334,8 @@ const Historico = () => {
         kind: 'expense',
         title: e.title.toUpperCase(),
         subtitle: `${e.vendor ?? '—'} • ${formatTime(e.occurred_at)}`,
+        meta1: meta1Str || undefined,
+        meta2: meta2Str || undefined,
         amount: Number(e.amount),
         positive: false,
         tag: e.category.toUpperCase(),

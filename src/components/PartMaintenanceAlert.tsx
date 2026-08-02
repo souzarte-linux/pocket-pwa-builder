@@ -1,0 +1,205 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, Wrench, CheckCircle2, History } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+export interface PartMaintenanceItem {
+  id: string;
+  part_name: string;
+  life_km: number;
+  last_change_km: number;
+  last_change_at: string;
+  driven_km: number;
+  pct: number;
+  overdue: boolean;
+  remaining: number;
+}
+
+export const PartMaintenanceAlert = () => {
+  const [items, setItems] = useState<PartMaintenanceItem[]>([]);
+  const [resettingId, setResettingId] = useState<string | null>(null);
+
+  const load = async () => {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return;
+
+    // 1. Get all part_maintenance records
+    const { data: parts, error: partsErr } = await supabase
+      .from('part_maintenance')
+      .select('*')
+      .eq('user_id', u.user.id);
+
+    if (partsErr || !parts || parts.length === 0) {
+      setItems([]);
+      return;
+    }
+
+    // 2. Determine current vehicle odometer
+    const [expRes, routeRes, sessRes] = await Promise.all([
+      supabase
+        .from('expenses')
+        .select('odometer_km')
+        .not('odometer_km', 'is', null)
+        .order('odometer_km', { ascending: false })
+        .limit(1),
+      supabase
+        .from('routes')
+        .select('end_km')
+        .order('end_km', { ascending: false })
+        .limit(1),
+      supabase
+        .from('work_sessions')
+        .select('end_km')
+        .order('end_km', { ascending: false })
+        .limit(1),
+    ]);
+
+    const maxOdoExp = Number(expRes.data?.[0]?.odometer_km ?? 0);
+    const maxOdoRoute = Number(routeRes.data?.[0]?.end_km ?? 0);
+    const maxOdoSess = Number(sessRes.data?.[0]?.end_km ?? 0);
+    const currentOdometer = Math.max(maxOdoExp, maxOdoRoute, maxOdoSess);
+
+    const alertItems: PartMaintenanceItem[] = [];
+
+    for (const p of parts) {
+      const lifeKm = Number(p.life_km);
+      if (lifeKm <= 0) continue;
+
+      const lastKm = Number(p.last_change_km);
+      let drivenKm = currentOdometer > lastKm ? currentOdometer - lastKm : 0;
+
+      // Fallback: If odometer was not updated, estimate from routes distance_km since last_change_at
+      if (drivenKm === 0 && p.last_change_at) {
+        const { data: routeList } = await supabase
+          .from('routes')
+          .select('distance_km')
+          .gte('occurred_at', p.last_change_at);
+        const sumDist = (routeList ?? []).reduce((acc, r: any) => acc + Number(r.distance_km || 0), 0);
+        drivenKm = sumDist;
+      }
+
+      const pct = (drivenKm / lifeKm) * 100;
+
+      // Show alert if >= 90% of life_km reached
+      if (pct >= 90) {
+        alertItems.push({
+          id: p.id,
+          part_name: p.part_name,
+          life_km: lifeKm,
+          last_change_km: lastKm,
+          last_change_at: p.last_change_at,
+          driven_km: drivenKm,
+          pct,
+          overdue: pct >= 100,
+          remaining: Math.max(0, lifeKm - drivenKm),
+        });
+      }
+    }
+
+    setItems(alertItems);
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleReset = async (item: PartMaintenanceItem) => {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return;
+
+    const newKmStr = prompt(
+      `Informe o odômetro (KM) no momento da troca de "${item.part_name}":`,
+      String(Math.round(item.last_change_km + item.driven_km))
+    );
+    if (newKmStr === null) return;
+
+    const newKm = Number(newKmStr.replace(',', '.')) || Math.round(item.last_change_km + item.driven_km);
+    setResettingId(item.id);
+
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('part_maintenance')
+      .update({
+        last_change_km: newKm,
+        last_change_at: now,
+      })
+      .eq('id', item.id);
+
+    setResettingId(null);
+
+    if (error) {
+      toast.error('Erro ao atualizar troca de peça');
+      return;
+    }
+
+    toast.success(`Troca de "${item.part_name}" atualizada!`);
+    load();
+  };
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="space-y-3 mt-4">
+      {items.map((item) => (
+        <section
+          key={item.id}
+          className={`rounded-2xl border p-4 shadow-card transition ${
+            item.overdue
+              ? 'bg-destructive/10 border-destructive/40 text-destructive'
+              : 'bg-warning/10 border-warning/40 text-warning'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <span className="size-10 rounded-xl bg-background/40 grid place-items-center shrink-0">
+              {item.overdue ? <AlertTriangle className="size-5" /> : <Wrench className="size-5" />}
+            </span>
+            <div className="flex-1 min-w-0">
+              <h3 className="display text-base leading-tight uppercase">
+                {item.overdue
+                  ? `MANUTENÇÃO ATRASADA: ${item.part_name}`
+                  : `TROCA DE PEÇA PRÓXIMA: ${item.part_name}`}
+              </h3>
+              <p className="mt-1 text-xs text-foreground/80">
+                {item.overdue
+                  ? `Você ultrapassou em ${Math.round(item.driven_km - item.life_km)} KM o limite de ${Math.round(
+                      item.life_km
+                    )} KM.`
+                  : `Faltam ${Math.round(item.remaining)} KM para o limite de ${Math.round(
+                      item.life_km
+                    )} KM.`}
+              </p>
+
+              {/* Progress bar */}
+              <div className="mt-2.5 h-2 rounded-full bg-background/40 overflow-hidden">
+                <div
+                  className="h-full bg-current transition-all"
+                  style={{ width: `${Math.min(100, item.pct)}%` }}
+                />
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleReset(item)}
+                  disabled={resettingId === item.id}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3.5 py-2 rounded-lg bg-foreground text-background hover:opacity-90 transition disabled:opacity-50 min-h-[44px]"
+                >
+                  <CheckCircle2 className="size-4" />
+                  {resettingId === item.id ? 'Salvando...' : 'Marcar troca realizada'}
+                </button>
+                <Link
+                  to="/historico?cat=pecas"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-2 rounded-lg bg-background/40 text-current hover:bg-background/60 transition min-h-[44px]"
+                >
+                  <History className="size-4" />
+                  Histórico
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+};
