@@ -72,6 +72,7 @@ const Despesa = () => {
   const [when, setWhen] = useState(toLocalInput(new Date().toISOString()));
   const [description, setDescription] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao' | 'dinheiro'>('pix');
   const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
   const [cardDialogOpen, setCardDialogOpen] = useState(false);
   const [installmentGroupId, setInstallmentGroupId] = useState<string | null>(null);
