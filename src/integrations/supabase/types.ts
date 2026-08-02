@@ -55,6 +55,48 @@ export type Database = {
           },
         ]
       }
+      card_operators: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      companies: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_totals: {
         Row: {
           amount: number
@@ -115,15 +157,23 @@ export type Database = {
       expenses: {
         Row: {
           amount: number
+          card_brand: string | null
+          card_operator: string | null
           category: Database["public"]["Enums"]["expense_category"]
           created_at: string
           description: string | null
           fuel_type: string | null
           id: string
+          installment_group_id: string | null
+          installment_number: number | null
+          installment_total: number | null
+          invoice_number: string | null
           is_full_tank: boolean
           liters: number | null
           occurred_at: string
           odometer_km: number | null
+          part_brand: string | null
+          part_model: string | null
           payment_method: Database["public"]["Enums"]["payment_method"] | null
           price_per_liter: number | null
           receipt_number: string | null
@@ -133,15 +183,23 @@ export type Database = {
         }
         Insert: {
           amount: number
+          card_brand?: string | null
+          card_operator?: string | null
           category: Database["public"]["Enums"]["expense_category"]
           created_at?: string
           description?: string | null
           fuel_type?: string | null
           id?: string
+          installment_group_id?: string | null
+          installment_number?: number | null
+          installment_total?: number | null
+          invoice_number?: string | null
           is_full_tank?: boolean
           liters?: number | null
           occurred_at?: string
           odometer_km?: number | null
+          part_brand?: string | null
+          part_model?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           price_per_liter?: number | null
           receipt_number?: string | null
@@ -151,15 +209,23 @@ export type Database = {
         }
         Update: {
           amount?: number
+          card_brand?: string | null
+          card_operator?: string | null
           category?: Database["public"]["Enums"]["expense_category"]
           created_at?: string
           description?: string | null
           fuel_type?: string | null
           id?: string
+          installment_group_id?: string | null
+          installment_number?: number | null
+          installment_total?: number | null
+          invoice_number?: string | null
           is_full_tank?: boolean
           liters?: number | null
           occurred_at?: string
           odometer_km?: number | null
+          part_brand?: string | null
+          part_model?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           price_per_liter?: number | null
           receipt_number?: string | null
@@ -273,6 +339,36 @@ export type Database = {
           id?: string
           km_at_change?: number
           notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      part_maintenance: {
+        Row: {
+          created_at: string
+          id: string
+          last_change_at: string
+          last_change_km: number
+          life_km: number
+          part_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_change_at?: string
+          last_change_km?: number
+          life_km?: number
+          part_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_change_at?: string
+          last_change_km?: number
+          life_km?: number
+          part_name?: string
           user_id?: string
         }
         Relationships: []
