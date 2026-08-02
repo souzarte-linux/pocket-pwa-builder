@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Field, Input, TextArea, SegButton, SubmitButton, FormShell, Select } from '@/components/forms/Form';
 import { QuickCombobox } from '@/components/QuickCombobox';
 import { CardPaymentDialog, CardDetails } from '@/components/CardPaymentDialog';
+import { DeleteInstallmentDialog } from '@/components/forms/DeleteInstallmentDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, parseCurrencyInput, toLocalInput } from '@/lib/format';
 import { toast } from 'sonner';
@@ -71,9 +72,10 @@ const Despesa = () => {
   const [when, setWhen] = useState(toLocalInput(new Date().toISOString()));
   const [description, setDescription] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao' | 'dinheiro'>('pix');
   const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
   const [cardDialogOpen, setCardDialogOpen] = useState(false);
+  const [installmentGroupId, setInstallmentGroupId] = useState<string | null>(null);
+  const [deleteInstallmentOpen, setDeleteInstallmentOpen] = useState(false);
   const [isFullTank, setIsFullTank] = useState(true);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -102,6 +104,7 @@ const Despesa = () => {
           const ex = e as any;
           setVendor(ex.vendor ?? '');
           setTitle(ex.title ?? '');
+          setInstallmentGroupId(ex.installment_group_id ?? null);
 
           const val = Number(ex.amount ?? 0);
           setAmountNum(val);
@@ -307,14 +310,16 @@ const Despesa = () => {
                 amount: Number((final / total).toFixed(2)),
                 title: `${p.title} (Parcela ${i + 1}/${total})`,
               };
-              if (p.installment_group_id !== undefined || !isEdit) {
+              if (p.card_due_day !== undefined && dueDay) {
+                row.card_due_day = dueDay;
+              }
+              if (p.card_due_date !== undefined && dueDay) {
+                row.card_due_date = instDueDate;
+              }
+              if (p.card_brand !== undefined) {
                 row.installment_group_id = groupId;
                 row.installment_number = i + 1;
                 row.installment_total = total;
-              }
-              if (dueDay) {
-                row.card_due_day = dueDay;
-                row.card_due_date = instDueDate;
               }
               return row;
             });
@@ -395,7 +400,14 @@ const Despesa = () => {
   };
 
   const handleDelete = async () => {
-    if (!editId || !confirm('Deseja realmente excluir esta despesa?')) return;
+    if (!editId) return;
+
+    if (installmentGroupId) {
+      setDeleteInstallmentOpen(true);
+      return;
+    }
+
+    if (!confirm('Deseja realmente excluir esta despesa?')) return;
     setDeleting(true);
     const { error } = await supabase.from('expenses').delete().eq('id', editId);
     setDeleting(false);
@@ -692,6 +704,16 @@ const Despesa = () => {
         value={cardDetails}
         onConfirm={setCardDetails}
       />
+
+      {editId && installmentGroupId && (
+        <DeleteInstallmentDialog
+          open={deleteInstallmentOpen}
+          onOpenChange={setDeleteInstallmentOpen}
+          currentExpenseId={editId}
+          installmentGroupId={installmentGroupId}
+          onDeleted={() => navigate('/historico')}
+        />
+      )}
     </AppShell>
   );
 };

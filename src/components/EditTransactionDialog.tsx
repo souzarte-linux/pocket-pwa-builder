@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
 import { toLocalInput } from '@/lib/format';
 
+import { DeleteInstallmentDialog } from '@/components/forms/DeleteInstallmentDialog';
+
 export type EditTarget = {
   table: 'routes' | 'daily_totals' | 'expenses';
   id: string;
@@ -22,6 +24,7 @@ interface Props {
 export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteInstallmentOpen, setDeleteInstallmentOpen] = useState(false);
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
@@ -81,6 +84,11 @@ export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
   };
 
   const handleDelete = async () => {
+    if (target.table === 'expenses' && data?.installment_group_id) {
+      setDeleteInstallmentOpen(true);
+      return;
+    }
+
     if (!confirm('Excluir este registro?')) return;
     setDeleting(true);
     const { error } = await supabase.from(target.table).delete().eq('id', target.id);
@@ -239,6 +247,19 @@ export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
           </form>
         )}
       </DialogContent>
+
+      {target?.table === 'expenses' && data?.installment_group_id && (
+        <DeleteInstallmentDialog
+          open={deleteInstallmentOpen}
+          onOpenChange={setDeleteInstallmentOpen}
+          currentExpenseId={data.id}
+          installmentGroupId={data.installment_group_id}
+          onDeleted={() => {
+            onSaved();
+            onClose();
+          }}
+        />
+      )}
     </Dialog>
   );
 };

@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, Settings, Calendar, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, Pencil, Calendar, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, formatTime, todayBoundaries } from '@/lib/format';
 import { EditTransactionDialog, EditTarget } from '@/components/EditTransactionDialog';
+import { ViewTransactionDialog } from '@/components/forms/ViewTransactionDialog';
 import { startOfWeek, endOfWeek, isSameWeek, isSameMonth, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -24,6 +25,7 @@ interface Tx {
   tag?: string;
   iconKey: 'fuel' | 'wrench' | 'food' | 'package' | 'doc';
   occurred_at: string;
+  raw?: any;
 }
 
 
@@ -46,10 +48,24 @@ interface DayGroup { label: string; date: string; txs: Tx[]; balance: number; }
 interface WeekGroup { label: string; start: Date; end: Date; days: DayGroup[]; balance: number; isCurrentWeek: boolean; }
 interface MonthGroup { label: string; month: Date; weeks: WeekGroup[]; balance: number; isCurrentMonth: boolean; }
 
-const TxRow = ({ x, onEdit }: { x: Tx, onEdit: (x: Tx) => void }) => {
+const TxRow = ({
+  x,
+  onView,
+  onEdit,
+}: {
+  x: Tx;
+  onView: (x: Tx) => void;
+  onEdit: (x: Tx) => void;
+}) => {
   const { Icon, color } = iconFor(x.iconKey);
+  const isPaidTag = x.tag === 'PAGO';
+  const isPendingTag = x.tag === 'A RECEBER';
+
   return (
-    <li className="rounded-xl bg-surface border border-border/40 p-2.5 flex gap-3">
+    <li
+      onClick={() => onView(x)}
+      className="rounded-xl bg-surface border border-border/40 p-2.5 flex gap-3 cursor-pointer hover:border-primary/40 transition active:scale-[0.99]"
+    >
       <div className="flex-1 min-w-0 flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <span className={`size-8 shrink-0 rounded-lg grid place-items-center ${color}`}>
@@ -78,14 +94,27 @@ const TxRow = ({ x, onEdit }: { x: Tx, onEdit: (x: Tx) => void }) => {
         </p>
         <button
           type="button"
-          onClick={() => onEdit(x)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(x);
+          }}
           aria-label="Editar"
           className="size-8 rounded-lg grid place-items-center bg-surface-high text-muted-foreground hover:text-primary hover:bg-primary/10 transition active:scale-95"
         >
-          <Settings className="size-4" />
+          <Pencil className="size-4" />
         </button>
         {x.tag && (
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${x.positive ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
+          <span
+            className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+              isPaidTag
+                ? 'bg-success/15 text-success'
+                : isPendingTag
+                ? 'bg-warning/15 text-warning'
+                : x.positive
+                ? 'bg-success/15 text-success'
+                : 'bg-destructive/15 text-destructive'
+            }`}
+          >
             {x.tag}
           </span>
         )}
@@ -94,7 +123,15 @@ const TxRow = ({ x, onEdit }: { x: Tx, onEdit: (x: Tx) => void }) => {
   );
 };
 
-const WeekSection = ({ week, onEdit }: { week: WeekGroup, onEdit: (x: Tx) => void }) => {
+const WeekSection = ({
+  week,
+  onView,
+  onEdit,
+}: {
+  week: WeekGroup;
+  onView: (x: Tx) => void;
+  onEdit: (x: Tx) => void;
+}) => {
   const [open, setOpen] = useState(week.isCurrentWeek);
   
   return (
@@ -126,7 +163,7 @@ const WeekSection = ({ week, onEdit }: { week: WeekGroup, onEdit: (x: Tx) => voi
                   <h4 className="text-xs font-bold text-muted-foreground tracking-widest">{day.label}</h4>
                 </div>
                 <ul className="space-y-2">
-                   {day.txs.map(x => <TxRow key={x.id} x={x} onEdit={onEdit} />)}
+                   {day.txs.map(x => <TxRow key={x.id} x={x} onView={onView} onEdit={onEdit} />)}
                 </ul>
                 <div className="mt-2 flex items-center justify-between px-3 py-1.5 bg-surface-high/50 rounded-lg border border-border/10">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Saldo do Dia</span>
@@ -149,7 +186,15 @@ const WeekSection = ({ week, onEdit }: { week: WeekGroup, onEdit: (x: Tx) => voi
   )
 };
 
-const MonthSection = ({ month, onEdit }: { month: MonthGroup, onEdit: (x: Tx) => void }) => {
+const MonthSection = ({
+  month,
+  onView,
+  onEdit,
+}: {
+  month: MonthGroup;
+  onView: (x: Tx) => void;
+  onEdit: (x: Tx) => void;
+}) => {
   const [open, setOpen] = useState(month.isCurrentMonth);
   return (
     <div className="mb-6">
@@ -173,7 +218,7 @@ const MonthSection = ({ month, onEdit }: { month: MonthGroup, onEdit: (x: Tx) =>
       
       {open && (
         <div className="space-y-2">
-           {month.weeks.map(w => <WeekSection key={w.label} week={w} onEdit={onEdit} />)}
+           {month.weeks.map(w => <WeekSection key={w.label} week={w} onView={onView} onEdit={onEdit} />)}
            
            <div className="mt-4 flex items-center justify-between p-4 bg-primary text-primary-foreground rounded-xl shadow-card">
              <span className="text-sm font-black uppercase">SALDO DO MÊS ({month.label})</span>
@@ -203,33 +248,37 @@ const Historico = () => {
   const [goal, setGoal] = useState(300);
   const [editTarget, setEditTarget] = useState<EditTarget>(null);
 
+  const [viewTarget, setViewTarget] = useState<Tx | null>(null);
+
   const load = async () => {
     const since = new Date();
     since.setDate(since.getDate() - 90); // 90 days to show decent history
 
-    const [routesRes, expRes, dailyRes, plats, prof] = await Promise.all([
+    const [routesRes, expRes, dailyRes, plats, prof, cyclesRes] = await Promise.all([
       supabase
         .from('routes')
-        .select('id, amount, tip, distance_km, product_type, occurred_at, platform_id, origin, destination, package_count, small_packages_count, large_packages_count, started_at, ended_at, break_minutes')
+        .select('id, amount, tip, distance_km, product_type, occurred_at, platform_id, origin, destination, package_count, small_packages_count, large_packages_count, started_at, ended_at, break_minutes, billing_cycle_id, notes')
         .gte('occurred_at', since.toISOString())
         .order('occurred_at', { ascending: false }),
       supabase
         .from('expenses')
-        .select('id, category, title, vendor, amount, occurred_at, payment_method, odometer_km, part_brand, part_model')
+        .select('id, category, title, vendor, amount, occurred_at, payment_method, odometer_km, part_brand, part_model, description, invoice_number, receipt_number, card_brand, card_operator, installment_number, installment_total, installment_group_id, card_due_date')
         .gte('occurred_at', since.toISOString())
         .order('occurred_at', { ascending: false }),
       supabase
         .from('daily_totals')
-        .select('id, amount, occurred_at, platform_id, product_type')
+        .select('id, amount, occurred_at, platform_id, product_type, notes')
         .gte('occurred_at', since.toISOString())
         .order('occurred_at', { ascending: false }),
       supabase.from('platforms').select('id, name'),
       supabase.from('profiles').select('daily_goal').maybeSingle(),
+      supabase.from('billing_cycles').select('id, status'),
     ]);
 
     if (prof.data?.daily_goal) setGoal(Number(prof.data.daily_goal));
 
     const platMap = new Map((plats.data ?? []).map((p: any) => [p.id, p.name]));
+    const cycleMap = new Map((cyclesRes.data ?? []).map((c: any) => [c.id, c.status]));
 
     const txs: Tx[] = [];
     const abbr = (s: string | null | undefined) =>
@@ -248,6 +297,11 @@ const Historico = () => {
         const m = mins % 60;
         hoursStr = `${h}H ${String(m).padStart(2, '0')}MIN TRABALHADOS`;
       }
+
+      const cycleStatus = r.billing_cycle_id ? cycleMap.get(r.billing_cycle_id) : null;
+      const isPaid = cycleStatus === 'pago';
+      const tagText = isPaid ? 'PAGO' : 'A RECEBER';
+
       txs.push({
         id: 'r' + r.id,
         raw_id: r.id,
@@ -259,9 +313,10 @@ const Historico = () => {
         meta2: hoursStr || undefined,
         amount: Number(r.amount) + Number(r.tip),
         positive: true,
-        tag: 'PAGO',
+        tag: tagText,
         iconKey: r.product_type === 'pacote' ? 'package' : r.product_type === 'documento' ? 'doc' : 'food',
         occurred_at: r.occurred_at,
+        raw: r,
       });
     });
 
@@ -278,6 +333,7 @@ const Historico = () => {
         tag: 'TOTAL',
         iconKey: 'package',
         occurred_at: d.occurred_at,
+        raw: d,
       });
     });
 
@@ -341,6 +397,7 @@ const Historico = () => {
         tag: e.category.toUpperCase(),
         iconKey: ic,
         occurred_at: e.occurred_at,
+        raw: e,
       });
     });
     txs.sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
@@ -559,8 +616,14 @@ const Historico = () => {
             Nenhuma transação encontrada.
           </p>
         )}
-        {months.map(m => <MonthSection key={m.label} month={m} onEdit={handleEdit} />)}
+        {months.map(m => <MonthSection key={m.label} month={m} onView={setViewTarget} onEdit={handleEdit} />)}
       </div>
+
+      <ViewTransactionDialog
+        tx={viewTarget}
+        onClose={() => setViewTarget(null)}
+        onEdit={handleEdit}
+      />
 
       <EditTransactionDialog
         target={editTarget}
