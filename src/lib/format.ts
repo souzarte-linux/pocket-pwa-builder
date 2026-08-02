@@ -103,5 +103,53 @@ export const formatCepMask = (val: string): string => {
   return `${digits.slice(0, 5)}-${digits.slice(5)}`;
 };
 
+/** CNPJ mask 00.000.000/0000-00 */
+export const formatCnpjMask = (val: string): string => {
+  const digits = val.replace(/\D/g, '').slice(0, 14);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  if (digits.length <= 12)
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+};
+
+/** Brazilian CNPJ Checksum Validation Algorithm */
+export const validateCNPJ = (cnpjStr: string): boolean => {
+  const cnpj = cnpjStr.replace(/\D/g, '');
+  if (cnpj.length !== 14) return false;
+  if (/^(\d)\1+$/.test(cnpj)) return false;
+
+  let length = cnpj.length - 2;
+  let numbers = cnpj.substring(0, length);
+  const digits = cnpj.substring(length);
+  let sum = 0;
+  let pos = length - 7;
+
+  for (let i = length; i >= 1; i--) {
+    sum += Number(numbers.charAt(length - i)) * pos--;
+    if (pos < 2) pos = 9;
+  }
+
+  let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (result !== Number(digits.charAt(0))) return false;
+
+  length = length + 1;
+  numbers = cnpj.substring(0, length);
+  sum = 0;
+  pos = length - 7;
+
+  for (let i = length; i >= 1; i--) {
+    sum += Number(numbers.charAt(length - i)) * pos--;
+    if (pos < 2) pos = 9;
+  }
+
+  result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (result !== Number(digits.charAt(1))) return false;
+
+  return true;
+};
+
+
 
 

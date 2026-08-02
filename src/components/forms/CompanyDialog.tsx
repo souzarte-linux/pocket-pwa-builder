@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Field, Input, TextArea, SubmitButton } from '@/components/forms/Form';
-import { formatPhoneMask, formatCepMask } from '@/lib/format';
+import { formatPhoneMask, formatCepMask, formatCnpjMask, validateCNPJ } from '@/lib/format';
 import { supabase } from '@/integrations/supabase/client';
 import { MessageCircle, Share, Building2, MapPin, FileText, Globe, Search, Loader2, Hash, FileEdit } from 'lucide-react';
 import { toast } from 'sonner';
@@ -32,6 +32,10 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
 
   const handlePhoneChange = (val: string) => {
     setPhone(formatPhoneMask(val));
+  };
+
+  const handleCnpjChange = (val: string) => {
+    setCnpj(formatCnpjMask(val));
   };
 
   const handleCepChange = async (val: string) => {
@@ -67,6 +71,14 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
       return;
     }
 
+    const cleanCnpj = cnpj.replace(/\D/g, '');
+    if (cleanCnpj) {
+      if (!validateCNPJ(cleanCnpj)) {
+        toast.error('CNPJ inválido. Verifique os números digitados.');
+        return;
+      }
+    }
+
     setLoading(true);
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) {
@@ -75,6 +87,7 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
       return;
     }
 
+    // Save clean numeric digits for CNPJ in database
     const { error } = await supabase.from('companies').insert({
       user_id: u.user.id,
       name: name.trim(),
@@ -82,7 +95,7 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
       address: address.trim() || null,
       number: number.trim() || null,
       complement: complement.trim() || null,
-      cnpj: cnpj.trim() || null,
+      cnpj: cleanCnpj || null,
       phone: phone.trim() || null,
       is_whatsapp: isWhatsapp,
       social_media: socialMedia.trim() || null,
@@ -198,15 +211,16 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
             </div>
           </Field>
 
-          {/* CNPJ (Opcional) */}
+          {/* CNPJ (Opcional - com Máscara e Validação) */}
           <Field label="CNPJ (Opcional)">
             <div className="relative flex items-center">
               <FileText className="absolute left-4 text-muted-foreground" size={20} />
               <Input
                 value={cnpj}
-                onChange={(e) => setCnpj(e.target.value)}
+                onChange={(e) => handleCnpjChange(e.target.value)}
                 className="pl-12"
                 placeholder="00.000.000/0001-00"
+                inputMode="numeric"
               />
             </div>
           </Field>
