@@ -46,8 +46,16 @@ const calculateCardDueDate = (year: number, monthIndex0: number, dueDay: number)
 };
 
 const Despesa = () => {
-  const { categoria } = useParams<{ categoria: Cat }>();
-  const cat = (categoria ?? 'combustivel') as Cat;
+  const { categoria } = useParams<{ categoria: string }>();
+  const rawCat = (categoria ?? 'combustivel').toLowerCase();
+  const cat: Cat =
+    rawCat === 'combustivel'
+      ? 'combustivel'
+      : rawCat === 'alimentacao' || rawCat === 'refeicao'
+      ? 'alimentacao'
+      : 'manutencao';
+
+  const currentTitleObj = titles[cat] ?? titles.manutencao;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
@@ -261,7 +269,7 @@ const Despesa = () => {
       const payload: any = {
         user_id: u.user.id,
         category: cat,
-        title: title || titles[cat].defaultTitle,
+        title: title || currentTitleObj.defaultTitle,
         vendor: vendor || null,
         amount: final,
         liters: cat === 'combustivel' ? Number(liters.replace(',', '.')) || null : null,
@@ -344,7 +352,7 @@ const Despesa = () => {
         const corePayload: any = {
           user_id: u.user.id,
           category: cat,
-          title: title || titles[cat].defaultTitle,
+          title: title || currentTitleObj.defaultTitle,
           vendor: vendor || null,
           amount: final,
           liters: cat === 'combustivel' ? Number(liters.replace(',', '.')) || null : null,
@@ -418,7 +426,7 @@ const Despesa = () => {
   };
 
   return (
-    <AppShell back title={isEdit ? `EDITAR ${titles[cat].defaultTitle.toUpperCase()}` : titles[cat].title}>
+    <AppShell back title={isEdit ? `EDITAR ${currentTitleObj.defaultTitle.toUpperCase()}` : currentTitleObj.title}>
       <form onSubmit={submit} noValidate>
         <FormShell
           footer={
