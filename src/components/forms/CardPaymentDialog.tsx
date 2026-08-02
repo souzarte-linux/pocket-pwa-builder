@@ -108,6 +108,7 @@ export const CardPaymentDialog: React.FC<CardPaymentDialogProps> = ({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!cardBrand) {
       toast.error('Selecione a bandeira do cartão');
       return;

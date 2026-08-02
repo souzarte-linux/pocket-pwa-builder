@@ -75,6 +75,7 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     const cleanName = name.trim();
     if (!cleanName) {
       toast.error('Informe o nome da empresa.');
