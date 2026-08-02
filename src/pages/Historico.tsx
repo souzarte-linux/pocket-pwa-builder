@@ -1,11 +1,13 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, Pencil, Calendar, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, Pencil, Trash2, Calendar, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, formatTime, todayBoundaries } from '@/lib/format';
 import { EditTransactionDialog, EditTarget } from '@/components/EditTransactionDialog';
 import { ViewTransactionDialog } from '@/components/forms/ViewTransactionDialog';
+import { DeleteInstallmentDialog } from '@/components/forms/DeleteInstallmentDialog';
+import { toast } from 'sonner';
 import { startOfWeek, endOfWeek, isSameWeek, isSameMonth, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -52,10 +54,12 @@ const TxRow = ({
   x,
   onView,
   onEdit,
+  onDelete,
 }: {
   x: Tx;
   onView: (x: Tx) => void;
   onEdit: (x: Tx) => void;
+  onDelete: (x: Tx) => void;
 }) => {
   const { Icon, color } = iconFor(x.iconKey);
   const isPaidTag = x.tag === 'PAGO';
@@ -88,21 +92,34 @@ const TxRow = ({
         )}
       </div>
 
-      <div className="flex flex-col items-end justify-between shrink-0 min-w-[4.5rem]">
+      <div className="flex flex-col items-end justify-between shrink-0 min-w-[5rem]">
         <p className={`font-bold text-sm leading-tight ${x.positive ? 'text-primary' : 'text-destructive'}`}>
           {x.positive ? '+' : '-'}{formatBRL(x.amount)}
         </p>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(x);
-          }}
-          aria-label="Editar"
-          className="size-8 rounded-lg grid place-items-center bg-surface-high text-muted-foreground hover:text-primary hover:bg-primary/10 transition active:scale-95"
-        >
-          <Pencil className="size-4" />
-        </button>
+        <div className="flex items-center gap-1 my-1">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(x);
+            }}
+            aria-label="Editar"
+            className="size-8 rounded-lg grid place-items-center bg-surface-high text-muted-foreground hover:text-primary hover:bg-primary/10 transition active:scale-95"
+          >
+            <Pencil className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(x);
+            }}
+            aria-label="Excluir"
+            className="size-8 rounded-lg grid place-items-center bg-surface-high text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition active:scale-95"
+          >
+            <Trash2 className="size-4" />
+          </button>
+        </div>
         {x.tag && (
           <span
             className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
@@ -127,10 +144,12 @@ const WeekSection = ({
   week,
   onView,
   onEdit,
+  onDelete,
 }: {
   week: WeekGroup;
   onView: (x: Tx) => void;
   onEdit: (x: Tx) => void;
+  onDelete: (x: Tx) => void;
 }) => {
   const [open, setOpen] = useState(week.isCurrentWeek);
   
@@ -163,7 +182,7 @@ const WeekSection = ({
                   <h4 className="text-xs font-bold text-muted-foreground tracking-widest">{day.label}</h4>
                 </div>
                 <ul className="space-y-2">
-                   {day.txs.map(x => <TxRow key={x.id} x={x} onView={onView} onEdit={onEdit} />)}
+                   {day.txs.map(x => <TxRow key={x.id} x={x} onView={onView} onEdit={onEdit} onDelete={onDelete} />)}
                 </ul>
                 <div className="mt-2 flex items-center justify-between px-3 py-1.5 bg-surface-high/50 rounded-lg border border-border/10">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Saldo do Dia</span>
@@ -190,10 +209,12 @@ const MonthSection = ({
   month,
   onView,
   onEdit,
+  onDelete,
 }: {
   month: MonthGroup;
   onView: (x: Tx) => void;
   onEdit: (x: Tx) => void;
+  onDelete: (x: Tx) => void;
 }) => {
   const [open, setOpen] = useState(month.isCurrentMonth);
   return (
@@ -218,7 +239,7 @@ const MonthSection = ({
       
       {open && (
         <div className="space-y-2">
-           {month.weeks.map(w => <WeekSection key={w.label} week={w} onView={onView} onEdit={onEdit} />)}
+           {month.weeks.map(w => <WeekSection key={w.label} week={w} onView={onView} onEdit={onEdit} onDelete={onDelete} />)}
            
            <div className="mt-4 flex items-center justify-between p-4 bg-primary text-primary-foreground rounded-xl shadow-card">
              <span className="text-sm font-black uppercase">SALDO DO MÊS ({month.label})</span>
@@ -237,7 +258,7 @@ const OIL_RX = /\b(oleo|óleo|filtro)\b/i;
 const Historico = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const catParam = (searchParams.get('cat') || '') as '' | 'combustivel' | 'oleo' | 'pecas';
+  const catParam = (searchParams.get('cat') || '').toLowerCase();
   const sinceParam = searchParams.get('since');
   const untilParam = searchParams.get('until');
   const [tab, setTab] = useState<Tab>(catParam ? 'despesas' : 'todos');
@@ -249,6 +270,28 @@ const Historico = () => {
   const [editTarget, setEditTarget] = useState<EditTarget>(null);
 
   const [viewTarget, setViewTarget] = useState<Tx | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Tx | null>(null);
+  const [deleteInstallmentOpen, setDeleteInstallmentOpen] = useState(false);
+
+  const handleDelete = async (x: Tx) => {
+    if (x.table === 'expenses' && x.raw?.installment_group_id) {
+      setDeleteTarget(x);
+      setDeleteInstallmentOpen(true);
+      return;
+    }
+
+    if (!confirm('Deseja realmente excluir este registro?')) return;
+
+    const { error } = await supabase.from(x.table).delete().eq('id', x.raw_id);
+    if (error) {
+      console.error(error);
+      toast.error('Erro ao excluir registro.');
+      return;
+    }
+
+    toast.success('Registro excluído com sucesso!');
+    load();
+  };
 
   const load = async () => {
     const { data: u } = await supabase.auth.getUser();
@@ -624,7 +667,7 @@ const Historico = () => {
             Nenhuma transação encontrada.
           </p>
         )}
-        {months.map(m => <MonthSection key={m.label} month={m} onView={setViewTarget} onEdit={handleEdit} />)}
+        {months.map(m => <MonthSection key={m.label} month={m} onView={setViewTarget} onEdit={handleEdit} onDelete={handleDelete} />)}
       </div>
 
       <ViewTransactionDialog
@@ -639,6 +682,19 @@ const Historico = () => {
         onClose={() => setEditTarget(null)}
         onSaved={load}
       />
+
+      {deleteTarget && deleteTarget.raw?.installment_group_id && (
+        <DeleteInstallmentDialog
+          open={deleteInstallmentOpen}
+          onOpenChange={setDeleteInstallmentOpen}
+          currentExpenseId={deleteTarget.raw_id}
+          installmentGroupId={deleteTarget.raw.installment_group_id}
+          onDeleted={() => {
+            setDeleteTarget(null);
+            load();
+          }}
+        />
+      )}
     </AppShell>
   );
 };
