@@ -7,8 +7,11 @@ ALTER TABLE public.card_operators ADD COLUMN IF NOT EXISTS card_due_day INTEGER 
 ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS card_due_day INTEGER NULL;
 ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS card_due_date DATE NULL;
 
--- 3. Add address, cnpj, phone, is_whatsapp, social_media, website to companies
+-- 3. Add address, cnpj, phone, is_whatsapp, social_media, website, cep, number, complement to companies
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS cep TEXT NULL;
 ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS address TEXT NULL;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS number TEXT NULL;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS complement TEXT NULL;
 ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS cnpj TEXT NULL;
 ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS phone TEXT NULL;
 ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS is_whatsapp BOOLEAN NOT NULL DEFAULT false;

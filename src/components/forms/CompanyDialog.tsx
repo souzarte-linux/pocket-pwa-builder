@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Field, Input, SubmitButton } from '@/components/forms/Form';
-import { formatPhoneMask } from '@/lib/format';
+import { Field, Input, TextArea, SubmitButton } from '@/components/forms/Form';
+import { formatPhoneMask, formatCepMask } from '@/lib/format';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Share, Building2, MapPin, FileText, Globe } from 'lucide-react';
+import { MessageCircle, Share, Building2, MapPin, FileText, Globe, Search, Loader2, Hash, FileEdit } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CompanyDialogProps {
@@ -18,16 +18,46 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
   onCompanyCreated,
 }) => {
   const [name, setName] = useState('');
+  const [cep, setCep] = useState('');
   const [address, setAddress] = useState('');
+  const [number, setNumber] = useState('');
+  const [complement, setComplement] = useState('');
   const [cnpj, setCnpj] = useState('');
   const [phone, setPhone] = useState('');
   const [isWhatsapp, setIsWhatsapp] = useState(false);
   const [socialMedia, setSocialMedia] = useState('');
   const [website, setWebsite] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fetchingCep, setFetchingCep] = useState(false);
 
   const handlePhoneChange = (val: string) => {
     setPhone(formatPhoneMask(val));
+  };
+
+  const handleCepChange = async (val: string) => {
+    const masked = formatCepMask(val);
+    setCep(masked);
+    const clean = val.replace(/\D/g, '');
+    if (clean.length === 8) {
+      setFetchingCep(true);
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          const fullAddr = [data.logradouro, data.bairro, `${data.localidade}/${data.uf}`]
+            .filter(Boolean)
+            .join(', ');
+          setAddress(fullAddr);
+          toast.success('Endereço localizado!');
+        } else {
+          toast.error('CEP não encontrado.');
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setFetchingCep(false);
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,13 +78,16 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
     const { error } = await supabase.from('companies').insert({
       user_id: u.user.id,
       name: name.trim(),
+      cep: cep.trim() || null,
       address: address.trim() || null,
+      number: number.trim() || null,
+      complement: complement.trim() || null,
       cnpj: cnpj.trim() || null,
       phone: phone.trim() || null,
       is_whatsapp: isWhatsapp,
       social_media: socialMedia.trim() || null,
       website: website.trim() || null,
-    });
+    } as any);
 
     setLoading(false);
 
@@ -70,7 +103,10 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
 
     // Reset form
     setName('');
+    setCep('');
     setAddress('');
+    setNumber('');
+    setComplement('');
     setCnpj('');
     setPhone('');
     setIsWhatsapp(false);
@@ -100,15 +136,64 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
             />
           </Field>
 
-          {/* Endereço (Opcional) */}
-          <Field label="Endereço (Opcional)">
+          {/* CEP com Busca Automática */}
+          <Field label="CEP (Opcional - Preenchimento automático)">
             <div className="relative flex items-center">
-              <MapPin className="absolute left-4 text-muted-foreground" size={20} />
+              {fetchingCep ? (
+                <Loader2 className="absolute left-4 text-primary animate-spin" size={20} />
+              ) : (
+                <Search className="absolute left-4 text-muted-foreground" size={20} />
+              )}
               <Input
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                value={cep}
+                onChange={(e) => handleCepChange(e.target.value)}
                 className="pl-12"
-                placeholder="Ex: Av. Paulista, 1000"
+                placeholder="00000-000"
+                inputMode="numeric"
+              />
+            </div>
+          </Field>
+
+          {/* Endereço e Número */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <Field label="Endereço">
+                <div className="relative flex items-center">
+                  <MapPin className="absolute left-4 text-muted-foreground" size={20} />
+                  <Input
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="pl-12"
+                    placeholder="Ex: Av. Paulista"
+                  />
+                </div>
+              </Field>
+            </div>
+            <div>
+              <Field label="Número">
+                <div className="relative flex items-center">
+                  <Hash className="absolute left-3 text-muted-foreground" size={16} />
+                  <Input
+                    value={number}
+                    onChange={(e) => setNumber(e.target.value)}
+                    className="pl-9"
+                    placeholder="1000"
+                  />
+                </div>
+              </Field>
+            </div>
+          </div>
+
+          {/* Complemento (até 500 caracteres) */}
+          <Field label={`Complemento (Opcional - ${complement.length}/500)`}>
+            <div className="relative flex items-start">
+              <FileEdit className="absolute left-4 top-3 text-muted-foreground" size={20} />
+              <TextArea
+                value={complement}
+                onChange={(e) => setComplement(e.target.value.slice(0, 500))}
+                maxLength={500}
+                className="pl-12 min-h-[70px]"
+                placeholder="Bloco, sala, pontos de referência… (até 500 caracteres)"
               />
             </div>
           </Field>

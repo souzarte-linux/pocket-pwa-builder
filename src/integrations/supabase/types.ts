@@ -82,11 +82,14 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          cep: string | null
           cnpj: string | null
+          complement: string | null
           created_at: string
           id: string
           is_whatsapp: boolean
           name: string
+          number: string | null
           phone: string | null
           social_media: string | null
           user_id: string
@@ -94,11 +97,14 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          cep?: string | null
           cnpj?: string | null
+          complement?: string | null
           created_at?: string
           id?: string
           is_whatsapp?: boolean
           name: string
+          number?: string | null
           phone?: string | null
           social_media?: string | null
           user_id: string
@@ -106,11 +112,14 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          cep?: string | null
           cnpj?: string | null
+          complement?: string | null
           created_at?: string
           id?: string
           is_whatsapp?: boolean
           name?: string
+          number?: string | null
           phone?: string | null
           social_media?: string | null
           user_id?: string
