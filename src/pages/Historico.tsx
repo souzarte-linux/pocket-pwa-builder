@@ -251,27 +251,28 @@ const Historico = () => {
   const [viewTarget, setViewTarget] = useState<Tx | null>(null);
 
   const load = async () => {
+    const { data: u } = await supabase.auth.getUser();
+    const userId = u?.user?.id;
+
     const since = new Date();
-    since.setDate(since.getDate() - 90); // 90 days to show decent history
+    since.setDate(since.getDate() - 180); // 180 days to cover full history
+
+    const routesQuery = supabase.from('routes').select('*').gte('occurred_at', since.toISOString()).order('occurred_at', { ascending: false });
+    const expQuery = supabase.from('expenses').select('*').gte('occurred_at', since.toISOString()).order('occurred_at', { ascending: false });
+    const dailyQuery = supabase.from('daily_totals').select('*').gte('occurred_at', since.toISOString()).order('occurred_at', { ascending: false });
+
+    if (userId) {
+      routesQuery.eq('user_id', userId);
+      expQuery.eq('user_id', userId);
+      dailyQuery.eq('user_id', userId);
+    }
 
     const [routesRes, expRes, dailyRes, plats, prof, cyclesRes] = await Promise.all([
-      supabase
-        .from('routes')
-        .select('id, amount, tip, distance_km, product_type, occurred_at, platform_id, origin, destination, package_count, small_packages_count, large_packages_count, started_at, ended_at, break_minutes, billing_cycle_id, notes')
-        .gte('occurred_at', since.toISOString())
-        .order('occurred_at', { ascending: false }),
-      supabase
-        .from('expenses')
-        .select('id, category, title, vendor, amount, occurred_at, payment_method, odometer_km, part_brand, part_model, description, invoice_number, receipt_number, card_brand, card_operator, installment_number, installment_total, installment_group_id, card_due_date')
-        .gte('occurred_at', since.toISOString())
-        .order('occurred_at', { ascending: false }),
-      supabase
-        .from('daily_totals')
-        .select('id, amount, occurred_at, platform_id, product_type, notes')
-        .gte('occurred_at', since.toISOString())
-        .order('occurred_at', { ascending: false }),
+      routesQuery,
+      expQuery,
+      dailyQuery,
       supabase.from('platforms').select('id, name'),
-      supabase.from('profiles').select('daily_goal').maybeSingle(),
+      userId ? supabase.from('profiles').select('daily_goal').eq('id', userId).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from('billing_cycles').select('id, status'),
     ]);
 
@@ -342,7 +343,7 @@ const Historico = () => {
     const expensesList = expRes.data ?? [];
 
     expensesList.forEach((e: any) => {
-      if (e.category === 'manutencao' && e.title && e.odometer_km) {
+      if ((e.category === 'manutencao' || e.category === 'manutenção') && e.title && e.odometer_km) {
         const key = e.title.trim().toLowerCase();
         if (!maintenanceByTitle.has(key)) maintenanceByTitle.set(key, []);
         maintenanceByTitle.get(key)!.push(e);
@@ -363,11 +364,13 @@ const Historico = () => {
     });
 
     expensesList.forEach((e: any) => {
+      const categoryStr = (e.category ?? 'manutencao').toLowerCase();
+      const isMaint = categoryStr === 'manutencao' || categoryStr === 'manutenção';
       const ic =
-        e.category === 'combustivel' ? 'fuel' : e.category === 'manutencao' ? 'wrench' : 'food';
+        categoryStr === 'combustivel' ? 'fuel' : isMaint ? 'wrench' : 'food';
 
       let meta1Str = '';
-      if (e.category === 'manutencao') {
+      if (isMaint) {
         const brandModel = [e.part_brand, e.part_model].filter(Boolean).join(' ');
         if (brandModel) meta1Str = brandModel.toUpperCase();
         if (e.odometer_km) {
@@ -383,18 +386,22 @@ const Historico = () => {
         meta2Str = `+${diffKm.toLocaleString('pt-BR')} KM RODADOS DESDE A TROCA ANTERIOR`;
       }
 
+      const displayTitle = (
+        e.title || (isMaint ? 'Manutenção' : categoryStr === 'combustivel' ? 'Abastecimento' : 'Despesa')
+      ).toUpperCase();
+
       txs.push({
         id: 'e' + e.id,
         raw_id: e.id,
         table: 'expenses',
         kind: 'expense',
-        title: e.title.toUpperCase(),
+        title: displayTitle,
         subtitle: `${e.vendor ?? '—'} • ${formatTime(e.occurred_at)}`,
         meta1: meta1Str || undefined,
         meta2: meta2Str || undefined,
-        amount: Number(e.amount),
+        amount: Number(e.amount ?? 0),
         positive: false,
-        tag: e.category.toUpperCase(),
+        tag: isMaint ? 'MANUTENÇÃO' : categoryStr.toUpperCase(),
         iconKey: ic,
         occurred_at: e.occurred_at,
         raw: e,
@@ -430,8 +437,9 @@ const Historico = () => {
         if (!catParam) return true;
         if (x.kind !== 'expense') return false;
         if (catParam === 'combustivel') return x.iconKey === 'fuel';
+        if (catParam === 'manutencao') return x.iconKey === 'wrench';
         if (catParam === 'oleo') return x.iconKey === 'wrench' && OIL_RX.test(x.title);
-        if (catParam === 'pecas') return x.iconKey === 'wrench' && !OIL_RX.test(x.title);
+        if (catParam === 'pecas') return x.iconKey === 'wrench';
         return true;
       })
       .filter((x) => {
