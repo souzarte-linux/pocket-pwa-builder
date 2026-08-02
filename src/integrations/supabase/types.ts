@@ -154,48 +154,7 @@ export type Database = {
           },
         ]
       }
-      card_operators: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      companies: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
+
       expenses: {
         Row: {
           amount: number
@@ -418,36 +377,7 @@ export type Database = {
         }
         Relationships: []
       }
-      part_maintenance: {
-        Row: {
-          created_at: string
-          id: string
-          last_change_at: string
-          last_change_km: number
-          life_km: number
-          part_name: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          last_change_at?: string
-          last_change_km?: number
-          life_km?: number
-          part_name: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          last_change_at?: string
-          last_change_km?: number
-          life_km?: number
-          part_name?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
+
       platforms: {
         Row: {
           active: boolean
