@@ -231,114 +231,167 @@ const Despesa = () => {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) {
-      setLoading(false);
-      return;
-    }
-    const final = amountNum;
-    const odo = Number(odometer.replace(',', '.')) || null;
-    const occurred = new Date(when);
-
-    const dueDay = paymentMethod === 'cartao' && cardDetails?.cardDueDay ? cardDetails.cardDueDay : null;
-    let initialDueDate: string | null = null;
-    if (dueDay) {
-      initialDueDate = calculateCardDueDate(occurred.getFullYear(), occurred.getMonth(), dueDay);
-    }
-
-    const payload: any = {
-      user_id: u.user.id,
-      category: cat,
-      title: title || titles[cat].defaultTitle,
-      vendor: vendor || null,
-      amount: final,
-      liters: cat === 'combustivel' ? Number(liters.replace(',', '.')) || null : null,
-      fuel_type: cat === 'combustivel' ? fuelType : null,
-      price_per_liter: cat === 'combustivel' ? Number(pricePerLiter.replace(',', '.')) || null : null,
-      odometer_km: cat === 'alimentacao' ? null : odo,
-      description: description || null,
-      payment_method: paymentMethod,
-      occurred_at: occurred.toISOString(),
-      card_brand: paymentMethod === 'cartao' ? cardDetails?.brand || null : null,
-      card_operator: paymentMethod === 'cartao' ? cardDetails?.operator || null : null,
-      card_due_day: dueDay,
-      card_due_date: initialDueDate,
-    };
-
-    if (cat === 'combustivel') {
-      payload.receipt_number = receiptNumber || null;
-      payload.is_full_tank = isFullTank;
-    }
-
-    if (cat === 'manutencao') {
-      payload.invoice_number = invoiceNumber || null;
-      payload.part_brand = partBrand || null;
-      payload.part_model = partModel || null;
-    }
-
-    let error;
-    if (isEdit) {
-      const res = await supabase.from('expenses').update(payload).eq('id', editId);
-      error = res.error;
-    } else {
-      const total = paymentMethod === 'cartao' ? Math.max(1, cardDetails?.installments ?? 1) : 1;
-      if (total > 1) {
-        const groupId = crypto.randomUUID();
-        const [fy, fm] = (cardDetails?.firstMonth ?? occurred.toISOString().slice(0, 7))
-          .split('-')
-          .map(Number);
-
-        const rows = Array.from({ length: total }, (_, i) => {
-          // Purchase date (occurred_at) stays on purchase day in subsequent months
-          const d = new Date(fy, fm - 1 + i, occurred.getDate(), occurred.getHours(), occurred.getMinutes());
-
-          // Card due date calculated for reporting for month i
-          let instDueDate: string | null = null;
-          if (dueDay) {
-            instDueDate = calculateCardDueDate(fy, fm - 1 + i, dueDay);
-          }
-
-          return {
-            ...payload,
-            occurred_at: d.toISOString(),
-            amount: Number((final / total).toFixed(2)),
-            installment_group_id: groupId,
-            installment_number: i + 1,
-            installment_total: total,
-            title: `${payload.title} (Parcela ${i + 1}/${total})`,
-            card_due_day: dueDay,
-            card_due_date: instDueDate,
-          };
-        });
-        const res = await supabase.from('expenses').insert(rows);
-        error = res.error;
-      } else {
-        const res = await supabase.from('expenses').insert(payload);
-        error = res.error;
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) {
+        toast.error('Usuário não autenticado.');
+        setLoading(false);
+        return;
       }
-    }
+      const final = amountNum;
+      if (!final || final <= 0) {
+        toast.error('Informe o valor total pago.');
+        setLoading(false);
+        return;
+      }
 
-    // registra/atualiza controle de vida útil da peça
-    if (!error && cat === 'manutencao' && Number(lifeKm) > 0 && title.trim()) {
-      const { error: pmErr } = await supabase.from('part_maintenance' as any).upsert(
-        {
+      const odo = Number(odometer.replace(',', '.')) || null;
+      const occurred = new Date(when);
+
+      const dueDay = paymentMethod === 'cartao' && cardDetails?.cardDueDay ? cardDetails.cardDueDay : null;
+      let initialDueDate: string | null = null;
+      if (dueDay) {
+        initialDueDate = calculateCardDueDate(occurred.getFullYear(), occurred.getMonth(), dueDay);
+      }
+
+      const payload: any = {
+        user_id: u.user.id,
+        category: cat,
+        title: title || titles[cat].defaultTitle,
+        vendor: vendor || null,
+        amount: final,
+        liters: cat === 'combustivel' ? Number(liters.replace(',', '.')) || null : null,
+        fuel_type: cat === 'combustivel' ? fuelType : null,
+        price_per_liter: cat === 'combustivel' ? Number(pricePerLiter.replace(',', '.')) || null : null,
+        odometer_km: cat === 'alimentacao' ? null : odo,
+        description: description || null,
+        payment_method: paymentMethod,
+        occurred_at: occurred.toISOString(),
+        card_brand: paymentMethod === 'cartao' ? cardDetails?.brand || null : null,
+        card_operator: paymentMethod === 'cartao' ? cardDetails?.operator || null : null,
+        card_due_day: dueDay,
+        card_due_date: initialDueDate,
+      };
+
+      if (cat === 'combustivel') {
+        payload.receipt_number = receiptNumber || null;
+        payload.is_full_tank = isFullTank;
+      }
+
+      if (cat === 'manutencao') {
+        payload.invoice_number = invoiceNumber || null;
+        payload.part_brand = partBrand || null;
+        payload.part_model = partModel || null;
+      }
+
+      const attemptSave = async (p: any) => {
+        if (isEdit) {
+          return await supabase.from('expenses').update(p).eq('id', editId);
+        } else {
+          const total = paymentMethod === 'cartao' ? Math.max(1, cardDetails?.installments ?? 1) : 1;
+          if (total > 1) {
+            const groupId = crypto.randomUUID();
+            const [fy, fm] = (cardDetails?.firstMonth ?? occurred.toISOString().slice(0, 7))
+              .split('-')
+              .map(Number);
+
+            const rows = Array.from({ length: total }, (_, i) => {
+              const d = new Date(fy, fm - 1 + i, occurred.getDate(), occurred.getHours(), occurred.getMinutes());
+              let instDueDate: string | null = null;
+              if (dueDay) {
+                instDueDate = calculateCardDueDate(fy, fm - 1 + i, dueDay);
+              }
+              const row: any = {
+                ...p,
+                occurred_at: d.toISOString(),
+                amount: Number((final / total).toFixed(2)),
+                title: `${p.title} (Parcela ${i + 1}/${total})`,
+              };
+              if (p.installment_group_id !== undefined || !isEdit) {
+                row.installment_group_id = groupId;
+                row.installment_number = i + 1;
+                row.installment_total = total;
+              }
+              if (dueDay) {
+                row.card_due_day = dueDay;
+                row.card_due_date = instDueDate;
+              }
+              return row;
+            });
+            return await supabase.from('expenses').insert(rows);
+          } else {
+            return await supabase.from('expenses').insert(p);
+          }
+        }
+      };
+
+      let { error } = await attemptSave(payload);
+
+      // Fallback: If remote DB lacks extended columns (card_due_day, invoice_number, part_brand, etc.), retry with core payload
+      if (
+        error &&
+        (error.code === 'PGRST204' ||
+          error.message?.toLowerCase().includes('column') ||
+          error.message?.toLowerCase().includes('schema cache'))
+      ) {
+        console.warn('Extended columns not present in expenses table, retrying with core payload:', error);
+        const corePayload: any = {
           user_id: u.user.id,
-          part_name: title.trim(),
-          life_km: Number(lifeKm),
-          last_change_km: odo ?? 0,
-          last_change_at: occurred.toISOString(),
-        } as any,
-        { onConflict: 'user_id,part_name' },
-      );
-      if (pmErr) console.error(pmErr);
+          category: cat,
+          title: title || titles[cat].defaultTitle,
+          vendor: vendor || null,
+          amount: final,
+          liters: cat === 'combustivel' ? Number(liters.replace(',', '.')) || null : null,
+          fuel_type: cat === 'combustivel' ? fuelType : null,
+          price_per_liter: cat === 'combustivel' ? Number(pricePerLiter.replace(',', '.')) || null : null,
+          odometer_km: cat === 'alimentacao' ? null : odo,
+          description: description || null,
+          payment_method: paymentMethod,
+          occurred_at: occurred.toISOString(),
+        };
+        if (cat === 'combustivel') {
+          corePayload.receipt_number = receiptNumber || null;
+          corePayload.is_full_tank = isFullTank;
+        }
+        const retryRes = await attemptSave(corePayload);
+        error = retryRes.error;
+      }
+
+      // registra/atualiza controle de vida útil da peça se manutenção
+      if (!error && cat === 'manutencao' && Number(lifeKm) > 0 && title.trim()) {
+        try {
+          await supabase.from('part_maintenance' as any).upsert(
+            {
+              user_id: u.user.id,
+              part_name: title.trim(),
+              life_km: Number(lifeKm),
+              last_change_km: odo ?? 0,
+              last_change_at: occurred.toISOString(),
+            } as any,
+            { onConflict: 'user_id,part_name' },
+          );
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (cat === 'manutencao' && vendor) localStorage.setItem('lastCompany', vendor);
+
+      setLoading(false);
+
+      if (error) {
+        console.error('Error saving expense:', error);
+        toast.error(`Erro ao salvar despesa: ${error.message || 'Tente novamente.'}`);
+        return;
+      }
+
+      toast.success(isEdit ? 'Despesa atualizada!' : 'Despesa registrada!');
+      navigate(isEdit ? '/historico' : '/');
+    } catch (err: any) {
+      console.error('Unexpected error saving expense:', err);
+      setLoading(false);
+      toast.error(`Erro ao salvar: ${err.message || 'Tente novamente.'}`);
     }
-
-    if (cat === 'manutencao' && vendor) localStorage.setItem('lastCompany', vendor);
-
-    setLoading(false);
-    if (error) return (console.error(error), toast.error('Erro ao salvar. Tente novamente.'));
-    toast.success(isEdit ? 'Despesa atualizada!' : 'Despesa registrada!');
-    navigate(isEdit ? '/historico' : '/');
   };
 
   const handleDelete = async () => {
