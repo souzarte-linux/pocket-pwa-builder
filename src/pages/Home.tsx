@@ -97,12 +97,12 @@ const Home = () => {
         </button>
       }
     >
-      <div className="md:grid md:grid-cols-2 md:gap-5 lg:grid-cols-3 md:items-start">
+      <div className="space-y-5">
         {/* Lucro líquido card */}
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl bg-surface border border-border/40 p-5 shadow-card lg:col-span-3"
+          className="rounded-xl bg-surface border border-border/40 p-5 shadow-card"
         >
           <div className="flex items-center justify-between">
             <span className="label-up text-xs text-muted-foreground">Lucro líquido hoje</span>
@@ -130,48 +130,48 @@ const Home = () => {
           </div>
         </motion.section>
 
-        <div className="md:col-span-2 lg:col-span-3 mt-5 md:mt-0 space-y-3">
+        <div className="space-y-3">
           <OilChangeAlert />
           <PartMaintenanceAlerts />
         </div>
 
-        {/* Big actions */}
-        <section className="mt-5 md:mt-0 space-y-4 md:contents">
+        {/* Big actions - Uniform equal size on all devices */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-stretch">
           <button
             onClick={() => navigate('/rota/nova')}
-            className="w-full p-5 rounded-xl bg-primary text-primary-foreground text-left shadow-fab active:scale-[0.98] transition flex items-center gap-4"
+            className="w-full min-h-[96px] h-full p-5 rounded-xl bg-primary text-primary-foreground text-left shadow-fab active:scale-[0.98] transition flex items-center justify-between gap-4"
           >
-            <div className="flex-1">
-              <h2 className="display text-xl leading-tight">LANÇAR GANHOS POR ROTA</h2>
-              <p className="mt-1 text-xs label-up opacity-80">Distância • Valor • Tipo</p>
+            <div className="flex-1 min-w-0">
+              <h2 className="display text-lg sm:text-xl leading-tight truncate">LANÇAR GANHOS POR ROTA</h2>
+              <p className="mt-1 text-xs label-up opacity-80 truncate">Distância • Valor • Tipo</p>
             </div>
-            <Route className="size-9" strokeWidth={2.4} />
+            <Route className="size-8 shrink-0" strokeWidth={2.4} />
           </button>
 
           <button
             onClick={() => navigate('/total-dia')}
-            className="w-full p-5 rounded-xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center gap-4"
+            className="w-full min-h-[96px] h-full p-5 rounded-xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center justify-between gap-4"
           >
-            <div className="flex-1">
-              <h2 className="display text-xl text-primary leading-tight">LANÇAR TOTAL DO DIA</h2>
-              <p className="mt-1 text-xs label-up text-muted-foreground">
+            <div className="flex-1 min-w-0">
+              <h2 className="display text-lg sm:text-xl text-primary leading-tight truncate">LANÇAR TOTAL DO DIA</h2>
+              <p className="mt-1 text-xs label-up text-muted-foreground truncate">
                 Sincronização final do turno
               </p>
             </div>
-            <Calendar className="size-8 text-primary" strokeWidth={2.4} />
+            <Calendar className="size-8 text-primary shrink-0" strokeWidth={2.4} />
           </button>
 
           <button
             onClick={() => navigate('/faturas')}
-            className="w-full p-5 rounded-xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center gap-4"
+            className="w-full min-h-[96px] h-full p-5 rounded-xl bg-surface border border-border/40 text-left shadow-card active:scale-[0.98] transition flex items-center justify-between gap-4"
           >
-            <div className="flex-1">
-              <h2 className="display text-xl text-success leading-tight">CONTAS A RECEBER</h2>
-              <p className="mt-1 text-xs label-up text-muted-foreground">
+            <div className="flex-1 min-w-0">
+              <h2 className="display text-lg sm:text-xl text-success leading-tight truncate">CONTAS A RECEBER</h2>
+              <p className="mt-1 text-xs label-up text-muted-foreground truncate">
                 Fechar faturas e baixar pagamentos
               </p>
             </div>
-            <Wallet className="size-8 text-success" strokeWidth={2.4} />
+            <Wallet className="size-8 text-success shrink-0" strokeWidth={2.4} />
           </button>
         </section>
       </div>
