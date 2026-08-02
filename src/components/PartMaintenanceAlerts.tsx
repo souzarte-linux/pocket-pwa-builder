@@ -34,7 +34,7 @@ export const PartMaintenanceAlerts = () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
       const [{ data }, odo] = await Promise.all([
-        supabase.from('part_maintenance' as any).select('part_name, life_km, last_change_km'),
+        supabase.from('part_maintenance' as any).select('part_name, life_km, last_change_km').eq('user_id', u.user.id),
         getCurrentOdometer(),
       ]);
       const rows = (data ?? []) as unknown as PartRow[];

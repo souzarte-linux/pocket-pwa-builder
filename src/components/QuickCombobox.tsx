@@ -43,6 +43,7 @@ export const QuickCombobox = ({
   const [companyDialogOpen, setCompanyDialogOpen] = useState(false);
   const [options, setOptions] = useState<string[]>(staticOptions ?? []);
   const [search, setSearch] = useState('');
+  const [companyInitialName, setCompanyInitialName] = useState('');
   const [creating, setCreating] = useState(false);
 
   const load = async () => {
@@ -69,6 +70,7 @@ export const QuickCombobox = ({
     if (!clean) return;
 
     if (table === 'companies') {
+      setCompanyInitialName(clean);
       setCompanyDialogOpen(true);
       return;
     }
@@ -110,6 +112,7 @@ export const QuickCombobox = ({
 
   const handlePlusClick = () => {
     if (table === 'companies') {
+      setCompanyInitialName(search.trim());
       setCompanyDialogOpen(true);
     } else {
       const name = window.prompt('Nome');
@@ -176,6 +179,7 @@ export const QuickCombobox = ({
           open={companyDialogOpen}
           onOpenChange={setCompanyDialogOpen}
           onCompanyCreated={handleCompanyCreated}
+          initialName={companyInitialName}
         />
       )}
     </>

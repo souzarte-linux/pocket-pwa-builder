@@ -419,7 +419,7 @@ const Despesa = () => {
 
   return (
     <AppShell back title={isEdit ? `EDITAR ${titles[cat].defaultTitle.toUpperCase()}` : titles[cat].title}>
-      <form onSubmit={submit}>
+      <form onSubmit={submit} noValidate>
         <FormShell
           footer={
             <div className="flex flex-col gap-2 w-full">

@@ -49,23 +49,28 @@ const TrocasOleo = () => {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      toast.error('Data e hora inválidas');
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.from('oil_changes' as any).insert({
       user_id: userId,
-      changed_at: new Date(date).toISOString(),
+      changed_at: parsedDate.toISOString(),
       km_at_change: Number(km) || 0,
       notes: notes || null,
     } as any);
-    // Atualiza marcador no perfil
-    await supabase
-      .from('profiles')
-      .update({ last_oil_change_at: new Date(date).toISOString() } as any)
-      .eq('id', userId);
     setLoading(false);
     if (error) {
       toast.error(error.message);
       return;
     }
+    // Atualiza marcador no perfil apenas se insert for bem-sucedido
+    await supabase
+      .from('profiles')
+      .update({ last_oil_change_at: parsedDate.toISOString() } as any)
+      .eq('id', userId);
     toast.success('Troca registrada');
     setKm('');
     setNotes('');
@@ -81,10 +86,15 @@ const TrocasOleo = () => {
   };
 
   const saveEdit = async (id: string) => {
+    const parsedDate = new Date(eDate);
+    if (isNaN(parsedDate.getTime())) {
+      toast.error('Data e hora inválidas');
+      return;
+    }
     const { error } = await supabase
       .from('oil_changes' as any)
       .update({
-        changed_at: new Date(eDate).toISOString(),
+        changed_at: parsedDate.toISOString(),
         km_at_change: Number(eKm) || 0,
         notes: eNotes || null,
       } as any)
@@ -143,7 +153,7 @@ const TrocasOleo = () => {
 
   return (
     <AppShell title="TROCAS DE ÓLEO" back>
-      <form onSubmit={submit}>
+      <form onSubmit={submit} noValidate>
         <FormShell footer={<SubmitButton loading={loading}>REGISTRAR TROCA</SubmitButton>}>
           <h3 className="display text-primary text-lg flex items-center gap-2">
             <Wrench className="size-5" /> NOVA TROCA

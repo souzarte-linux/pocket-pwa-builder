@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, Info, Briefcase, Archive, CircleSlash } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Info, Briefcase, Archive, CircleSlash, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const CadastroVeiculo = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [form, setForm] = useState({
     marca: '',
     modelo: '',
@@ -18,13 +22,84 @@ const CadastroVeiculo = () => {
     carga: 'bag',
   });
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        if (!u.user) return;
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', u.user.id)
+          .maybeSingle();
+
+        if (profile) {
+          const p = profile as any;
+          setForm({
+            marca: p.vehicle_brand ?? '',
+            modelo: p.vehicle_model ?? '',
+            ano: p.vehicle_year ? String(p.vehicle_year) : '',
+            placa: p.plate ?? '',
+            tanque: p.tank_size_l ? String(p.tank_size_l) : '',
+            consumo: p.avg_consumption_kml ? String(p.avg_consumption_kml) : '',
+            trocaOleo: p.oil_change_km ? String(p.oil_change_km) : '',
+            pneuDianteiro: p.tire_size_front ?? '',
+            pneuTraseiro: p.tire_size_rear ?? '',
+            carga: p.has_bag ? 'bag' : 'nenhum',
+          });
+        }
+      } catch (err) {
+        console.error('Error loading vehicle profile:', err);
+      } finally {
+        setFetching(false);
+      }
+    })();
+  }, []);
+
   const setField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    console.log('Salvar alterações', form);
+    setLoading(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) {
+        toast.error('Usuário não autenticado.');
+        setLoading(false);
+        return;
+      }
+
+      const payload = {
+        vehicle_brand: form.marca.trim() || null,
+        vehicle_model: form.modelo.trim() || null,
+        vehicle_year: form.ano ? Number(form.ano) || null : null,
+        plate: form.placa.trim().toUpperCase() || null,
+        tank_size_l: form.tanque ? Number(form.tanque.replace(',', '.')) || null : null,
+        avg_consumption_kml: form.consumo ? Number(form.consumo.replace(',', '.')) || null : null,
+        oil_change_km: form.trocaOleo ? Number(form.trocaOleo.replace(',', '.')) || null : null,
+        tire_size_front: form.pneuDianteiro.trim() || null,
+        tire_size_rear: form.pneuTraseiro.trim() || null,
+        has_bag: form.carga !== 'nenhum',
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase.from('profiles').update(payload as any).eq('id', u.user.id);
+      setLoading(false);
+
+      if (error) {
+        console.error('Error updating vehicle profile:', error);
+        toast.error(`Erro ao salvar dados do veículo: ${error.message}`);
+        return;
+      }
+
+      toast.success('Veículo atualizado com sucesso!');
+    } catch (err: any) {
+      console.error('Unexpected error saving vehicle:', err);
+      setLoading(false);
+      toast.error('Erro ao salvar dados do veículo.');
+    }
   };
 
   return (
@@ -253,9 +328,10 @@ const CadastroVeiculo = () => {
           <div className="pt-2">
             <Button
               type="submit"
-              className="w-full rounded-full bg-primary-container px-6 py-4 text-black font-semibold shadow-[0_20px_50px_rgba(255,95,0,0.32)] hover:bg-[#ff7b2e]"
+              disabled={loading}
+              className="w-full rounded-full bg-primary-container px-6 py-4 text-black font-semibold shadow-[0_20px_50px_rgba(255,95,0,0.32)] hover:bg-[#ff7b2e] disabled:opacity-60"
             >
-              Salvar Alterações
+              {loading ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </div>
         </form>

@@ -10,14 +10,16 @@ interface CompanyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCompanyCreated: (name: string) => void;
+  initialName?: string;
 }
 
 export const CompanyDialog: React.FC<CompanyDialogProps> = ({
   open,
   onOpenChange,
   onCompanyCreated,
+  initialName = '',
 }) => {
-  const [name, setName] = useState('');
+  const [name, setName] = useState(initialName);
   const [cep, setCep] = useState('');
   const [address, setAddress] = useState('');
   const [number, setNumber] = useState('');
@@ -29,6 +31,12 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
   const [website, setWebsite] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchingCep, setFetchingCep] = useState(false);
+
+  React.useEffect(() => {
+    if (open) {
+      setName(initialName);
+    }
+  }, [open, initialName]);
 
   const handlePhoneChange = (val: string) => {
     setPhone(formatPhoneMask(val));
@@ -58,6 +66,7 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
         }
       } catch (err) {
         console.error(err);
+        toast.error('Erro ao buscar CEP. Verifique sua conexão.');
       } finally {
         setFetchingCep(false);
       }
@@ -171,7 +180,7 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 py-2">
           {/* Nome da Empresa (Obrigatório) */}
           <Field label="Nome da Empresa *">
             <Input
