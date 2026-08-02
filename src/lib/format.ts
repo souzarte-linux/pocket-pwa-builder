@@ -78,3 +78,22 @@ export const toLocalInput = (dateOrStr: Date | string | null | undefined): strin
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+/** Live currency mask (centavos typing style: e.g. "12550" -> "R$ 125,50") */
+export const parseCurrencyInput = (val: string): { display: string; numeric: number } => {
+  const cleanDigits = val.replace(/\D/g, '');
+  if (!cleanDigits) return { display: '', numeric: 0 };
+  const numeric = Number(cleanDigits) / 100;
+  const display = formatBRL(numeric);
+  return { display, numeric };
+};
+
+/** Phone number mask (00) 00000-0000 */
+export const formatPhoneMask = (val: string): string => {
+  const digits = val.replace(/\D/g, '').slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
+
+

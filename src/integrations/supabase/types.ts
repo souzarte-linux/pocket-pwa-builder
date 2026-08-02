@@ -57,18 +57,21 @@ export type Database = {
       }
       card_operators: {
         Row: {
+          card_due_day: number | null
           created_at: string
           id: string
           name: string
           user_id: string
         }
         Insert: {
+          card_due_day?: number | null
           created_at?: string
           id?: string
           name: string
           user_id: string
         }
         Update: {
+          card_due_day?: number | null
           created_at?: string
           id?: string
           name?: string
@@ -78,22 +81,40 @@ export type Database = {
       }
       companies: {
         Row: {
+          address: string | null
+          cnpj: string | null
           created_at: string
           id: string
+          is_whatsapp: boolean
           name: string
+          phone: string | null
+          social_media: string | null
           user_id: string
+          website: string | null
         }
         Insert: {
+          address?: string | null
+          cnpj?: string | null
           created_at?: string
           id?: string
+          is_whatsapp?: boolean
           name: string
+          phone?: string | null
+          social_media?: string | null
           user_id: string
+          website?: string | null
         }
         Update: {
+          address?: string | null
+          cnpj?: string | null
           created_at?: string
           id?: string
+          is_whatsapp?: boolean
           name?: string
+          phone?: string | null
+          social_media?: string | null
           user_id?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -159,6 +180,8 @@ export type Database = {
         Row: {
           amount: number
           card_brand: string | null
+          card_due_date: string | null
+          card_due_day: number | null
           card_operator: string | null
           category: Database["public"]["Enums"]["expense_category"]
           created_at: string
@@ -186,6 +209,8 @@ export type Database = {
         Insert: {
           amount: number
           card_brand?: string | null
+          card_due_date?: string | null
+          card_due_day?: number | null
           card_operator?: string | null
           category: Database["public"]["Enums"]["expense_category"]
           created_at?: string
@@ -213,6 +238,8 @@ export type Database = {
         Update: {
           amount?: number
           card_brand?: string | null
+          card_due_date?: string | null
+          card_due_day?: number | null
           card_operator?: string | null
           category?: Database["public"]["Enums"]["expense_category"]
           created_at?: string

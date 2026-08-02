@@ -5,6 +5,7 @@ import { Field, Input, TextArea, SegButton, SubmitButton, FormShell, Select } fr
 import { QuickCombobox } from '@/components/QuickCombobox';
 import { CardPaymentDialog, CardDetails } from '@/components/CardPaymentDialog';
 import { supabase } from '@/integrations/supabase/client';
+import { formatBRL, parseCurrencyInput, toLocalInput } from '@/lib/format';
 import { toast } from 'sonner';
 import { CreditCard, QrCode, Banknote, Plus, Trash2, History } from 'lucide-react';
 
@@ -34,10 +35,13 @@ const suggestLife = (title: string) => {
   return hit ? String(hit.km) : '';
 };
 
-const toLocalInput = (iso: string) => {
-  const d = new Date(iso);
-  const off = d.getTimezoneOffset();
-  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
+/** Helper to calculate valid YYYY-MM-DD due date for a specific year, month, and due day */
+const calculateCardDueDate = (year: number, monthIndex0: number, dueDay: number): string => {
+  // Max days in the target month
+  const maxDays = new Date(year, monthIndex0 + 1, 0).getDate();
+  const safeDay = Math.min(dueDay, maxDays);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${year}-${pad(monthIndex0 + 1)}-${pad(safeDay)}`;
 };
 
 const Despesa = () => {
@@ -50,7 +54,11 @@ const Despesa = () => {
 
   const [vendor, setVendor] = useState('');
   const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
+
+  // Amount states: raw float for calculations vs formatted display string (R$ 0,00)
+  const [amountNum, setAmountNum] = useState<number>(0);
+  const [amountDisplay, setAmountDisplay] = useState<string>('');
+
   const [liters, setLiters] = useState('');
   const [pricePerLiter, setPricePerLiter] = useState('');
   const [fuelType, setFuelType] = useState('Gasolina Comum');
@@ -94,7 +102,11 @@ const Despesa = () => {
           const ex = e as any;
           setVendor(ex.vendor ?? '');
           setTitle(ex.title ?? '');
-          setAmount(String(ex.amount ?? ''));
+
+          const val = Number(ex.amount ?? 0);
+          setAmountNum(val);
+          setAmountDisplay(val > 0 ? formatBRL(val) : '');
+
           setLiters(String(ex.liters ?? ''));
           setPricePerLiter(String(ex.price_per_liter ?? ''));
           if (ex.fuel_type) setFuelType(ex.fuel_type);
@@ -112,6 +124,7 @@ const Despesa = () => {
               operator: ex.card_operator ?? '',
               installments: ex.installment_total ?? 1,
               firstMonth: String(ex.occurred_at).slice(0, 7),
+              cardDueDay: ex.card_due_day ?? null,
             });
           }
           setIsFullTank(ex.is_full_tank ?? true);
@@ -159,14 +172,20 @@ const Despesa = () => {
     [partHistory],
   );
 
+  // Bi-directional calculations for fuel category
   const handlePriceChange = (val: string) => {
     setPricePerLiter(val);
     if (cat !== 'combustivel') return;
     const p = Number(val.replace(',', '.')) || 0;
     const l = Number(liters.replace(',', '.')) || 0;
-    const a = Number(amount.replace(',', '.')) || 0;
-    if (p > 0 && l > 0) setAmount((p * l).toFixed(2).replace('.', ','));
-    else if (p > 0 && a > 0) setLiters((a / p).toFixed(2).replace('.', ','));
+    const a = amountNum;
+    if (p > 0 && l > 0) {
+      const calcVal = Number((p * l).toFixed(2));
+      setAmountNum(calcVal);
+      setAmountDisplay(formatBRL(calcVal));
+    } else if (p > 0 && a > 0) {
+      setLiters((a / p).toFixed(2).replace('.', ','));
+    }
   };
 
   const handleLitersChange = (val: string) => {
@@ -174,25 +193,35 @@ const Despesa = () => {
     if (cat !== 'combustivel') return;
     const l = Number(val.replace(',', '.')) || 0;
     const p = Number(pricePerLiter.replace(',', '.')) || 0;
-    const a = Number(amount.replace(',', '.')) || 0;
-    if (l > 0 && p > 0) setAmount((p * l).toFixed(2).replace('.', ','));
-    else if (l > 0 && a > 0) setPricePerLiter((a / l).toFixed(2).replace('.', ','));
+    const a = amountNum;
+    if (l > 0 && p > 0) {
+      const calcVal = Number((p * l).toFixed(2));
+      setAmountNum(calcVal);
+      setAmountDisplay(formatBRL(calcVal));
+    } else if (l > 0 && a > 0) {
+      setPricePerLiter((a / l).toFixed(2).replace('.', ','));
+    }
   };
 
-  const handleAmountChange = (val: string) => {
-    setAmount(val);
+  // Live Currency Input Mask (centavos typing style)
+  const handleAmountInputChange = (val: string) => {
+    const parsed = parseCurrencyInput(val);
+    setAmountDisplay(parsed.display);
+    setAmountNum(parsed.numeric);
+
     if (cat !== 'combustivel') return;
-    const a = Number(val.replace(',', '.')) || 0;
+    const a = parsed.numeric;
     const p = Number(pricePerLiter.replace(',', '.')) || 0;
     const l = Number(liters.replace(',', '.')) || 0;
     if (a > 0 && p > 0) setLiters((a / p).toFixed(2).replace('.', ','));
     else if (a > 0 && l > 0) setPricePerLiter((a / l).toFixed(2).replace('.', ','));
   };
 
-  const selectedStation = gasStations.find(g => g.name === vendor);
-  const availableFuels = selectedStation?.fuel_types && selectedStation.fuel_types.length > 0
-    ? selectedStation.fuel_types
-    : allFuelTypes;
+  const selectedStation = gasStations.find((g) => g.name === vendor);
+  const availableFuels =
+    selectedStation?.fuel_types && selectedStation.fuel_types.length > 0
+      ? selectedStation.fuel_types
+      : allFuelTypes;
 
   const selectPayment = (m: 'pix' | 'cartao' | 'dinheiro') => {
     setPaymentMethod(m);
@@ -207,9 +236,15 @@ const Despesa = () => {
       setLoading(false);
       return;
     }
-    const final = Number(amount.replace(',', '.')) || 0;
+    const final = amountNum;
     const odo = Number(odometer.replace(',', '.')) || null;
     const occurred = new Date(when);
+
+    const dueDay = paymentMethod === 'cartao' && cardDetails?.cardDueDay ? cardDetails.cardDueDay : null;
+    let initialDueDate: string | null = null;
+    if (dueDay) {
+      initialDueDate = calculateCardDueDate(occurred.getFullYear(), occurred.getMonth(), dueDay);
+    }
 
     const payload: any = {
       user_id: u.user.id,
@@ -226,6 +261,8 @@ const Despesa = () => {
       occurred_at: occurred.toISOString(),
       card_brand: paymentMethod === 'cartao' ? cardDetails?.brand || null : null,
       card_operator: paymentMethod === 'cartao' ? cardDetails?.operator || null : null,
+      card_due_day: dueDay,
+      card_due_date: initialDueDate,
     };
 
     if (cat === 'combustivel') {
@@ -250,8 +287,17 @@ const Despesa = () => {
         const [fy, fm] = (cardDetails?.firstMonth ?? occurred.toISOString().slice(0, 7))
           .split('-')
           .map(Number);
+
         const rows = Array.from({ length: total }, (_, i) => {
+          // Purchase date (occurred_at) stays on purchase day in subsequent months
           const d = new Date(fy, fm - 1 + i, occurred.getDate(), occurred.getHours(), occurred.getMinutes());
+
+          // Card due date calculated for reporting for month i
+          let instDueDate: string | null = null;
+          if (dueDay) {
+            instDueDate = calculateCardDueDate(fy, fm - 1 + i, dueDay);
+          }
+
           return {
             ...payload,
             occurred_at: d.toISOString(),
@@ -260,6 +306,8 @@ const Despesa = () => {
             installment_number: i + 1,
             installment_total: total,
             title: `${payload.title} (Parcela ${i + 1}/${total})`,
+            card_due_day: dueDay,
+            card_due_date: instDueDate,
           };
         });
         const res = await supabase.from('expenses').insert(rows);
@@ -394,9 +442,13 @@ const Despesa = () => {
                 {historyWithDelta.map((h) => (
                   <li key={h.id} className="py-1.5 flex items-center justify-between">
                     <div>
-                      <span className="font-semibold text-foreground">{new Date(h.occurred_at).toLocaleDateString('pt-BR')}</span>
+                      <span className="font-semibold text-foreground">
+                        {new Date(h.occurred_at).toLocaleDateString('pt-BR')}
+                      </span>
                       {h.odometer_km != null && (
-                        <span className="text-muted-foreground ml-2">({Number(h.odometer_km).toLocaleString('pt-BR')} km)</span>
+                        <span className="text-muted-foreground ml-2">
+                          ({Number(h.odometer_km).toLocaleString('pt-BR')} km)
+                        </span>
                       )}
                     </div>
                     <div className="text-right">
@@ -427,10 +479,20 @@ const Despesa = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Preço/Litro">
-                  <Input inputMode="decimal" value={pricePerLiter} onChange={(e) => handlePriceChange(e.target.value)} placeholder="Ex: 5,89" />
+                  <Input
+                    inputMode="decimal"
+                    value={pricePerLiter}
+                    onChange={(e) => handlePriceChange(e.target.value)}
+                    placeholder="Ex: 5,89"
+                  />
                 </Field>
                 <Field label="Litros">
-                  <Input inputMode="decimal" value={liters} onChange={(e) => handleLitersChange(e.target.value)} placeholder="Ex: 20,0" />
+                  <Input
+                    inputMode="decimal"
+                    value={liters}
+                    onChange={(e) => handleLitersChange(e.target.value)}
+                    placeholder="Ex: 20,0"
+                  />
                 </Field>
               </div>
             </>
@@ -492,12 +554,13 @@ const Despesa = () => {
             </Field>
           )}
 
+          {/* Valor Total Pago with Live R$ Currency Mask */}
           <Field label="Valor total pago">
             <Input
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => handleAmountChange(e.target.value)}
-              placeholder="Ex: 0,00"
+              inputMode="numeric"
+              value={amountDisplay}
+              onChange={(e) => handleAmountInputChange(e.target.value)}
+              placeholder="R$ 0,00"
               className={cat === 'combustivel' ? 'border-2 !border-primary text-primary font-black' : ''}
               required
             />
@@ -550,10 +613,17 @@ const Despesa = () => {
             </div>
             {paymentMethod === 'cartao' && cardDetails && (
               <div className="mt-2 text-xs text-muted-foreground flex items-center justify-between bg-surface p-2.5 rounded-lg border border-border/40">
-                <span>
-                  {cardDetails.brand || 'Cartão'} {cardDetails.operator && `• ${cardDetails.operator}`}{' '}
-                  {cardDetails.installments > 1 && `(${cardDetails.installments}x)`}
-                </span>
+                <div>
+                  <span className="font-bold text-foreground">
+                    {cardDetails.brand || 'Cartão'} {cardDetails.operator && `• ${cardDetails.operator}`}{' '}
+                    {cardDetails.installments > 1 && `(${cardDetails.installments}x)`}
+                  </span>
+                  {cardDetails.cardDueDay && (
+                    <span className="block text-[11px] text-muted-foreground">
+                      Vencimento fatura: Dia {cardDetails.cardDueDay}
+                    </span>
+                  )}
+                </div>
                 <button type="button" onClick={() => setCardDialogOpen(true)} className="text-primary font-bold">
                   Editar
                 </button>
