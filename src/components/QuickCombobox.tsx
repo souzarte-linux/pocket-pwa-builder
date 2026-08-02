@@ -86,9 +86,17 @@ export const QuickCombobox = ({
     }
     const { error } = await supabase.from(table).insert({ user_id: u.user.id, name: clean } as any);
     setCreating(false);
-    if (error && !error.message.includes('duplicate')) {
+
+    const isDuplicate =
+      error &&
+      (error.code === '23505' ||
+        error.message?.toLowerCase().includes('duplicate') ||
+        error.message?.toLowerCase().includes('already exists'));
+
+    if (error && !isDuplicate) {
       console.error(error);
       toast.error('Não foi possível cadastrar. Tente novamente.');
+      pick(clean);
       return;
     }
     await load();

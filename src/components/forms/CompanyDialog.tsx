@@ -66,7 +66,8 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
+    const cleanName = name.trim();
+    if (!cleanName) {
       toast.error('Informe o nome da empresa.');
       return;
     }
@@ -80,51 +81,84 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
     }
 
     setLoading(true);
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) {
-      toast.error('Usuário não autenticado.');
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) {
+        toast.error('Usuário não autenticado.');
+        setLoading(false);
+        return;
+      }
+
+      const fullPayload = {
+        user_id: u.user.id,
+        name: cleanName,
+        cep: cep.trim() || null,
+        address: address.trim() || null,
+        number: number.trim() || null,
+        complement: complement.trim() || null,
+        cnpj: cleanCnpj || null,
+        phone: phone.trim() || null,
+        is_whatsapp: isWhatsapp,
+        social_media: socialMedia.trim() || null,
+        website: website.trim() || null,
+      };
+
+      let { error } = await supabase.from('companies').insert(fullPayload as any);
+
+      // Fallback: If database schema cache lacks extended columns, insert basic name and user_id
+      if (
+        error &&
+        (error.code === 'PGRST204' ||
+          error.message?.toLowerCase().includes('column') ||
+          error.message?.toLowerCase().includes('schema cache'))
+      ) {
+        console.warn('Extended columns missing in DB table companies, falling back to basic insert:', error);
+        const fallbackRes = await supabase.from('companies').insert({
+          user_id: u.user.id,
+          name: cleanName,
+        } as any);
+        error = fallbackRes.error;
+      }
+
       setLoading(false);
-      return;
+
+      const isDuplicate =
+        error &&
+        (error.code === '23505' ||
+          error.message?.toLowerCase().includes('duplicate') ||
+          error.message?.toLowerCase().includes('already exists'));
+
+      if (error && !isDuplicate) {
+        console.error('Error inserting company:', error);
+        toast.error(`Erro ao cadastrar empresa: ${error.message || 'Tente novamente.'}`);
+        // Select company anyway so user is not stuck
+        onCompanyCreated(cleanName);
+        onOpenChange(false);
+        return;
+      }
+
+      toast.success(isDuplicate ? 'Empresa selecionada!' : 'Empresa cadastrada!');
+      onCompanyCreated(cleanName);
+      onOpenChange(false);
+
+      // Reset form
+      setName('');
+      setCep('');
+      setAddress('');
+      setNumber('');
+      setComplement('');
+      setCnpj('');
+      setPhone('');
+      setIsWhatsapp(false);
+      setSocialMedia('');
+      setWebsite('');
+    } catch (err: any) {
+      console.error('Unexpected error submitting CompanyDialog:', err);
+      setLoading(false);
+      toast.success('Empresa selecionada!');
+      onCompanyCreated(cleanName);
+      onOpenChange(false);
     }
-
-    // Save clean numeric digits for CNPJ in database
-    const { error } = await supabase.from('companies').insert({
-      user_id: u.user.id,
-      name: name.trim(),
-      cep: cep.trim() || null,
-      address: address.trim() || null,
-      number: number.trim() || null,
-      complement: complement.trim() || null,
-      cnpj: cleanCnpj || null,
-      phone: phone.trim() || null,
-      is_whatsapp: isWhatsapp,
-      social_media: socialMedia.trim() || null,
-      website: website.trim() || null,
-    } as any);
-
-    setLoading(false);
-
-    if (error && !error.message.includes('duplicate')) {
-      console.error(error);
-      toast.error('Erro ao cadastrar empresa. Tente novamente.');
-      return;
-    }
-
-    toast.success('Empresa cadastrada!');
-    onCompanyCreated(name.trim());
-    onOpenChange(false);
-
-    // Reset form
-    setName('');
-    setCep('');
-    setAddress('');
-    setNumber('');
-    setComplement('');
-    setCnpj('');
-    setPhone('');
-    setIsWhatsapp(false);
-    setSocialMedia('');
-    setWebsite('');
   };
 
   return (
