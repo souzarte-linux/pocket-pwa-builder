@@ -631,6 +631,7 @@ const Historico = () => {
         tx={viewTarget}
         onClose={() => setViewTarget(null)}
         onEdit={handleEdit}
+        onDeleted={load}
       />
 
       <EditTransactionDialog
