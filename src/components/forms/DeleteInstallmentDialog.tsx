@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL } from '@/lib/format';
-import { Trash2, AlertTriangle, Loader2, Calendar, CreditCard } from 'lucide-react';
+import { Trash2, AlertTriangle, Loader2, Calendar, CreditCard, ArrowLeft, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface InstallmentItem {
@@ -30,16 +30,22 @@ export const DeleteInstallmentDialog = ({
   installmentGroupId,
   onDeleted,
 }: DeleteInstallmentDialogProps) => {
+  const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
-  const [deletingSingle, setDeletingSingle] = useState(false);
-  const [deletingAll, setDeletingAll] = useState(false);
+  const [deletingMode, setDeletingMode] = useState<'single' | 'future' | 'all' | null>(null);
   const [installments, setInstallments] = useState<InstallmentItem[]>([]);
 
   useEffect(() => {
-    if (!open || !installmentGroupId) return;
+    if (!open || !installmentGroupId) {
+      setStep(1);
+      setDeletingMode(null);
+      return;
+    }
 
     let isMounted = true;
     setLoading(true);
+    setStep(1);
+    setDeletingMode(null);
 
     supabase
       .from('expenses')
@@ -62,10 +68,14 @@ export const DeleteInstallmentDialog = ({
     };
   }, [open, installmentGroupId]);
 
+  const currentInst = installments.find((i) => i.id === currentExpenseId);
+  const currentNum = currentInst?.installment_number ?? 1;
+  const hasPast = installments.some((i) => (i.installment_number ?? 1) < currentNum);
+
   const handleDeleteSingle = async () => {
-    setDeletingSingle(true);
+    setDeletingMode('single');
     const { error } = await supabase.from('expenses').delete().eq('id', currentExpenseId);
-    setDeletingSingle(false);
+    setDeletingMode(null);
 
     if (error) {
       console.error(error);
@@ -78,10 +88,34 @@ export const DeleteInstallmentDialog = ({
     onDeleted();
   };
 
+  const handleDeleteFuture = async () => {
+    setDeletingMode('future');
+    let query = supabase.from('expenses').delete().eq('installment_group_id', installmentGroupId);
+
+    if (currentInst?.installment_number) {
+      query = query.gte('installment_number', currentInst.installment_number);
+    } else {
+      query = query.gte('occurred_at', currentInst?.occurred_at ?? new Date().toISOString());
+    }
+
+    const { error } = await query;
+    setDeletingMode(null);
+
+    if (error) {
+      console.error(error);
+      toast.error('Erro ao excluir parcelas atuais e futuras');
+      return;
+    }
+
+    toast.success('Parcela atual e futuras foram excluídas!');
+    onOpenChange(false);
+    onDeleted();
+  };
+
   const handleDeleteAll = async () => {
-    setDeletingAll(true);
+    setDeletingMode('all');
     const { error } = await supabase.from('expenses').delete().eq('installment_group_id', installmentGroupId);
-    setDeletingAll(false);
+    setDeletingMode(null);
 
     if (error) {
       console.error(error);
@@ -106,14 +140,21 @@ export const DeleteInstallmentDialog = ({
         <DialogHeader>
           <DialogTitle className="display text-lg text-destructive flex items-center gap-2 uppercase">
             <AlertTriangle className="size-5 text-destructive" />
-            Excluir Despesa Parcelada
+            {step === 1 ? 'Excluir Despesa Parcelada' : 'Escolha as Parcelas a Excluir'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-1">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Esta despesa faz parte de um <strong className="text-foreground">grupo de parcelamento</strong>.
-            Escolha se deseja remover apenas esta parcela ou todas as parcelas vinculadas.
+            {step === 1 ? (
+              <>
+                Esta despesa pertence a uma compra parcelada. Deseja remover apenas a parcela atual ou apagar mais parcelas?
+              </>
+            ) : (
+              <>
+                Selecione o alcance da exclusão para as parcelas do cartão:
+              </>
+            )}
           </p>
 
           {loading ? (
@@ -128,9 +169,13 @@ export const DeleteInstallmentDialog = ({
                 <span>Valor / Vencimento</span>
               </div>
 
-              <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+              <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
                 {installments.map((inst) => {
                   const isCurrent = inst.id === currentExpenseId;
+                  const instNum = inst.installment_number ?? 1;
+                  const isPast = instNum < currentNum;
+                  const isFuture = instNum > currentNum;
+
                   const numStr =
                     inst.installment_number && inst.installment_total
                       ? `${inst.installment_number}/${inst.installment_total}`
@@ -145,6 +190,8 @@ export const DeleteInstallmentDialog = ({
                       className={`p-2.5 rounded-xl border text-xs flex items-center justify-between transition ${
                         isCurrent
                           ? 'bg-destructive/10 border-destructive/40 text-foreground font-bold'
+                          : isPast
+                          ? 'bg-surface-high/50 border-border/20 text-muted-foreground/80'
                           : 'bg-surface-high border-border/20 text-muted-foreground'
                       }`}
                     >
@@ -152,11 +199,19 @@ export const DeleteInstallmentDialog = ({
                         <CreditCard className={`size-4 shrink-0 ${isCurrent ? 'text-destructive' : 'text-muted-foreground'}`} />
                         <div className="truncate">
                           <span className="font-bold uppercase">Parcela {numStr}</span>
-                          {isCurrent && (
+                          {isCurrent ? (
                             <span className="ml-2 text-[10px] bg-destructive text-destructive-foreground px-1.5 py-0.2 rounded font-black">
                               ATUAL
                             </span>
-                          )}
+                          ) : isPast ? (
+                            <span className="ml-2 text-[10px] bg-surface-highest text-muted-foreground px-1.5 py-0.2 rounded font-bold">
+                              PASSADA
+                            </span>
+                          ) : isFuture ? (
+                            <span className="ml-2 text-[10px] bg-warning/20 text-warning px-1.5 py-0.2 rounded font-bold">
+                              FUTURA
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -174,34 +229,78 @@ export const DeleteInstallmentDialog = ({
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-col pt-2">
-          <button
-            type="button"
-            disabled={deletingSingle || deletingAll}
-            onClick={handleDeleteSingle}
-            className="w-full h-12 rounded-xl border border-destructive/40 text-destructive font-bold text-xs uppercase flex items-center justify-center gap-2 bg-surface hover:bg-destructive/10 transition active:scale-[0.98]"
-          >
-            <Trash2 className="size-4" />
-            {deletingSingle ? 'EXCLUINDO PARCELA...' : 'EXCLUIR SOMENTE ESTA PARCELA'}
-          </button>
+          {step === 1 ? (
+            <>
+              {/* Etapa 1 Buttons */}
+              <button
+                type="button"
+                disabled={deletingMode !== null}
+                onClick={handleDeleteSingle}
+                className="w-full h-12 rounded-xl border border-destructive/40 text-destructive font-bold text-xs uppercase flex items-center justify-center gap-2 bg-surface hover:bg-destructive/10 transition active:scale-[0.98]"
+              >
+                <Trash2 className="size-4" />
+                {deletingMode === 'single' ? 'EXCLUINDO PARCELA...' : 'APAGAR SOMENTE ESTA PARCELA'}
+              </button>
 
-          <button
-            type="button"
-            disabled={deletingSingle || deletingAll}
-            onClick={handleDeleteAll}
-            className="w-full h-12 rounded-xl bg-destructive text-destructive-foreground font-black text-xs uppercase flex items-center justify-center gap-2 shadow-fab hover:bg-destructive/90 transition active:scale-[0.98]"
-          >
-            <Trash2 className="size-4" />
-            {deletingAll ? 'EXCLUINDO TODAS...' : 'EXCLUIR TODAS AS PARCELAS (PASSADAS E FUTURAS)'}
-          </button>
+              <button
+                type="button"
+                disabled={deletingMode !== null}
+                onClick={() => setStep(2)}
+                className="w-full h-12 rounded-xl bg-destructive text-destructive-foreground font-black text-xs uppercase flex items-center justify-center gap-2 shadow-fab hover:bg-destructive/90 transition active:scale-[0.98]"
+              >
+                <Layers className="size-4" />
+                APAGAR MAIS PARCELAS…
+              </button>
 
-          <button
-            type="button"
-            disabled={deletingSingle || deletingAll}
-            onClick={() => onOpenChange(false)}
-            className="w-full h-11 rounded-xl bg-surface-high font-bold text-xs text-muted-foreground hover:bg-surface-highest transition uppercase"
-          >
-            CANCELAR
-          </button>
+              <button
+                type="button"
+                disabled={deletingMode !== null}
+                onClick={() => onOpenChange(false)}
+                className="w-full h-11 rounded-xl bg-surface-high font-bold text-xs text-muted-foreground hover:bg-surface-highest transition uppercase"
+              >
+                CANCELAR
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Etapa 2 Buttons */}
+              <button
+                type="button"
+                disabled={deletingMode !== null}
+                onClick={handleDeleteFuture}
+                className="w-full h-12 rounded-xl border border-destructive/40 text-destructive font-bold text-xs uppercase flex items-center justify-center gap-2 bg-surface hover:bg-destructive/10 transition active:scale-[0.98]"
+              >
+                <Trash2 className="size-4" />
+                {deletingMode === 'future'
+                  ? 'EXCLUINDO PARCELAS...'
+                  : 'APAGAR A PARCELA ATUAL E AS FUTURAS'}
+              </button>
+
+              {hasPast && (
+                <button
+                  type="button"
+                  disabled={deletingMode !== null}
+                  onClick={handleDeleteAll}
+                  className="w-full h-12 rounded-xl bg-destructive text-destructive-foreground font-black text-xs uppercase flex items-center justify-center gap-2 shadow-fab hover:bg-destructive/90 transition active:scale-[0.98]"
+                >
+                  <Trash2 className="size-4" />
+                  {deletingMode === 'all'
+                    ? 'EXCLUINDO TUDO...'
+                    : 'APAGAR A PARCELA ATUAL, AS JÁ PAGAS E AS FUTURAS'}
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={deletingMode !== null}
+                onClick={() => setStep(1)}
+                className="w-full h-11 rounded-xl bg-surface-high font-bold text-xs text-muted-foreground hover:bg-surface-highest transition uppercase flex items-center justify-center gap-1.5"
+              >
+                <ArrowLeft className="size-4" />
+                VOLTAR
+              </button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
