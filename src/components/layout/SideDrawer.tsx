@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
+  FolderPlus,
+  Building2,
+  Fuel,
+  Smartphone,
+  CreditCard,
+  Wrench,
   LayoutDashboard, 
   BarChart3, 
   History, 
@@ -8,6 +14,7 @@ import {
   Settings, 
   LogOut, 
   ChevronRight,
+  ChevronDown,
   ShieldCheck
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -26,6 +33,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
   const [email, setEmail] = useState<string>('');
   const [avatar, setAvatar] = useState<string | null>(null);
   const [vehicle, setVehicle] = useState<string>('Moto Courier');
+  const [cadastroOpen, setCadastroOpen] = useState<boolean>(true);
 
   useEffect(() => {
     if (!open) return;
@@ -64,7 +72,41 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
     }
   };
 
-  // Menu items (Excluídas opções duplicadas: Perfil, Veículo e Metas)
+  // Sub-itens da seção Cadastro
+  const cadastroSubItems = [
+    {
+      title: 'Empresas',
+      subtitle: 'Empresas parceiras e faturamento',
+      path: '/configuracoes',
+      icon: Building2,
+    },
+    {
+      title: 'Postos de Gasolina',
+      subtitle: 'Postos e abastecimento',
+      path: '/posto/novo',
+      icon: Fuel,
+    },
+    {
+      title: 'Operadoras',
+      subtitle: 'Plataformas de entrega e apps',
+      path: '/apps',
+      icon: Smartphone,
+    },
+    {
+      title: 'Bandeiras',
+      subtitle: 'Cartões e formas de pagamento',
+      path: '/faturas',
+      icon: CreditCard,
+    },
+    {
+      title: 'Monitoramento Peças',
+      subtitle: 'Controle de trocas e manutenção',
+      path: '/trocas-oleo',
+      icon: Wrench,
+    },
+  ];
+
+  // Menu principal
   const menuItems = [
     {
       title: 'Painel Geral',
@@ -108,7 +150,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
           <SheetTitle>Menu de Navegação</SheetTitle>
         </SheetHeader>
 
-        {/* Top Profile Banner Header - Clicar no usuário navega para o Perfil */}
+        {/* Top Profile Banner Header */}
         <div className="bg-[#1c1b1b] p-5 pt-8 border-b border-[#2a2a2a] relative">
           <div 
             onClick={() => handleNavigate('/perfil')}
@@ -145,7 +187,66 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
         </div>
 
         {/* Menu Navigation List */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 custom-scrollbar">
+          {/* Seção Cadastro (Acima da opção Painel Geral) */}
+          <div className="bg-[#1c1b1b] border border-[#ff5f00]/30 rounded-2xl overflow-hidden transition-all">
+            <button
+              onClick={() => setCadastroOpen(!cadastroOpen)}
+              className="w-full min-h-[56px] flex items-center justify-between px-4 py-3 text-left hover:bg-[#252424] transition-all"
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="p-2 rounded-lg shrink-0 bg-[#ff5f00] text-black">
+                  <FolderPlus className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-extrabold text-[#ffb599] tracking-tight">
+                    Cadastro
+                  </div>
+                  <p className="text-[11px] text-[#ab8a7d] truncate leading-tight mt-0.5">
+                    Empresas, Postos, Operadoras...
+                  </p>
+                </div>
+              </div>
+              {cadastroOpen ? (
+                <ChevronDown className="size-4 text-[#ff5f00] shrink-0" />
+              ) : (
+                <ChevronRight className="size-4 text-[#ab8a7d] shrink-0" />
+              )}
+            </button>
+
+            {/* Sub-itens expandidos do Cadastro */}
+            {cadastroOpen && (
+              <div className="px-2 pb-2 space-y-1 bg-[#161515] border-t border-[#2a2a2a] pt-1">
+                {cadastroSubItems.map((sub) => {
+                  const SubIcon = sub.icon;
+                  const isSubActive = location.pathname === sub.path;
+
+                  return (
+                    <button
+                      key={sub.title}
+                      onClick={() => handleNavigate(sub.path)}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all active:scale-[0.98] ${
+                        isSubActive
+                          ? 'bg-[#ff5f00]/20 text-[#ffb599] font-bold border-l-2 border-[#ff5f00]'
+                          : 'text-[#e5e2e1] hover:bg-[#201f1f] font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <SubIcon className={`size-4 shrink-0 ${isSubActive ? 'text-[#ff5f00]' : 'text-[#ab8a7d]'}`} />
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold block truncate">{sub.title}</span>
+                          <span className="text-[10px] text-[#ab8a7d] block truncate">{sub.subtitle}</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="size-3.5 text-[#ab8a7d] shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Menu Principal (Painel Geral, Relatórios, etc.) */}
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
