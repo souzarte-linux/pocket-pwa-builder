@@ -25,12 +25,20 @@ import { formatPhoneMask, unformatPhone } from '@/lib/format';
 interface EmpresaItem {
   id: string;
   name: string;
-  category: 'Oficina Mecânica' | 'Alimentação / Restaurante' | 'Posto de Combustível' | 'Peças & Acessórios' | 'Outros';
+  category: string;
   phone?: string;
   address?: string;
   total_services?: number;
   last_service_date?: string;
 }
+
+const DEFAULT_CATEGORIES = [
+  'Oficina Mecânica',
+  'Alimentação / Restaurante',
+  'Posto de Combustível',
+  'Peças & Acessórios',
+  'Outros',
+];
 
 const DEFAULT_EMPRESAS: EmpresaItem[] = [
   {
@@ -83,13 +91,16 @@ const DEFAULT_EMPRESAS: EmpresaItem[] = [
 export const Empresas = () => {
   const navigate = useNavigate();
   const [empresas, setEmpresas] = useState<EmpresaItem[]>(DEFAULT_EMPRESAS);
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [filterCategory, setFilterCategory] = useState<string>('Todas');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Form para nova empresa
+  // Form para nova empresa e novas categorias
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<EmpresaItem['category']>('Oficina Mecânica');
+  const [category, setCategory] = useState<string>('Oficina Mecânica');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
 
@@ -188,6 +199,32 @@ export const Empresas = () => {
     toast.success('Informações da empresa atualizadas!');
   };
 
+  const handleAddCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) {
+      toast.error('Informe o nome da categoria.');
+      return;
+    }
+
+    if (categories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error('Esta categoria já existe.');
+      return;
+    }
+
+    setCategories((prev) => [...prev, trimmed]);
+
+    if (editingItem) {
+      setEditingItem({ ...editingItem, category: trimmed });
+    } else {
+      setCategory(trimmed);
+    }
+
+    setNewCategoryName('');
+    setShowAddCategoryModal(false);
+    toast.success(`Nova categoria "${trimmed}" adicionada com sucesso!`);
+  };
+
   const handleDeleteEmpresa = (id: string, empName: string) => {
     if (!confirm(`Deseja remover "${empName}"?`)) return;
     setEmpresas((prev) => prev.filter((eItem) => eItem.id !== id));
@@ -260,7 +297,7 @@ export const Empresas = () => {
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
-            {['Todas', 'Oficina Mecânica', 'Alimentação / Restaurante', 'Posto de Combustível', 'Peças & Acessórios'].map((cat) => (
+            {['Todas', ...categories].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setFilterCategory(cat)}
@@ -383,17 +420,27 @@ export const Empresas = () => {
 
               <div>
                 <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Categoria</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as any)}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
-                >
-                  <option value="Oficina Mecânica">Oficina Mecânica</option>
-                  <option value="Alimentação / Restaurante">Alimentação / Restaurante</option>
-                  <option value="Posto de Combustível">Posto de Combustível</option>
-                  <option value="Peças & Acessórios">Peças & Acessórios</option>
-                  <option value="Outros">Outros Serviços</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="flex-1 h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCategoryModal(true)}
+                    className="size-14 rounded-2xl bg-[#ff5f00] text-black font-extrabold flex items-center justify-center shrink-0 hover:bg-[#ffb599] active:scale-95 transition shadow-lg"
+                    title="Adicionar Nova Categoria"
+                  >
+                    <Plus className="size-6 stroke-[3]" />
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -473,17 +520,27 @@ export const Empresas = () => {
 
               <div>
                 <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Categoria</label>
-                <select
-                  value={editingItem.category}
-                  onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value as any })}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
-                >
-                  <option value="Oficina Mecânica">Oficina Mecânica</option>
-                  <option value="Alimentação / Restaurante">Alimentação / Restaurante</option>
-                  <option value="Posto de Combustível">Posto de Combustível</option>
-                  <option value="Peças & Acessórios">Peças & Acessórios</option>
-                  <option value="Outros">Outros Serviços</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={editingItem.category}
+                    onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
+                    className="flex-1 h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCategoryModal(true)}
+                    className="size-14 rounded-2xl bg-[#ff5f00] text-black font-extrabold flex items-center justify-center shrink-0 hover:bg-[#ffb599] active:scale-95 transition shadow-lg"
+                    title="Adicionar Nova Categoria"
+                  >
+                    <Plus className="size-6 stroke-[3]" />
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -661,6 +718,66 @@ export const Empresas = () => {
               </button>
             </div>
 
+          </div>
+        </div>
+      {/* Modal Nova Categoria */}
+      {showAddCategoryModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 font-lexend">
+          <div className="w-full max-w-sm bg-[#1c1b1b] border-2 border-[#ff5f00]/50 rounded-3xl p-6 shadow-2xl space-y-4 text-[#e5e2e1] relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddCategoryModal(false);
+                setNewCategoryName('');
+              }}
+              className="absolute top-4 right-4 p-2 text-[#ab8a7d] hover:text-white rounded-full bg-[#201f1f] transition"
+            >
+              <X className="size-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-[#ff5f00] text-black rounded-2xl shrink-0 font-extrabold">
+                <Plus className="size-5 stroke-[3]" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-white uppercase tracking-tight">Nova Categoria</h3>
+                <p className="text-xs text-[#ab8a7d]">Cadastre uma nova categoria de serviço.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddCategory} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Nome da Categoria</label>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Ex: Lava Rápido / Guincho"
+                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddCategoryModal(false);
+                    setNewCategoryName('');
+                  }}
+                  className="flex-1 h-12 rounded-2xl bg-[#201f1f] text-[#e5e2e1] font-bold text-sm hover:bg-[#252424] transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg"
+                >
+                  Adicionar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
