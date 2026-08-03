@@ -550,12 +550,9 @@ export const Empresas = () => {
           </div>
 
           {/* Dica de Uso com Deslize (Slide Gesture) */}
-          <div className="flex items-center justify-between text-[11px] text-[#ab8a7d] px-1 font-medium">
-            <span>💡 <b>Deslize o item</b> para os lados:</span>
-            <span className="flex items-center gap-3">
-              <span className="text-[#ffb599]">➔ Direita: Editar</span>
-              <span className="text-red-400">⬅ Esquerda: Excluir</span>
-            </span>
+          <div className="flex flex-col items-center justify-center text-center text-xs text-[#ab8a7d] py-1 space-y-0.5 font-medium">
+            <span className="text-[#ffb599] font-bold">➔ Direita: Edita</span>
+            <span className="text-red-400 font-bold">⬅ Esquerda: Excluir</span>
           </div>
         </div>
 
