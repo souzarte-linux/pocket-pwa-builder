@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Building2, 
@@ -15,7 +15,12 @@ import {
   Search,
   Save,
   ShoppingBag,
-  Store
+  Store,
+  SlidersHorizontal,
+  ArrowUpDown,
+  Filter,
+  RotateCcw,
+  Check
 } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,7 +50,7 @@ const DEFAULT_EMPRESAS: EmpresaItem[] = [
     id: 'emp-1',
     name: 'Auto Elétrica & Mecânica Silva',
     category: 'Oficina Mecânica',
-    phone: '(11) 98765-4321',
+    phone: '11987654321',
     address: 'Av. das Nações Unidas, 1200 - SP',
     total_services: 4,
     last_service_date: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString(),
@@ -54,7 +59,7 @@ const DEFAULT_EMPRESAS: EmpresaItem[] = [
     id: 'emp-2',
     name: 'Restaurante & Churrascaria Motoqueiro',
     category: 'Alimentação / Restaurante',
-    phone: '(11) 97654-3210',
+    phone: '11976543210',
     address: 'Rua Vergueiro, 450 - SP',
     total_services: 12,
     last_service_date: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
@@ -63,7 +68,7 @@ const DEFAULT_EMPRESAS: EmpresaItem[] = [
     id: 'emp-3',
     name: 'Posto Shell Express Central',
     category: 'Posto de Combustível',
-    phone: '(11) 3344-5566',
+    phone: '1133445566',
     address: 'Av. Paulista, 800 - SP',
     total_services: 18,
     last_service_date: new Date().toISOString(),
@@ -72,7 +77,7 @@ const DEFAULT_EMPRESAS: EmpresaItem[] = [
     id: 'emp-4',
     name: 'MotoPeças & Pneus Fast',
     category: 'Peças & Acessórios',
-    phone: '(11) 91234-5678',
+    phone: '11912345678',
     address: 'Rua Clélia, 310 - SP',
     total_services: 3,
     last_service_date: new Date(Date.now() - 15 * 24 * 3600 * 1000).toISOString(),
@@ -81,12 +86,163 @@ const DEFAULT_EMPRESAS: EmpresaItem[] = [
     id: 'emp-5',
     name: 'Oficina MotoCenter Revisões',
     category: 'Oficina Mecânica',
-    phone: '(11) 99887-7665',
+    phone: '11998877665',
     address: 'Rua Conselheiro Nébias, 190 - SP',
     total_services: 6,
     last_service_date: new Date(Date.now() - 8 * 24 * 3600 * 1000).toISOString(),
   },
 ];
+
+// Componente para Card Deslizável (Swipe Right = Editar, Swipe Left = Excluir)
+interface SwipeableCardProps {
+  emp: EmpresaItem;
+  onView: (emp: EmpresaItem) => void;
+  onEdit: (emp: EmpresaItem) => void;
+  onDelete: (id: string, name: string) => void;
+  getCategoryIcon: (cat: string) => React.ReactNode;
+}
+
+const SwipeableEmpresaCard: React.FC<SwipeableCardProps> = ({
+  emp,
+  onView,
+  onEdit,
+  onDelete,
+  getCategoryIcon,
+}) => {
+  const [translateX, setTranslateX] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const startXRef = useRef(0);
+  const currentXRef = useRef(0);
+
+  const handleStart = (clientX: number) => {
+    startXRef.current = clientX;
+    currentXRef.current = clientX;
+    setIsSwiping(true);
+  };
+
+  const handleMove = (clientX: number) => {
+    if (!isSwiping) return;
+    currentXRef.current = clientX;
+    const diff = clientX - startXRef.current;
+    // Limita a distância visual do deslize
+    const clamped = Math.max(-140, Math.min(140, diff));
+    setTranslateX(clamped);
+  };
+
+  const handleEnd = () => {
+    if (!isSwiping) return;
+    setIsSwiping(false);
+    const diff = currentXRef.current - startXRef.current;
+
+    if (diff > 70) {
+      // Deslize da Esquerda para a Direita -> ENTRAR EM MODO DE EDIÇÃO
+      onEdit(emp);
+    } else if (diff < -70) {
+      // Deslize da Direita para a Esquerda -> EXCLUIR REGISTRO
+      onDelete(emp.id, emp.name);
+    }
+
+    setTranslateX(0);
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl group select-none touch-pan-y shadow-md">
+      {/* Fundo Ação Esquerda -> Direita: EDITAR (Laranja) */}
+      <div
+        className="absolute inset-y-0 left-0 w-full bg-[#ff5f00] text-black font-extrabold flex items-center justify-start pl-6 gap-2 rounded-3xl transition-opacity"
+        style={{ opacity: translateX > 10 ? Math.min(1, translateX / 60) : 0 }}
+      >
+        <Pencil className="size-6 stroke-[3]" />
+        <span className="text-sm uppercase tracking-wider">EDITAR PRESTADORA</span>
+      </div>
+
+      {/* Fundo Ação Direita -> Esquerda: EXCLUIR (Vermelho) */}
+      <div
+        className="absolute inset-y-0 right-0 w-full bg-red-600 text-white font-extrabold flex items-center justify-end pr-6 gap-2 rounded-3xl transition-opacity"
+        style={{ opacity: translateX < -10 ? Math.min(1, Math.abs(translateX) / 60) : 0 }}
+      >
+        <span className="text-sm uppercase tracking-wider">EXCLUIR PRESTADORA</span>
+        <Trash2 className="size-6 stroke-[3]" />
+      </div>
+
+      {/* Conteúdo do Card Arrastável */}
+      <div
+        onTouchStart={(e) => handleStart(e.touches[0].clientX)}
+        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+        onTouchEnd={handleEnd}
+        onMouseDown={(e) => handleStart(e.clientX)}
+        onMouseMove={(e) => handleMove(e.clientX)}
+        onMouseUp={handleEnd}
+        onMouseLeave={handleEnd}
+        onClick={() => {
+          if (Math.abs(translateX) < 10) {
+            onView(emp);
+          }
+        }}
+        style={{
+          transform: `translateX(${translateX}px)`,
+          transition: isSwiping ? 'none' : 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
+        }}
+        className="bg-[#1c1b1b] p-5 rounded-3xl border-2 border-stone-800 hover:border-[#ff5f00]/50 transition-colors space-y-3 relative cursor-grab active:cursor-grabbing z-10"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="p-3 bg-[#201f1f] rounded-2xl shrink-0 border border-stone-800 group-hover:border-[#ff5f00]/30 transition">
+              {getCategoryIcon(emp.category)}
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-extrabold text-base text-white truncate group-hover:text-[#ff5f00] transition">
+                {emp.name}
+              </h3>
+              <span className="inline-block mt-0.5 px-2.5 py-0.5 rounded-full bg-[#201f1f] text-[#ffb599] font-extrabold text-[10px] uppercase border border-stone-800">
+                {emp.category}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(emp);
+              }}
+              className="p-2 text-stone-400 hover:text-[#ff5f00] hover:bg-[#ff5f00]/15 rounded-xl transition"
+              title="Editar Empresa"
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(emp.id, emp.name);
+              }}
+              className="p-2 text-stone-500 hover:text-red-400 hover:bg-red-950/40 rounded-xl transition"
+              title="Remover Empresa"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-stone-800 text-xs text-[#ab8a7d]">
+          {emp.phone && (
+            <div className="flex items-center gap-2">
+              <Phone className="size-3.5 text-[#ff5f00]" />
+              <span className="font-medium text-white">{formatPhoneMask(emp.phone)}</span>
+            </div>
+          )}
+
+          {emp.address && (
+            <div className="flex items-center gap-2">
+              <MapPin className="size-3.5 text-[#ff5f00]" />
+              <span className="font-medium text-white truncate">{emp.address}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const Empresas = () => {
   const navigate = useNavigate();
@@ -94,6 +250,12 @@ export const Empresas = () => {
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [filterCategory, setFilterCategory] = useState<string>('Todas');
   const [searchTerm, setSearchTerm] = useState<string>('');
+
+  // Filtros Avançados e Ordenação
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [sortBy, setSortBy] = useState<'name-asc' | 'name-desc' | 'services-desc' | 'recent'>('name-asc');
+  const [filterAddress, setFilterAddress] = useState<string>('');
+  const [onlyWithAddress, setOnlyWithAddress] = useState<boolean>(false);
 
   // Form para nova empresa e novas categorias
   const [showAddModal, setShowAddModal] = useState(false);
@@ -133,7 +295,7 @@ export const Empresas = () => {
                     id: `ext-${idx}`,
                     name: compName,
                     category: 'Oficina Mecânica',
-                    phone: '(11) 90000-0000',
+                    phone: '11900000000',
                     address: 'Endereço registrado via manutenção',
                     total_services: 1,
                     last_service_date: row.changed_at,
@@ -231,14 +393,57 @@ export const Empresas = () => {
     toast.success('Prestadora de serviços removida.');
   };
 
-  const filteredList = empresas.filter((emp) => {
-    const matchesCat = filterCategory === 'Todas' || emp.category === filterCategory;
-    const matchesSearch =
-      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (emp.address && emp.address.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesCat && matchesSearch;
-  });
+  const handleResetFilters = () => {
+    setFilterCategory('Todas');
+    setSortBy('name-asc');
+    setFilterAddress('');
+    setOnlyWithAddress(false);
+    setSearchTerm('');
+    toast.info('Filtros redefinidos.');
+  };
+
+  // Verifica se há filtros ativos além dos padrões
+  const isFilterActive =
+    filterCategory !== 'Todas' ||
+    sortBy !== 'name-asc' ||
+    filterAddress.trim() !== '' ||
+    onlyWithAddress;
+
+  // Filtragem e Ordenação da Lista de Empresas
+  const filteredList = empresas
+    .filter((emp) => {
+      const matchesCat = filterCategory === 'Todas' || emp.category === filterCategory;
+      const matchesSearch =
+        !searchTerm.trim() ||
+        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (emp.address && emp.address.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchesAddress =
+        !filterAddress.trim() ||
+        (emp.address && emp.address.toLowerCase().includes(filterAddress.toLowerCase()));
+
+      const matchesOnlyAddress = !onlyWithAddress || Boolean(emp.address && emp.address.trim());
+
+      return matchesCat && matchesSearch && matchesAddress && matchesOnlyAddress;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'name-asc') {
+        return a.name.localeCompare(b.name, 'pt-BR');
+      }
+      if (sortBy === 'name-desc') {
+        return b.name.localeCompare(a.name, 'pt-BR');
+      }
+      if (sortBy === 'services-desc') {
+        return (b.total_services ?? 0) - (a.total_services ?? 0);
+      }
+      if (sortBy === 'recent') {
+        const dateA = a.last_service_date ? new Date(a.last_service_date).getTime() : 0;
+        const dateB = b.last_service_date ? new Date(b.last_service_date).getTime() : 0;
+        return dateB - dateA;
+      }
+      return 0;
+    });
 
   const getCategoryIcon = (cat: EmpresaItem['category']) => {
     switch (cat) {
@@ -283,19 +488,37 @@ export const Empresas = () => {
           </button>
         </div>
 
-        {/* Busca e Filtros de Categoria */}
+        {/* Busca e Botão de Filtros */}
         <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-[#ab8a7d]" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar empresa por nome, categoria ou endereço..."
-              className="w-full h-14 pl-12 pr-4 bg-[#1c1b1b] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-[#ab8a7d]" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por nome, categoria ou endereço..."
+                className="w-full h-14 pl-12 pr-4 bg-[#1c1b1b] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowFilterModal(true)}
+              className={`h-14 px-4 rounded-2xl border-2 flex items-center gap-2 font-extrabold text-sm transition shrink-0 ${
+                isFilterActive
+                  ? 'bg-[#ff5f00] text-black border-[#ff5f00]'
+                  : 'bg-[#1c1b1b] text-[#ab8a7d] border-stone-800 hover:text-white'
+              }`}
+              title="Abrir Opções de Filtro e Ordenação"
+            >
+              <SlidersHorizontal className="size-5" />
+              <span className="hidden sm:inline">Filtros</span>
+              {isFilterActive && <span className="size-2 rounded-full bg-black animate-pulse" />}
+            </button>
           </div>
 
+          {/* Filtro Rápido por Categoria */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
             {['Todas', ...categories].map((cat) => (
               <button
@@ -311,78 +534,161 @@ export const Empresas = () => {
               </button>
             ))}
           </div>
+
+          {/* Dica de Uso com Deslize (Slide Gesture) */}
+          <div className="flex items-center justify-between text-[11px] text-[#ab8a7d] px-1 font-medium">
+            <span>💡 <b>Deslize o item</b> para os lados:</span>
+            <span className="flex items-center gap-3">
+              <span className="text-[#ffb599]">➔ Direita: Editar</span>
+              <span className="text-red-400">⬅ Esquerda: Excluir</span>
+            </span>
+          </div>
         </div>
 
-        {/* Lista de Empresas */}
+        {/* Lista de Empresas (com Função Slide / Touch Swipe) */}
         <div className="space-y-4">
           {filteredList.length === 0 ? (
-            <div className="text-center py-10 text-[#ab8a7d] bg-[#1c1b1b] rounded-3xl border border-stone-800">
+            <div className="text-center py-10 text-[#ab8a7d] bg-[#1c1b1b] rounded-3xl border border-stone-800 space-y-2">
               <p className="text-sm font-semibold">Nenhuma prestadora de serviços encontrada.</p>
+              {isFilterActive && (
+                <button
+                  onClick={handleResetFilters}
+                  className="text-xs text-[#ff5f00] font-bold underline hover:text-[#ffb599]"
+                >
+                  Limpar todos os filtros
+                </button>
+              )}
             </div>
           ) : (
             filteredList.map((emp) => (
-              <div
+              <SwipeableEmpresaCard
                 key={emp.id}
-                onClick={() => setViewingItem(emp)}
-                className="bg-[#1c1b1b] p-5 rounded-3xl border-2 border-stone-800 hover:border-[#ff5f00]/50 transition-all space-y-3 relative shadow-md cursor-pointer group"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="p-3 bg-[#201f1f] rounded-2xl shrink-0 border border-stone-800 group-hover:border-[#ff5f00]/30 transition">
-                      {getCategoryIcon(emp.category)}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-extrabold text-base text-white truncate group-hover:text-[#ff5f00] transition">{emp.name}</h3>
-                      <span className="inline-block mt-0.5 px-2.5 py-0.5 rounded-full bg-[#201f1f] text-[#ffb599] font-extrabold text-[10px] uppercase border border-stone-800">
-                        {emp.category}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingItem(emp);
-                      }}
-                      className="p-2 text-stone-400 hover:text-[#ff5f00] hover:bg-[#ff5f00]/15 rounded-xl transition"
-                      title="Editar Empresa"
-                    >
-                      <Pencil className="size-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteEmpresa(emp.id, emp.name);
-                      }}
-                      className="p-2 text-stone-500 hover:text-red-400 hover:bg-red-950/40 rounded-xl transition"
-                      title="Remover Empresa"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-stone-800 text-xs text-[#ab8a7d]">
-                  {emp.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="size-3.5 text-[#ff5f00]" />
-                      <span className="font-medium text-white">{formatPhoneMask(emp.phone)}</span>
-                    </div>
-                  )}
-
-                  {emp.address && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="size-3.5 text-[#ff5f00]" />
-                      <span className="font-medium text-white truncate">{emp.address}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+                emp={emp}
+                onView={setViewingItem}
+                onEdit={setEditingItem}
+                onDelete={handleDeleteEmpresa}
+                getCategoryIcon={getCategoryIcon}
+              />
             ))
           )}
         </div>
       </main>
+
+      {/* Modal de Filtros Avançados e Ordenação */}
+      {showFilterModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 font-lexend">
+          <div className="w-full max-w-md bg-[#1c1b1b] border-2 border-[#ff5f00]/50 rounded-3xl p-6 shadow-2xl space-y-6 text-[#e5e2e1] relative">
+            <button
+              onClick={() => setShowFilterModal(false)}
+              className="absolute top-4 right-4 p-2 text-[#ab8a7d] hover:text-white rounded-full bg-[#201f1f] transition"
+            >
+              <X className="size-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-[#ff5f00] text-black rounded-2xl shrink-0 font-extrabold">
+                <SlidersHorizontal className="size-6" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-lg text-white uppercase tracking-tight">Filtros & Ordenação</h3>
+                <p className="text-xs text-[#ab8a7d]">Personalize a exibição das empresas.</p>
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              {/* Ordenação */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-2">Organizar Por</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'name-asc', label: 'Nome (A - Z)' },
+                    { id: 'name-desc', label: 'Nome (Z - A)' },
+                    { id: 'services-desc', label: 'Mais Serviços' },
+                    { id: 'recent', label: 'Mais Recentes' },
+                  ].map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setSortBy(option.id as any)}
+                      className={`p-3 rounded-2xl text-xs font-extrabold text-left transition border flex items-center justify-between ${
+                        sortBy === option.id
+                          ? 'bg-[#ff5f00] text-black border-[#ff5f00]'
+                          : 'bg-[#201f1f] text-[#e5e2e1] border-stone-800 hover:border-stone-700'
+                      }`}
+                    >
+                      <span>{option.label}</span>
+                      {sortBy === option.id && <Check className="size-4 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filtro Por Categoria */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Filtrar por Categoria</label>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                >
+                  <option value="Todas">Todas as Categorias</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro Por Endereço / Cidade */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Filtrar por Endereço / Cidade</label>
+                <div className="relative">
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-[#ab8a7d]" />
+                  <input
+                    type="text"
+                    value={filterAddress}
+                    onChange={(e) => setFilterAddress(e.target.value)}
+                    placeholder="Ex: Paulista, Vergueiro, SP..."
+                    className="w-full h-14 pl-12 pr-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* Checkbox: Somente empresas com endereço */}
+              <label className="flex items-center gap-3 bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={onlyWithAddress}
+                  onChange={(e) => setOnlyWithAddress(e.target.checked)}
+                  className="size-4 accent-[#ff5f00] rounded"
+                />
+                <span className="text-xs font-bold text-white">Somente empresas com endereço cadastrado</span>
+              </label>
+            </div>
+
+            {/* Ações do Modal de Filtros */}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="flex-1 h-12 rounded-2xl bg-[#201f1f] text-[#e5e2e1] font-bold text-sm hover:bg-[#252424] transition flex items-center justify-center gap-2 border border-stone-800"
+              >
+                <RotateCcw className="size-4" />
+                <span>Limpar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowFilterModal(false)}
+                className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg flex items-center justify-center gap-2"
+              >
+                <Check className="size-4 stroke-[3]" />
+                <span>Aplicar Filtros</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Cadastrar Empresa */}
       {showAddModal && (
@@ -448,8 +754,8 @@ export const Empresas = () => {
                 <input
                   type="text"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="(11) 98765-4321"
+                  onChange={(e) => setPhone(formatPhoneMask(e.target.value))}
+                  placeholder="(00) 0.0000-0000"
                   className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
                 />
               </div>
