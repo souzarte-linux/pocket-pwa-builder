@@ -720,6 +720,8 @@ export const Empresas = () => {
 
           </div>
         </div>
+      )}
+
       {/* Modal Nova Categoria */}
       {showAddCategoryModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 font-lexend">
