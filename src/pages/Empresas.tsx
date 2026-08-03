@@ -92,7 +92,8 @@ export const Empresas = () => {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
 
-  // Edição
+  // Visualização e Edição
+  const [viewingItem, setViewingItem] = useState<EmpresaItem | null>(null);
   const [editingItem, setEditingItem] = useState<EmpresaItem | null>(null);
 
   useEffect(() => {
@@ -273,15 +274,16 @@ export const Empresas = () => {
             filteredList.map((emp) => (
               <div
                 key={emp.id}
-                className="bg-[#1c1b1b] p-5 rounded-3xl border-2 border-stone-800 hover:border-[#ff5f00]/50 transition-all space-y-3 relative shadow-md"
+                onClick={() => setViewingItem(emp)}
+                className="bg-[#1c1b1b] p-5 rounded-3xl border-2 border-stone-800 hover:border-[#ff5f00]/50 transition-all space-y-3 relative shadow-md cursor-pointer group"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="p-3 bg-[#201f1f] rounded-2xl shrink-0 border border-stone-800">
+                    <div className="p-3 bg-[#201f1f] rounded-2xl shrink-0 border border-stone-800 group-hover:border-[#ff5f00]/30 transition">
                       {getCategoryIcon(emp.category)}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-extrabold text-base text-white truncate">{emp.name}</h3>
+                      <h3 className="font-extrabold text-base text-white truncate group-hover:text-[#ff5f00] transition">{emp.name}</h3>
                       <span className="inline-block mt-0.5 px-2.5 py-0.5 rounded-full bg-[#201f1f] text-[#ffb599] font-extrabold text-[10px] uppercase border border-stone-800">
                         {emp.category}
                       </span>
@@ -290,14 +292,20 @@ export const Empresas = () => {
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
-                      onClick={() => setEditingItem(emp)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingItem(emp);
+                      }}
                       className="p-2 text-stone-400 hover:text-[#ff5f00] hover:bg-[#ff5f00]/15 rounded-xl transition"
                       title="Editar Empresa"
                     >
                       <Pencil className="size-4" />
                     </button>
                     <button
-                      onClick={() => handleDeleteEmpresa(emp.id, emp.name)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteEmpresa(emp.id, emp.name);
+                      }}
                       className="p-2 text-stone-500 hover:text-red-400 hover:bg-red-950/40 rounded-xl transition"
                       title="Remover Empresa"
                     >
@@ -503,6 +511,143 @@ export const Empresas = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Visualizar Empresa (Apenas Exibição) */}
+      {viewingItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 font-lexend">
+          <div className="w-full max-w-md bg-[#1c1b1b] border-2 border-[#ff5f00]/50 rounded-3xl p-6 shadow-2xl space-y-6 text-[#e5e2e1] relative">
+            
+            {/* Cabeçalho do Modal: Título, Categoria e Botão de Edição no Topo */}
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-stone-800">
+              <div className="flex items-center gap-3">
+                <div className="p-3.5 bg-[#201f1f] rounded-2xl border border-stone-800 text-[#ff5f00] shrink-0">
+                  {getCategoryIcon(viewingItem.category)}
+                </div>
+                <div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#ff5f00]/15 text-[#ff5f00] font-extrabold text-[10px] uppercase border border-[#ff5f00]/30 mb-1">
+                    {viewingItem.category}
+                  </span>
+                  <h3 className="font-extrabold text-sm text-[#ab8a7d] uppercase tracking-wider block">
+                    Detalhes da Empresa
+                  </h3>
+                </div>
+              </div>
+
+              {/* Ícone de Edição no Topo e Botão de Fechar */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    const itemToEdit = viewingItem;
+                    setViewingItem(null);
+                    setEditingItem(itemToEdit);
+                  }}
+                  className="p-2.5 rounded-2xl bg-[#ff5f00]/20 text-[#ff5f00] hover:bg-[#ff5f00] hover:text-black transition flex items-center gap-1.5 font-extrabold text-xs shadow-md border border-[#ff5f00]/30"
+                  title="Editar dados desta prestadora"
+                >
+                  <Pencil className="size-4" />
+                  <span className="hidden sm:inline">Editar</span>
+                </button>
+
+                <button
+                  onClick={() => setViewingItem(null)}
+                  className="p-2.5 text-[#ab8a7d] hover:text-white rounded-2xl bg-[#201f1f] border border-stone-800 hover:bg-stone-800 transition"
+                  title="Fechar"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo em Modo Apenas Exibição */}
+            <div className="space-y-4">
+              {/* Nome da Empresa */}
+              <div>
+                <label className="text-[11px] font-bold uppercase text-[#ab8a7d] tracking-wide block mb-1">
+                  Nome da Empresa / Estabelecimento
+                </label>
+                <div className="bg-[#201f1f] p-4 rounded-2xl border border-stone-800">
+                  <p className="text-lg font-extrabold text-white leading-tight">
+                    {viewingItem.name}
+                  </p>
+                </div>
+              </div>
+
+              {/* Telefone */}
+              <div>
+                <label className="text-[11px] font-bold uppercase text-[#ab8a7d] tracking-wide block mb-1">
+                  Telefone / Celular
+                </label>
+                <div className="flex items-center gap-3 bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
+                  <Phone className="size-4 text-[#ff5f00] shrink-0" />
+                  <span className="text-sm font-semibold text-white">
+                    {viewingItem.phone || 'Não cadastrado'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Endereço */}
+              <div>
+                <label className="text-[11px] font-bold uppercase text-[#ab8a7d] tracking-wide block mb-1">
+                  Endereço
+                </label>
+                <div className="flex items-start gap-3 bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
+                  <MapPin className="size-4 text-[#ff5f00] shrink-0 mt-0.5" />
+                  <span className="text-sm font-semibold text-white leading-relaxed">
+                    {viewingItem.address || 'Não cadastrado'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Resumo de Serviços e Histórico */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
+                  <span className="text-[10px] font-extrabold text-[#ab8a7d] uppercase block mb-0.5">
+                    Total de Serviços
+                  </span>
+                  <span className="text-lg font-extrabold text-[#ffb599]">
+                    {viewingItem.total_services ?? 1}x realizados
+                  </span>
+                </div>
+
+                <div className="bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
+                  <span className="text-[10px] font-extrabold text-[#ab8a7d] uppercase block mb-0.5">
+                    Último Serviço
+                  </span>
+                  <span className="text-xs font-bold text-white mt-1 block truncate">
+                    {viewingItem.last_service_date
+                      ? new Date(viewingItem.last_service_date).toLocaleDateString('pt-BR')
+                      : 'Recente'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Ações do Rodapé */}
+            <div className="pt-2 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setViewingItem(null)}
+                className="flex-1 h-12 rounded-2xl bg-[#201f1f] hover:bg-[#252424] text-[#e5e2e1] font-bold text-sm border border-stone-800 transition"
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const itemToEdit = viewingItem;
+                  setViewingItem(null);
+                  setEditingItem(itemToEdit);
+                }}
+                className="flex-1 h-12 rounded-2xl bg-[#ff5f00] hover:bg-[#ffb599] text-black font-extrabold text-sm transition flex items-center justify-center gap-2 shadow-lg"
+              >
+                <Pencil className="size-4" />
+                <span>Alterar Dados</span>
+              </button>
+            </div>
+
           </div>
         </div>
       )}
