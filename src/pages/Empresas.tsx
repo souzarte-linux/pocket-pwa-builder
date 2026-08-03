@@ -38,12 +38,12 @@ interface EmpresaItem {
 }
 
 const DEFAULT_CATEGORIES = [
-  'Oficina Mecânica',
   'Alimentação / Restaurante',
-  'Posto de Combustível',
-  'Peças & Acessórios',
+  'Oficina Mecânica',
   'Outros',
-];
+  'Peças & Acessórios',
+  'Posto de Combustível',
+].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
 const DEFAULT_EMPRESAS: EmpresaItem[] = [
   {
@@ -374,7 +374,9 @@ export const Empresas = () => {
       return;
     }
 
-    setCategories((prev) => [...prev, trimmed]);
+    setCategories((prev) =>
+      [...prev, trimmed].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    );
 
     if (editingItem) {
       setEditingItem({ ...editingItem, category: trimmed });
