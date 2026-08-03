@@ -20,7 +20,9 @@ import {
   ArrowUpDown,
   Filter,
   RotateCcw,
-  Check
+  Check,
+  ArrowRight,
+  ArrowLeft
 } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
@@ -550,9 +552,15 @@ export const Empresas = () => {
           </div>
 
           {/* Dica de Uso com Deslize (Slide Gesture) */}
-          <div className="flex flex-col items-center justify-center text-center text-xs text-[#ab8a7d] py-1 space-y-0.5 font-medium">
-            <span className="text-[#ffb599] font-bold">➔ Direita: Edita</span>
-            <span className="text-red-400 font-bold">⬅ Esquerda: Excluir</span>
+          <div className="flex flex-col items-center justify-center text-center text-xs py-1 space-y-1 font-bold">
+            <span className="text-[#ffb599] flex items-center justify-center gap-1.5">
+              <ArrowRight className="size-4 stroke-[2.5]" />
+              <span>Direita: Edita</span>
+            </span>
+            <span className="text-red-400 flex items-center justify-center gap-1.5">
+              <ArrowLeft className="size-4 stroke-[2.5]" />
+              <span>Esquerda: Excluir</span>
+            </span>
           </div>
         </div>
 
