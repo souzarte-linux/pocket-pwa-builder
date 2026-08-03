@@ -41,11 +41,12 @@ export const AppHeader = ({ title = 'CENTRAL DO\nMOTORISTA', subtitle, back, rig
           <div className="flex items-center gap-3 min-w-0">
             {back ? (
               <button
-                onClick={() => navigate(-1)}
-                className="size-11 min-h-[44px] min-w-[44px] grid place-items-center rounded-xl bg-[#201f1f] text-[#ff5f00] hover:bg-[#2a2a2a] active:scale-95 transition border border-[#ff5f00]/20"
-                aria-label="Voltar"
+                onClick={() => navigate('/')}
+                className="size-11 min-h-[44px] min-w-[44px] grid place-items-center rounded-xl bg-[#201f1f] text-[#ff5f00] hover:bg-[#2a2a2a] active:scale-95 transition border border-[#ff5f00]/30 shadow-lg"
+                aria-label="Voltar para a página principal"
+                title="Voltar para a página principal"
               >
-                <ChevronLeft className="size-6" />
+                <ChevronLeft className="size-6 stroke-[3]" />
               </button>
             ) : (
               <button

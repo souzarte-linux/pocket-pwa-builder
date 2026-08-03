@@ -246,7 +246,7 @@ export const NovoPosto = () => {
 
   return (
     <div className="bg-[#131313] text-[#e5e2e1] min-h-screen font-lexend pb-32">
-      <AppHeader title="CADASTRO DE POSTO" subtitle="Gerenciamento de Postos de Combustível" />
+      <AppHeader title="CADASTRO DE POSTO" subtitle="Gerenciamento de Postos de Combustível" back />
 
       <main className="px-5 pt-6 max-w-3xl mx-auto space-y-8">
         {/* Banner Superior */}
