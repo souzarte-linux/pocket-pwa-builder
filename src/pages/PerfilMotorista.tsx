@@ -127,11 +127,21 @@ export const PerfilMotorista = () => {
 
   return (
     <div className="bg-[#131313] text-[#e5e2e1] min-h-screen font-lexend pb-36">
-      {/* App Header com Menu Hamburger */}
+      {/* App Header com Menu Hamburger e Botão X de Fechar para Página Inicial */}
       {!isEditing ? (
         <AppHeader 
           title="PERFIL MOTORISTA" 
-          subtitle="Kinetic Velocity" 
+          right={
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="size-11 min-h-[44px] min-w-[44px] grid place-items-center rounded-xl bg-[#201f1f] text-[#ff5f00] hover:bg-[#2a2a2a] border border-[#ff5f00]/40 transition active:scale-95 shadow-md"
+              title="Fechar e voltar para a página inicial"
+              aria-label="Fechar perfil"
+            >
+              <X className="size-6" />
+            </button>
+          }
         />
       ) : (
         /* Cabeçalho de Edição com Título + Botão X no Canto Superior Direito */
