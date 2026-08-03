@@ -80,8 +80,8 @@ const Painel = () => {
       setWeeklyPackages(totalWeeklyPackages);
       setMonthlyPackages(totalMonthlyPackages);
 
-      // Earnings by platform (current month)
-      const { data: plats } = await supabase.from('platforms').select('id, name');
+      // Earnings by platform (current month - active platforms only)
+      const { data: plats } = await supabase.from('platforms').select('id, name').eq('active', true);
       const map = new Map<string, number>();
       [...month_r, ...month_d].forEach((r: any) => {
         if (!r.platform_id) return;

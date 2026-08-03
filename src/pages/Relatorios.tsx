@@ -145,6 +145,7 @@ interface Expense {
 interface Platform {
   id: string;
   name: string;
+  active?: boolean;
 }
 interface BillingCycle {
   total_amount: number;
@@ -238,7 +239,7 @@ const Relatorios = () => {
           .lte('occurred_at', untilISO),
         supabase.from('expenses').select('id, amount, category, occurred_at, title, liters, odometer_km, is_full_tank')
           .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
-        supabase.from('platforms').select('id, name'),
+        supabase.from('platforms').select('id, name, active'),
         supabase.from('billing_cycles').select('id, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
       ]);
       setRoutes((r.data ?? []) as Route[]);
@@ -512,28 +513,37 @@ const Relatorios = () => {
 
 
 
-  // Per platform aggregates
+  // Per platform aggregates (active platforms only)
   const byPlatform = useMemo(() => {
+    const activePlatformIds = new Set(
+      platforms.filter((p) => p.active !== false).map((p) => p.id)
+    );
+
     const map = new Map<
       string,
       { name: string; revenue: number; km: number; ms: number }
     >();
-    
-    // Filter routes and dailies based on selected platform
-    const filteredRoutes = selectedPlatform === 'all' 
-      ? routes 
-      : routes.filter(r => r.platform_id === selectedPlatform);
-    
-    const filteredDailies = selectedPlatform === 'all' 
-      ? dailies 
-      : dailies.filter(d => d.platform_id === selectedPlatform);
+
+    // Filter routes and dailies based on selected platform AND active platforms
+    const filteredRoutes = routes.filter((r) => {
+      if (selectedPlatform !== 'all' && r.platform_id !== selectedPlatform) return false;
+      if (r.platform_id && !activePlatformIds.has(r.platform_id)) return false;
+      return true;
+    });
+
+    const filteredDailies = dailies.filter((d) => {
+      if (selectedPlatform !== 'all' && d.platform_id !== selectedPlatform) return false;
+      if (d.platform_id && !activePlatformIds.has(d.platform_id)) return false;
+      return true;
+    });
 
     filteredRoutes.forEach((r) => {
-      const k = r.platform_id ?? '__none__';
+      if (!r.platform_id) return;
+      const k = r.platform_id;
       const cur = map.get(k) ?? { name: platformName(r.platform_id), revenue: 0, km: 0, ms: 0 };
       cur.revenue += Number(r.amount) + Number(r.tip ?? 0);
       cur.km += Number(r.distance_km ?? 0);
-      
+
       if (r.started_at) {
         const start = new Date(r.started_at).getTime();
         const end = r.ended_at ? new Date(r.ended_at).getTime() : start;
@@ -543,17 +553,19 @@ const Relatorios = () => {
         const breakMs = (r.break_minutes ?? 0) * 60000;
         cur.ms += Math.max(0, duration - breakMs);
       }
-      
+
       map.set(k, cur);
     });
+
     filteredDailies.forEach((d) => {
-      const k = d.platform_id ?? '__none__';
+      if (!d.platform_id) return;
+      const k = d.platform_id;
       const cur = map.get(k) ?? { name: platformName(d.platform_id), revenue: 0, km: 0, ms: 0 };
       cur.revenue += Number(d.amount);
       cur.km += Number(d.distance_km ?? 0);
       map.set(k, cur);
     });
-    
+
     return Array.from(map.values())
       .map((v) => ({
         name: v.name,
@@ -805,22 +817,34 @@ const Relatorios = () => {
                 >
                   Todas as Plataformas
                 </button>
-                {platforms.map((platform) => (
-                  <button
-                    key={platform.id}
-                    onClick={() => {
-                      setSelectedPlatform(platform.id);
-                      setShowPlatformDropdown(false);
-                    }}
-                    className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors ${
-                      selectedPlatform === platform.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'hover:bg-surface-high'
-                    }`}
-                  >
-                    {platform.name}
-                  </button>
-                ))}
+                {platforms.map((platform) => {
+                  const isInactive = platform.active === false;
+                  return (
+                    <button
+                      key={platform.id}
+                      disabled={isInactive}
+                      onClick={() => {
+                        if (isInactive) return;
+                        setSelectedPlatform(platform.id);
+                        setShowPlatformDropdown(false);
+                      }}
+                      className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors flex items-center justify-between ${
+                        isInactive
+                          ? 'text-muted-foreground/50 opacity-60 cursor-not-allowed bg-surface/50'
+                          : selectedPlatform === platform.id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'hover:bg-surface-high'
+                      }`}
+                    >
+                      <span>{platform.name}</span>
+                      {isInactive && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-highest text-muted-foreground">
+                          INATIVA
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
