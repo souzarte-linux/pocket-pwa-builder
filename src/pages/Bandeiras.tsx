@@ -10,7 +10,8 @@ import {
   ShieldCheck, 
   Building,
   Check,
-  Save
+  Save,
+  Power
 } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,7 +34,7 @@ const DEFAULT_BRANDS: CardBrand[] = [
   { id: '6', name: 'Alelo', type: 'Voucher / Alimentação', issuer: 'Alelo Benefícios', active: true },
   { id: '7', name: 'Ticket', type: 'Voucher / Alimentação', issuer: 'Ticket Serviços', active: true },
   { id: '8', name: 'VR Benefícios', type: 'Voucher / Alimentação', issuer: 'VR', active: true },
-  { id: '9', name: 'Sodexo / Pluxee', type: 'Voucher / Alimentação', issuer: 'Pluxee', active: true },
+  { id: '9', name: 'Sodexo / Pluxee', type: 'Voucher / Alimentação', issuer: 'Pluxee', active: false },
 ];
 
 export const Bandeiras = () => {
@@ -94,13 +95,20 @@ export const Bandeiras = () => {
 
   const toggleStatus = (id: string) => {
     setBrands((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, active: !b.active } : b))
+      prev.map((b) => {
+        if (b.id === id) {
+          const nextState = !b.active;
+          toast.info(`Bandeira "${b.name}" ${nextState ? 'HABILITADA (Em Uso)' : 'DESABILITADA'}`);
+          return { ...b, active: nextState };
+        }
+        return b;
+      })
     );
   };
 
   return (
     <div className="bg-[#131313] text-[#e5e2e1] min-h-screen font-lexend pb-32">
-      <AppHeader title="BANDEIRAS DE CARTÃO" subtitle="Cartões de Crédito, Débito e Benefícios Cadastrados" />
+      <AppHeader title="BANDEIRAS DE CARTÃO" subtitle="Cartões de Crédito, Débito e Benefícios Cadastrados" back />
 
       <main className="px-5 pt-6 max-w-3xl mx-auto space-y-6">
         {/* Banner Superior */}
@@ -112,7 +120,7 @@ export const Bandeiras = () => {
             <div>
               <h2 className="font-extrabold text-lg text-white">Bandeiras Cadastradas</h2>
               <p className="text-xs text-[#ab8a7d] font-medium">
-                Gerencie as bandeiras de cartão de crédito, débito e vale refeição/alimentação.
+                Utilize os botões Liga/Desliga para habilitar apenas as bandeiras em uso.
               </p>
             </div>
           </div>
@@ -131,7 +139,7 @@ export const Bandeiras = () => {
           {brands.map((b) => (
             <div
               key={b.id}
-              className={`p-5 rounded-3xl border-2 transition-all space-y-3 relative ${
+              className={`p-5 rounded-3xl border-2 transition-all space-y-4 relative ${
                 b.active
                   ? 'bg-[#1c1b1b] border-stone-800 hover:border-[#ff5f00]/50'
                   : 'bg-[#161515] border-stone-900 opacity-60'
@@ -139,7 +147,9 @@ export const Bandeiras = () => {
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-[#ff5f00]/15 text-[#ff5f00] rounded-2xl shrink-0 font-extrabold">
+                  <div className={`p-3 rounded-2xl shrink-0 font-extrabold transition-colors ${
+                    b.active ? 'bg-[#ff5f00]/20 text-[#ff5f00]' : 'bg-[#201f1f] text-stone-500'
+                  }`}>
                     <CreditCard className="size-6" />
                   </div>
                   <div>
@@ -166,22 +176,38 @@ export const Bandeiras = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-stone-800/80 text-xs">
-                <span className="px-3 py-1 rounded-full bg-[#201f1f] text-[#ffb599] font-bold border border-stone-800">
+              {/* Linha Inferior com Tag do Tipo + Botão Liga/Desliga (Toggle Switch) */}
+              <div className="flex items-center justify-between pt-3 border-t border-stone-800/80">
+                <span className="px-3 py-1 rounded-full bg-[#201f1f] text-[#ffb599] font-bold text-xs border border-stone-800">
                   {b.type}
                 </span>
 
-                <button
-                  onClick={() => toggleStatus(b.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-extrabold text-[11px] uppercase transition ${
-                    b.active
-                      ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/50'
-                      : 'bg-stone-800 text-stone-400'
-                  }`}
-                >
-                  <CheckCircle2 className="size-3.5" />
-                  <span>{b.active ? 'Ativa' : 'Inativa'}</span>
-                </button>
+                {/* Botão Liga / Desliga (Toggle Switch) */}
+                <div className="flex items-center gap-2.5">
+                  <span className={`text-xs font-extrabold uppercase transition-colors ${
+                    b.active ? 'text-[#ff5f00]' : 'text-stone-500'
+                  }`}>
+                    {b.active ? 'Em Uso' : 'Desligado'}
+                  </span>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={b.active}
+                    onClick={() => toggleStatus(b.id)}
+                    className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none shadow-inner ${
+                      b.active ? 'bg-[#ff5f00]' : 'bg-[#353534]'
+                    }`}
+                    title={b.active ? 'Clique para desativar (Desligar)' : 'Clique para ativar (Ligar)'}
+                  >
+                    <span className="sr-only">Habilitar bandeira</span>
+                    <span
+                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-black shadow-md ring-0 transition duration-200 ease-in-out ${
+                        b.active ? 'translate-x-7' : 'translate-x-0 bg-stone-400'
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
