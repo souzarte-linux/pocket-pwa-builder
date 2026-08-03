@@ -76,8 +76,8 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
   const cadastroSubItems = [
     {
       title: 'Empresas',
-      subtitle: 'Empresas parceiras e faturamento',
-      path: '/configuracoes',
+      subtitle: 'Prestadoras de Serviços',
+      path: '/empresas',
       icon: Building2,
     },
     {
@@ -95,7 +95,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
     {
       title: 'Bandeiras',
       subtitle: 'Cartões e formas de pagamento',
-      path: '/faturas',
+      path: '/bandeiras',
       icon: CreditCard,
     },
     {

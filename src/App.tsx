@@ -24,6 +24,8 @@ import Faturas from "./pages/Faturas";
 import NovaFatura from "./pages/NovaFatura";
 import AjusteFinanceiro from "./pages/AjusteFinanceiro";
 import NovoPosto from "./pages/NovoPosto";
+import Empresas from "./pages/Empresas";
+import Bandeiras from "./pages/Bandeiras";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +57,8 @@ const App = () => (
           <Route path="/fatura/nova" element={<RequireAuth><NovaFatura /></RequireAuth>} />
           <Route path="/ajuste-financeiro" element={<RequireAuth><AjusteFinanceiro /></RequireAuth>} />
           <Route path="/posto/novo" element={<RequireAuth><NovoPosto /></RequireAuth>} />
+          <Route path="/empresas" element={<RequireAuth><Empresas /></RequireAuth>} />
+          <Route path="/bandeiras" element={<RequireAuth><Bandeiras /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
