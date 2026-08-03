@@ -6,7 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface CardDetails {
   brand: string;
-  operator: string;
+  issuer: string;
+  operator?: string;
   installments: number;
   firstMonth: string; // yyyy-MM
   cardDueDay?: number | null; // 1-31
@@ -26,7 +27,7 @@ export const CardPaymentDialog = ({
   onConfirm: (d: CardDetails) => void;
 }) => {
   const [brand, setBrand] = useState('');
-  const [operator, setOperator] = useState('');
+  const [issuer, setIssuer] = useState('');
   const [installments, setInstallments] = useState(1);
   const [firstMonth, setFirstMonth] = useState(new Date().toISOString().slice(0, 7));
   const [cardDueDay, setCardDueDay] = useState<string>('');
@@ -34,50 +35,54 @@ export const CardPaymentDialog = ({
   useEffect(() => {
     if (!open) return;
     setBrand(value?.brand || localStorage.getItem('lastCardBrand') || '');
-    setOperator(value?.operator || localStorage.getItem('lastCardOperator') || '');
+    setIssuer(value?.issuer || value?.operator || localStorage.getItem('lastCardIssuer') || localStorage.getItem('lastCardOperator') || '');
     setInstallments(value?.installments ?? 1);
     setFirstMonth(value?.firstMonth ?? new Date().toISOString().slice(0, 7));
     setCardDueDay(value?.cardDueDay ? String(value.cardDueDay) : localStorage.getItem('lastCardDueDay') || '10');
   }, [open, value]);
 
-  // When operator is selected, try fetching default card_due_day from Supabase card_operators
+  // When issuer is selected, try fetching default card_due_day from Supabase card_operators
   useEffect(() => {
-    if (!operator) return;
+    if (!issuer) return;
     (async () => {
       const { data } = await supabase
         .from('card_operators')
         .select('card_due_day')
-        .eq('name', operator)
+        .eq('name', issuer)
         .maybeSingle();
 
       if (data && (data as any).card_due_day) {
         setCardDueDay(String((data as any).card_due_day));
       }
     })();
-  }, [operator]);
+  }, [issuer]);
 
   const aPrazo = installments > 1;
 
   const handleConfirm = async () => {
     if (brand) localStorage.setItem('lastCardBrand', brand);
-    if (operator) localStorage.setItem('lastCardOperator', operator);
+    if (issuer) {
+      localStorage.setItem('lastCardIssuer', issuer);
+      localStorage.setItem('lastCardOperator', issuer);
+    }
     const dueDayNum = Number(cardDueDay) > 0 && Number(cardDueDay) <= 31 ? Number(cardDueDay) : null;
     if (dueDayNum) localStorage.setItem('lastCardDueDay', String(dueDayNum));
 
-    // Save default card_due_day to card_operators if operator exists
-    if (operator && dueDayNum) {
+    // Save default card_due_day to card_operators if issuer exists
+    if (issuer && dueDayNum) {
       const { data: u } = await supabase.auth.getUser();
       if (u.user) {
         await supabase
           .from('card_operators')
           .update({ card_due_day: dueDayNum } as any)
-          .eq('name', operator);
+          .eq('name', issuer);
       }
     }
 
     onConfirm({
       brand,
-      operator,
+      issuer,
+      operator: issuer,
       installments,
       firstMonth,
       cardDueDay: dueDayNum,
@@ -102,13 +107,13 @@ export const CardPaymentDialog = ({
               allowCreate={false}
             />
           </Field>
-          <Field label="Operadora">
+          <Field label="Emissor">
             <QuickCombobox
               table="card_operators"
-              value={operator}
-              onChange={setOperator}
-              rememberKey="lastCardOperator"
-              placeholder="Selecione a operadora"
+              value={issuer}
+              onChange={setIssuer}
+              rememberKey="lastCardIssuer"
+              placeholder="Selecione o emissor"
             />
           </Field>
           <Field label="Pagamento">

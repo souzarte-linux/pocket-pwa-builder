@@ -8,7 +8,8 @@ import { toast } from 'sonner';
 
 export interface CardDetails {
   cardBrand: string;
-  cardOperator: string;
+  cardIssuer: string;
+  cardOperator?: string; // Suporte a retrocompatibilidade
   isInstallment: boolean;
   installmentTotal: number;
   firstInstallmentDate: string;
@@ -34,7 +35,7 @@ const COMMON_CARD_BRANDS = [
   'Outra',
 ];
 
-const DEFAULT_OPERATORS = ['Mercado Pago', 'Iti', 'Nubank', 'Inter', 'Caixa'];
+const DEFAULT_ISSUERS = ['Mercado Pago', 'Iti', 'Nubank', 'Inter', 'Caixa'];
 
 export const CardPaymentDialog: React.FC<CardPaymentDialogProps> = ({
   open,
@@ -43,19 +44,19 @@ export const CardPaymentDialog: React.FC<CardPaymentDialogProps> = ({
   initialData,
 }) => {
   const [cardBrand, setCardBrand] = useState(initialData?.cardBrand || '');
-  const [cardOperator, setCardOperator] = useState(initialData?.cardOperator || '');
+  const [cardIssuer, setCardIssuer] = useState(initialData?.cardIssuer || initialData?.cardOperator || '');
   const [isInstallment, setIsInstallment] = useState(initialData?.isInstallment || false);
   const [installmentTotal, setInstallmentTotal] = useState(initialData?.installmentTotal || 2);
   const [firstInstallmentDate, setFirstInstallmentDate] = useState(
     initialData?.firstInstallmentDate || new Date().toISOString().slice(0, 10)
   );
 
-  const [operators, setOperators] = useState<string[]>(DEFAULT_OPERATORS);
+  const [issuers, setIssuers] = useState<string[]>(DEFAULT_ISSUERS);
 
-  // Load operators from Supabase and defaults
+  // Load issuers from Supabase and defaults
   useEffect(() => {
     if (!open) return;
-    const fetchOperators = async () => {
+    const fetchIssuers = async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
 
@@ -66,27 +67,27 @@ export const CardPaymentDialog: React.FC<CardPaymentDialogProps> = ({
 
       if (!error && data) {
         const dbNames = data.map((d) => d.name);
-        const combined = Array.from(new Set([...DEFAULT_OPERATORS, ...dbNames]));
-        setOperators(combined);
+        const combined = Array.from(new Set([...DEFAULT_ISSUERS, ...dbNames]));
+        setIssuers(combined);
       }
     };
 
-    fetchOperators();
+    fetchIssuers();
 
-    // Auto load last saved choices if empty
+    // Auto load last saved choices if empty, migrando 'last_card_operator' se houver
     if (!cardBrand) {
       const lastBrand = localStorage.getItem('last_card_brand');
       if (lastBrand) setCardBrand(lastBrand);
       else setCardBrand(COMMON_CARD_BRANDS[0]);
     }
 
-    if (!cardOperator) {
-      const lastOp = localStorage.getItem('last_card_operator');
-      if (lastOp) setCardOperator(lastOp);
+    if (!cardIssuer) {
+      const lastIssuer = localStorage.getItem('last_card_issuer') || localStorage.getItem('last_card_operator');
+      if (lastIssuer) setCardIssuer(lastIssuer);
     }
   }, [open]);
 
-  const handleAddNewOperator = async (name: string) => {
+  const handleAddNewIssuer = async (name: string) => {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) {
       toast.error('Usuário não autenticado');
@@ -99,11 +100,10 @@ export const CardPaymentDialog: React.FC<CardPaymentDialogProps> = ({
     });
 
     if (error) {
-      // If table missing or error, still add to local list
       console.error(error);
     }
-    setOperators((prev) => Array.from(new Set([...prev, name])));
-    toast.success('Operadora cadastrada!');
+    setIssuers((prev) => Array.from(new Set([...prev, name])));
+    toast.success('Emissor cadastrado!');
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -113,18 +113,19 @@ export const CardPaymentDialog: React.FC<CardPaymentDialogProps> = ({
       toast.error('Selecione a bandeira do cartão');
       return;
     }
-    if (!cardOperator) {
-      toast.error('Selecione a operadora do cartão');
+    if (!cardIssuer) {
+      toast.error('Selecione o emissor do cartão');
       return;
     }
 
-    // Persist last selections
-    localStorage.setItem('last_card_brand', cardBrand);
-    localStorage.setItem('last_card_operator', cardOperator);
+    // Persist last selections (gravando last_card_issuer e mantendo last_card_operator para legado)
+    localStorage.setItem('last_card_issuer', cardIssuer);
+    localStorage.setItem('last_card_operator', cardIssuer);
 
     onConfirm({
       cardBrand,
-      cardOperator,
+      cardIssuer,
+      cardOperator: cardIssuer,
       isInstallment,
       installmentTotal: isInstallment ? Math.max(2, installmentTotal) : 1,
       firstInstallmentDate,
@@ -155,18 +156,18 @@ export const CardPaymentDialog: React.FC<CardPaymentDialogProps> = ({
             />
           </Field>
 
-          {/* Operadora */}
-          <Field label="Operadora / Instituição">
+          {/* Emissor */}
+          <Field label="Emissor / Instituição">
             <QuickCombobox
-              value={cardOperator}
-              onChange={setCardOperator}
-              options={operators}
-              placeholder="Selecione ou busque a operadora..."
-              searchPlaceholder="Buscar operadora (Mercado Pago, Iti...)..."
-              emptyMessage="Operadora não encontrada."
-              addNewTitle="Cadastrar Nova Operadora"
-              onAddNew={handleAddNewOperator}
-              storageKey="last_card_operator"
+              value={cardIssuer}
+              onChange={setCardIssuer}
+              options={issuers}
+              placeholder="Selecione ou busque o emissor..."
+              searchPlaceholder="Buscar emissor (Mercado Pago, Iti...)..."
+              emptyMessage="Emissor não encontrado."
+              addNewTitle="Cadastrar Novo Emissor"
+              onAddNew={handleAddNewIssuer}
+              storageKey="last_card_issuer"
             />
           </Field>
 

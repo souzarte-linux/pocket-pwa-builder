@@ -129,10 +129,10 @@ const Despesa = () => {
           setInvoiceNumber(ex.invoice_number ?? '');
           setPartBrand(ex.part_brand ?? '');
           setPartModel(ex.part_model ?? '');
-          if (ex.payment_method && ex.payment_method !== 'carteira') setPaymentMethod(ex.payment_method);
           if (ex.payment_method === 'cartao') {
             setCardDetails({
               brand: ex.card_brand ?? '',
+              issuer: ex.card_operator ?? '',
               operator: ex.card_operator ?? '',
               installments: ex.installment_total ?? 1,
               firstMonth: String(ex.occurred_at).slice(0, 7),
@@ -689,7 +689,7 @@ const Despesa = () => {
               <div className="mt-2 text-xs text-muted-foreground flex items-center justify-between bg-surface p-2.5 rounded-lg border border-border/40">
                 <div>
                   <span className="font-bold text-foreground">
-                    {cardDetails.brand || 'Cartão'} {cardDetails.operator && `• ${cardDetails.operator}`}{' '}
+                    {cardDetails.brand || 'Cartão'} {(cardDetails.issuer || cardDetails.operator) && `• ${cardDetails.issuer || cardDetails.operator}`}{' '}
                     {cardDetails.installments > 1 && `(${cardDetails.installments}x)`}
                   </span>
                   {cardDetails.cardDueDay && (
