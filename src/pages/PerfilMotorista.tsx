@@ -1,24 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User, 
-  Bike, 
-  Target, 
-  Edit3, 
-  CheckCircle2, 
-  Star, 
-  Package, 
-  Phone, 
-  Mail, 
-  CreditCard, 
-  FileText, 
-  Save, 
-  X, 
-  ChevronRight, 
-  ShieldCheck, 
-  Sparkles,
-  ArrowLeft
-} from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -28,27 +9,30 @@ export const PerfilMotorista = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Form states
-  const [name, setName] = useState('Fernando Souza');
-  const [email, setEmail] = useState('fernando.souza@sigmalog.com.br');
-  const [phone, setPhone] = useState('(11) 98765-4321');
-  const [cpf, setCpf] = useState('123.456.789-00');
-  const [cnh, setCnh] = useState('98765432100');
-  const [cnhCategory, setCnhCategory] = useState('A / B');
-  const [pixKey, setPixKey] = useState('12345678900');
+  // Form & Profile states
+  const [nome, setNome] = useState('Fernando Souza');
+  const [sexo, setSexo] = useState('Masculino');
+  const [dataNasc, setDataNasc] = useState('12/05/1994');
+  const [email, setEmail] = useState('fernando.souza@email.com');
+  const [celular, setCelular] = useState('(11) 98765-4321');
+  const [whatsapp, setWhatsapp] = useState(true);
+  const [redeSocial, setRedeSocial] = useState('fernando_souza');
+  const [tipoVeiculo, setTipoVeiculo] = useState<'moto' | 'carro' | 'bike'>('moto');
+  const [modeloVeiculo, setModeloVeiculo] = useState('Honda CG 160');
+  const [placaVeiculo, setPlacaVeiculo] = useState('KNT-1V23');
   const [avatar, setAvatar] = useState<string | null>(null);
 
-  // Vehicle info
-  const [vehicleModel, setVehicleModel] = useState('Honda CG 160 Fan');
-  const [vehiclePlate, setVehiclePlate] = useState('ABC-1D23');
-  const [vehicleColor, setVehicleColor] = useState('Preto Fosco');
+  // Password fields
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       const u = data.user;
       if (!u) return;
-      setEmail(u.email || 'fernando.souza@sigmalog.com.br');
-      setName(u.user_metadata?.full_name || 'Fernando Souza');
+      setEmail(u.email || 'fernando.souza@email.com');
+      setNome(u.user_metadata?.full_name || 'Fernando Souza');
 
       supabase
         .from('profiles')
@@ -58,11 +42,11 @@ export const PerfilMotorista = () => {
         .then(({ data: p }) => {
           if (p) {
             const profileData = p as any;
-            if (profileData.full_name) setName(profileData.full_name);
+            if (profileData.full_name) setNome(profileData.full_name);
             if (profileData.avatar_url) setAvatar(profileData.avatar_url);
-            if (profileData.phone) setPhone(profileData.phone);
-            if (profileData.vehicle_model) setVehicleModel(profileData.vehicle_model);
-            if (profileData.plate) setVehiclePlate(profileData.plate);
+            if (profileData.phone) setCelular(profileData.phone);
+            if (profileData.vehicle_model) setModeloVeiculo(profileData.vehicle_model);
+            if (profileData.plate) setPlacaVeiculo(profileData.plate);
           }
         });
     });
@@ -77,10 +61,10 @@ export const PerfilMotorista = () => {
       if (u) {
         await supabase.from('profiles').upsert({
           id: u.id,
-          full_name: name,
-          phone: phone,
-          vehicle_model: vehicleModel,
-          plate: vehiclePlate,
+          full_name: nome,
+          phone: celular,
+          vehicle_model: modeloVeiculo,
+          plate: placaVeiculo,
           updated_at: new Date().toISOString(),
         } as any);
       }
@@ -94,274 +78,401 @@ export const PerfilMotorista = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#131313] text-[#e5e2e1] font-lexend pb-28">
-      <AppHeader title={isEditing ? 'EDITAR PERFIL' : 'PERFIL DO MOTORISTA'} subtitle="Kinetic Velocity Logistics" />
+    <div className="bg-[#131313] text-[#e5e2e1] min-h-screen font-lexend pb-32">
+      {/* App Header with Hamburger menu */}
+      <AppHeader 
+        title={isEditing ? "EDITAR PERFIL" : "PERFIL MOTORISTA"} 
+        subtitle="Kinetic Velocity" 
+      />
 
-      <main className="px-5 pt-6 max-w-xl mx-auto space-y-6">
-        {/* Toggle Mode Banner */}
-        <div className="flex items-center justify-between bg-[#1c1b1b] p-2.5 rounded-2xl border border-[#ff5f00]/30">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#ab8a7d] px-3">
-            {isEditing ? 'Modo de Edição' : 'Visão Geral do Perfil'}
-          </span>
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#ff5f00] text-black font-extrabold text-xs uppercase tracking-wider active:scale-95 transition shadow-lg"
-          >
-            {isEditing ? (
-              <>
-                <X className="size-4" /> Cancelar
-              </>
-            ) : (
-              <>
-                <Edit3 className="size-4" /> Editar Perfil
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Profile Card Hero */}
-        <section className="bg-[#1c1b1b] rounded-3xl p-6 border-2 border-[#ff5f00]/30 flex flex-col items-center text-center relative overflow-hidden shadow-2xl">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#ff5f00]/10 rounded-full blur-2xl pointer-events-none" />
-          
-          <div className="relative group mb-4">
-            <div className="size-28 rounded-full border-4 border-[#ff5f00] overflow-hidden bg-[#0e0e0e] shadow-xl">
-              {avatar ? (
-                <img src={avatar} alt={name} className="size-full object-cover" />
-              ) : (
-                <div className="size-full bg-[#ff5f00] text-black font-black text-4xl grid place-items-center uppercase">
-                  {name[0] || 'M'}
-                </div>
-              )}
-            </div>
-            {isEditing && (
-              <button 
-                type="button" 
-                onClick={() => toast.info('Selecione uma imagem na sua galeria')}
-                className="absolute bottom-0 right-0 bg-[#ff5f00] text-black p-2.5 rounded-full border-2 border-[#131313] active:scale-90 shadow-lg"
-              >
-                <Edit3 className="size-4" />
-              </button>
-            )}
-          </div>
-
-          <h2 className="font-extrabold text-2xl text-[#e5e2e1] uppercase tracking-tight">{name}</h2>
-          <p className="text-xs text-[#ab8a7d] font-medium mt-0.5">{email}</p>
-
-          <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#ff5f00]/15 text-[#ffb599] border border-[#ff5f00]/30 font-bold text-xs">
-            <ShieldCheck className="size-4 text-[#ff5f00]" />
-            <span>Motorista Verificado • CNH {cnhCategory}</span>
-          </div>
-
-          {/* Quick Metrics */}
-          {!isEditing && (
-            <div className="grid grid-cols-3 gap-3 w-full mt-6 pt-5 border-t border-[#2a2a2a]">
-              <div className="bg-[#201f1f] p-3 rounded-2xl border border-stone-800 flex flex-col items-center">
-                <div className="flex items-center gap-1 text-amber-400 font-extrabold text-base">
-                  <Star className="size-4 fill-amber-400" /> 4.9
-                </div>
-                <span className="text-[10px] text-[#ab8a7d] font-bold uppercase mt-1">Avaliação</span>
-              </div>
-              <div className="bg-[#201f1f] p-3 rounded-2xl border border-stone-800 flex flex-col items-center">
-                <div className="flex items-center gap-1 text-[#ffb599] font-extrabold text-base">
-                  <Package className="size-4 text-[#ff5f00]" /> 1.240
-                </div>
-                <span className="text-[10px] text-[#ab8a7d] font-bold uppercase mt-1">Entregas</span>
-              </div>
-              <div className="bg-[#201f1f] p-3 rounded-2xl border border-stone-800 flex flex-col items-center">
-                <div className="flex items-center gap-1 text-emerald-400 font-extrabold text-base">
-                  <CheckCircle2 className="size-4" /> 100%
-                </div>
-                <span className="text-[10px] text-[#ab8a7d] font-bold uppercase mt-1">Documentos</span>
-              </div>
-            </div>
-          )}
-        </section>
-
+      <main className="mt-6 px-5 max-w-2xl mx-auto space-y-6">
         {isEditing ? (
-          /* FORMULÁRIO DE EDIÇÃO DO PERFIL */
-          <form onSubmit={handleSaveProfile} className="space-y-4">
-            <div className="bg-[#1c1b1b] p-5 rounded-3xl border border-[#2a2a2a] space-y-4">
-              <h3 className="text-sm font-extrabold uppercase tracking-wider text-[#ff5f00] flex items-center gap-2">
-                <User className="size-4" /> Dados Pessoais
-              </h3>
+          /* ========================================================
+             E D I T A R   P E R F I L   (editar_perfil_de_motorista)
+             ======================================================== */
+          <form onSubmit={handleSaveProfile} className="space-y-8 pt-2">
+            {/* Photo Section */}
+            <section className="flex flex-col items-center justify-center">
+              <div className="relative group">
+                <div className="w-32 h-32 rounded-full border-4 border-[#ff5f00] overflow-hidden bg-[#201f1f] shadow-xl">
+                  {avatar ? (
+                    <img src={avatar} alt={nome} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-[#ff5f00] text-black font-black text-4xl grid place-items-center uppercase">
+                      {nome[0] || 'M'}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toast.info('Selecione uma foto da sua galeria')}
+                  className="absolute bottom-0 right-0 bg-[#ff5f00] text-black p-3 rounded-full border-4 border-[#131313] active:scale-95 transition-transform shadow-xl"
+                >
+                  <span className="material-symbols-outlined text-xl">edit</span>
+                </button>
+              </div>
+              <p className="mt-4 font-bold text-xl text-[#e5e2e1] uppercase tracking-tight">{nome}</p>
+            </section>
 
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Nome Completo</label>
+            {/* Personal Info Section */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="material-symbols-outlined text-[#ff5f00] text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  person
+                </span>
+                <h2 className="text-xl font-bold text-white">Informações Pessoais</h2>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-[#ab8a7d] px-2">Nome Completo</label>
                 <input
                   type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  className="w-full h-14 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none transition-colors text-base text-white"
+                  placeholder="Fernando Anunciação de Souza"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Telefone / WhatsApp</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-[#ab8a7d] px-2">Sexo</label>
+                  <select
+                    value={sexo}
+                    onChange={(e) => setSexo(e.target.value)}
+                    className="w-full h-14 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none appearance-none text-base text-white"
+                  >
+                    <option value="Masculino">Masculino</option>
+                    <option value="Feminino">Feminino</option>
+                    <option value="Outro">Outro</option>
+                    <option value="Prefiro não dizer">Prefiro não dizer</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-[#ab8a7d] px-2">Data Nasc.</label>
+                  <input
+                    type="text"
+                    value={dataNasc}
+                    onChange={(e) => setDataNasc(e.target.value)}
+                    className="w-full h-14 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none text-base text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-[#ab8a7d] px-2">E-mail</label>
                 <input
-                  type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full h-14 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none text-base text-white"
+                  placeholder="fernando.souza@email.com"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">CPF</label>
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-[#ab8a7d] px-2">Celular</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="tel"
+                    value={celular}
+                    onChange={(e) => setCelular(e.target.value)}
+                    className="flex-grow h-14 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none text-base text-white"
+                    placeholder="(11) 98765-4321"
+                    required
+                  />
+                  <div className="flex items-center bg-[#201f1f] border-2 border-[#353534] rounded-full px-4 h-14 gap-2">
+                    <span className="material-symbols-outlined text-green-500 text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      chat
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.checked)}
+                      className="w-5 h-5 rounded bg-[#353534] border-none text-[#ff5f00] focus:ring-0 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-[#ab8a7d] px-2">Rede Social (Opcional)</label>
+                <div className="relative">
+                  <span className="absolute left-6 top-1/2 -translate-y-1/2 text-[#ab8a7d]">@</span>
+                  <input
+                    type="text"
+                    value={redeSocial}
+                    onChange={(e) => setRedeSocial(e.target.value)}
+                    className="w-full h-14 bg-[#201f1f] border-2 border-[#353534] rounded-full pl-10 pr-6 focus:border-[#ff5f00] outline-none text-base text-white"
+                    placeholder="fernando_souza"
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* Vehicle Info Section */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="material-symbols-outlined text-[#ff5f00] text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  moped
+                </span>
+                <h2 className="text-xl font-bold text-white">Veículo Atual</h2>
+              </div>
+              <div className="bg-[#201f1f] border-2 border-[#353534] p-4 rounded-xl space-y-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-[#ab8a7d]">Tipo de Veículo</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTipoVeiculo('moto')}
+                      className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
+                        tipoVeiculo === 'moto'
+                          ? 'border-[#ff5f00] bg-[#ff5f00]/10 text-[#ff5f00]'
+                          : 'border-[#353534] text-[#ab8a7d] hover:border-white/20'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined">moped</span>
+                      <span className="text-[10px] font-black uppercase mt-1">Moto</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTipoVeiculo('carro')}
+                      className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
+                        tipoVeiculo === 'carro'
+                          ? 'border-[#ff5f00] bg-[#ff5f00]/10 text-[#ff5f00]'
+                          : 'border-[#353534] text-[#ab8a7d] hover:border-white/20'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined">directions_car</span>
+                      <span className="text-[10px] font-black uppercase mt-1">Carro</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTipoVeiculo('bike')}
+                      className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
+                        tipoVeiculo === 'bike'
+                          ? 'border-[#ff5f00] bg-[#ff5f00]/10 text-[#ff5f00]'
+                          : 'border-[#353534] text-[#ab8a7d] hover:border-white/20'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined">pedal_bike</span>
+                      <span className="text-[10px] font-black uppercase mt-1">Bike</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-sm font-semibold text-[#ab8a7d]">Modelo</label>
+                    <input
+                      type="text"
+                      value={modeloVeiculo}
+                      onChange={(e) => setModeloVeiculo(e.target.value)}
+                      className="w-full h-12 bg-[#353534] border-none rounded-lg px-4 focus:ring-2 focus:ring-[#ff5f00] outline-none text-white font-medium"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-semibold text-[#ab8a7d]">Placa</label>
+                    <input
+                      type="text"
+                      value={placaVeiculo}
+                      onChange={(e) => setPlacaVeiculo(e.target.value.toUpperCase())}
+                      className="w-full h-12 bg-[#353534] border-none rounded-lg px-4 focus:ring-2 focus:ring-[#ff5f00] outline-none text-white font-bold uppercase"
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Security Section */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="material-symbols-outlined text-[#ff5f00] text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  security
+                </span>
+                <h2 className="text-xl font-bold text-white">Segurança</h2>
+              </div>
+              <div className="bg-[#1c1b1b] p-4 rounded-xl space-y-3 border-l-4 border-[#ff5f00]">
+                <h3 className="text-base font-bold text-white">Alterar Senha</h3>
                 <input
-                  type="text"
-                  value={cpf}
-                  onChange={(e) => setCpf(e.target.value)}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
+                  type="password"
+                  value={senhaAtual}
+                  onChange={(e) => setSenhaAtual(e.target.value)}
+                  placeholder="Senha Atual"
+                  className="w-full h-12 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none text-white"
+                />
+                <input
+                  type="password"
+                  value={novaSenha}
+                  onChange={(e) => setNovaSenha(e.target.value)}
+                  placeholder="Nova Senha"
+                  className="w-full h-12 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none text-white"
+                />
+                <input
+                  type="password"
+                  value={confirmarSenha}
+                  onChange={(e) => setConfirmarSenha(e.target.value)}
+                  placeholder="Confirmar Nova Senha"
+                  className="w-full h-12 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none text-white"
                 />
               </div>
+            </section>
+
+            {/* Fixed Footer Action Bar */}
+            <div className="fixed bottom-0 left-0 w-full p-5 bg-gradient-to-t from-[#131313] via-[#131313]/90 to-transparent pt-10 z-40">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-[64px] bg-[#ff5f00] text-black font-extrabold text-xl uppercase tracking-widest rounded-full shadow-[0_8px_24px_rgba(255,95,0,0.3)] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+              >
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  save
+                </span>
+                <span>{loading ? 'Salvando...' : 'Salvar Alterações'}</span>
+              </button>
             </div>
-
-            <div className="bg-[#1c1b1b] p-5 rounded-3xl border border-[#2a2a2a] space-y-4">
-              <h3 className="text-sm font-extrabold uppercase tracking-wider text-[#ff5f00] flex items-center gap-2">
-                <FileText className="size-4" /> Habilitação & Pagamentos
-              </h3>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Número da CNH</label>
-                <input
-                  type="text"
-                  value={cnh}
-                  onChange={(e) => setCnh(e.target.value)}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Categoria CNH</label>
-                <input
-                  type="text"
-                  value={cnhCategory}
-                  onChange={(e) => setCnhCategory(e.target.value)}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Chave PIX para Recebimentos</label>
-                <input
-                  type="text"
-                  value={pixKey}
-                  onChange={(e) => setPixKey(e.target.value)}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full min-h-[56px] bg-[#ff5f00] text-black font-extrabold text-base uppercase tracking-wider rounded-2xl shadow-xl hover:bg-[#ffb599] active:scale-98 transition flex items-center justify-center gap-2"
-            >
-              <Save className="size-5" />
-              <span>{loading ? 'Salvando...' : 'Salvar Alterações'}</span>
-            </button>
           </form>
         ) : (
-          /* RESUMO DO PERFIL DO MOTORISTA */
-          <div className="space-y-4">
-            {/* Card Veículo Cadastrado */}
-            <div 
-              onClick={() => navigate('/cadastro-veiculo')}
-              className="bg-[#1c1b1b] p-5 rounded-3xl border border-[#2a2a2a] hover:border-[#ff5f00]/50 transition cursor-pointer group space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-[#ff5f00] text-black rounded-2xl font-black">
-                    <Bike className="size-6" />
+          /* ========================================================
+             R E S U M O   D O   P E R F I L  (resumo_do_perfil_ajustado)
+             ======================================================== */
+          <div className="space-y-6">
+            {/* Profile Hero Section */}
+            <section className="flex flex-col items-center text-center space-y-4 py-4">
+              <div className="relative">
+                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#ff5f00] shadow-xl shadow-orange-900/20">
+                  {avatar ? (
+                    <img src={avatar} alt={nome} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-[#ff5f00] text-black font-black text-4xl grid place-items-center uppercase">
+                      {nome[0] || 'M'}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <h1 className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <span>{nome}</span>
+                  <span
+                    onClick={() => setIsEditing(true)}
+                    className="material-symbols-outlined text-gray-400 text-xl cursor-pointer hover:text-[#ff5f00] transition-colors"
+                  >
+                    edit
+                  </span>
+                </h1>
+              </div>
+            </section>
+
+            {/* Bento Grid Sections */}
+            <div className="grid grid-cols-1 gap-6">
+              {/* Section: Metas Financeiras */}
+              <div className="bg-[#121212] rounded-2xl border p-6 hover:border-[#ff5f00]/40 transition-all group border-zinc-700">
+                <div className="flex justify-between items-start mb-6 relative">
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[#ff5f00] text-2xl">payments</span>
+                      <h2 className="text-xl font-bold text-white whitespace-nowrap">Metas Financeiras</h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/metas-financeiras')}
+                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#353534] hover:bg-[#ff5f00] text-white transition-all"
+                    >
+                      <span className="material-symbols-outlined text-lg">edit</span>
+                    </button>
                   </div>
+                </div>
+                <div className="space-y-6">
                   <div>
-                    <h3 className="font-extrabold text-base text-[#e5e2e1] group-hover:text-[#ffb599] transition">
-                      Veículo em Uso
-                    </h3>
-                    <p className="text-xs text-[#ab8a7d] font-semibold">{vehicleModel}</p>
+                    <div className="flex justify-between items-end mb-2">
+                      <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Rendimento Mensal</span>
+                      <span className="text-xl font-bold text-[#ff5f00]">
+                        R$ 8.450 / <span className="text-gray-500 text-sm">R$ 12.000</span>
+                      </span>
+                    </div>
+                    <div className="h-3 bg-[#353534] rounded-full overflow-hidden">
+                      <div className="h-full bg-[#ff5f00] w-[70%] rounded-full relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-black/40 p-4 rounded-xl border border-white/5">
+                      <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Média Diária</span>
+                      <span className="text-lg font-semibold text-white">R$ 380,00</span>
+                    </div>
+                    <div className="bg-black/40 p-4 rounded-lg border border-white/5">
+                      <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Dias Ativos</span>
+                      <span className="text-lg font-semibold text-white">22 Dias</span>
+                    </div>
                   </div>
                 </div>
-                <ChevronRight className="size-5 text-[#ff5f00] group-hover:translate-x-1 transition-transform" />
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#2a2a2a] text-xs">
-                <div className="bg-[#201f1f] p-2.5 rounded-xl">
-                  <span className="block text-[10px] text-[#ab8a7d] uppercase font-bold">Placa</span>
-                  <span className="font-extrabold text-[#e5e2e1]">{vehiclePlate}</span>
+              {/* Section: Dados do Veículo */}
+              <button
+                type="button"
+                onClick={() => navigate('/cadastro-veiculo')}
+                className="bg-[#121212] rounded-2xl border p-6 text-left hover:border-[#ff5f00]/40 transition-all flex items-center gap-6 group border-zinc-700 w-full"
+              >
+                <div className="w-20 h-20 rounded-xl bg-[#ff5f00]/20 flex items-center justify-center shrink-0 border border-[#ff5f00]/40">
+                  <span className="material-symbols-outlined text-[#ff5f00] text-4xl">two_wheeler</span>
                 </div>
-                <div className="bg-[#201f1f] p-2.5 rounded-xl">
-                  <span className="block text-[10px] text-[#ab8a7d] uppercase font-bold">Cor</span>
-                  <span className="font-extrabold text-[#e5e2e1]">{vehicleColor}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Metas e Rendimento Resumo */}
-            <div 
-              onClick={() => navigate('/metas-financeiras')}
-              className="bg-[#1c1b1b] p-5 rounded-3xl border border-[#2a2a2a] hover:border-[#ff5f00]/50 transition cursor-pointer group space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-[#ff5f00]/20 text-[#ff5f00] rounded-2xl font-black">
-                    <Target className="size-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-base text-[#e5e2e1] group-hover:text-[#ffb599] transition">
-                      Metas Financeiras
-                    </h3>
-                    <p className="text-xs text-[#ab8a7d] font-semibold">Meta Mensal: R$ 12.000,00</p>
+                <div className="flex-grow space-y-1">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#ff5f00]">local_shipping</span>
+                    Dados do Veículo
+                  </h2>
+                  <div className="flex flex-col">
+                    <span className="text-lg font-bold text-[#e5e2e1]">{modeloVeiculo}</span>
+                    <span className="text-sm text-gray-400 font-medium">Placa: {placaVeiculo} • Prata</span>
                   </div>
                 </div>
-                <ChevronRight className="size-5 text-[#ff5f00] group-hover:translate-x-1 transition-transform" />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-[#ab8a7d]">Acumulado Mês</span>
-                  <span className="text-[#ff5f00]">R$ 8.450,00 (70%)</span>
+                <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-[#ff5f00] group-hover:border-[#ff5f00] transition-all text-white shrink-0">
+                  <span className="material-symbols-outlined">chevron_right</span>
                 </div>
-                <div className="h-3 bg-[#0e0e0e] rounded-full overflow-hidden p-0.5 border border-stone-800">
-                  <div className="h-full bg-[#ff5f00] rounded-full w-[70%]" />
-                </div>
-              </div>
-            </div>
-
-            {/* Informações de Contato e Documentos */}
-            <div className="bg-[#1c1b1b] p-5 rounded-3xl border border-[#2a2a2a] space-y-3">
-              <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#ab8a7d] mb-2">
-                Informações de Registro
-              </h3>
-
-              <div className="flex items-center gap-3 p-3 bg-[#201f1f] rounded-2xl">
-                <Phone className="size-5 text-[#ff5f00] shrink-0" />
-                <div className="min-w-0">
-                  <span className="block text-[10px] text-[#ab8a7d] uppercase font-bold">Telefone</span>
-                  <span className="font-bold text-sm text-[#e5e2e1] truncate">{phone}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 bg-[#201f1f] rounded-2xl">
-                <Mail className="size-5 text-[#ff5f00] shrink-0" />
-                <div className="min-w-0">
-                  <span className="block text-[10px] text-[#ab8a7d] uppercase font-bold">E-mail</span>
-                  <span className="font-bold text-sm text-[#e5e2e1] truncate">{email}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 bg-[#201f1f] rounded-2xl">
-                <CreditCard className="size-5 text-[#ff5f00] shrink-0" />
-                <div className="min-w-0">
-                  <span className="block text-[10px] text-[#ab8a7d] uppercase font-bold">Chave PIX</span>
-                  <span className="font-bold text-sm text-[#e5e2e1] truncate">{pixKey}</span>
-                </div>
-              </div>
+              </button>
             </div>
           </div>
         )}
       </main>
+
+      {/* Floating Bottom Nav */}
+      <nav className="fixed bottom-6 left-0 w-full z-50 flex justify-center items-center px-4">
+        <div className="bg-[#121212]/90 backdrop-blur-2xl border border-white/10 rounded-full flex items-center justify-between px-6 py-2 w-full max-w-md shadow-2xl shadow-orange-900/20">
+          <button
+            onClick={() => navigate('/')}
+            className="flex flex-col items-center justify-center text-stone-400 px-4 py-2 hover:text-white transition-all active:scale-90"
+          >
+            <span className="material-symbols-outlined text-xl">home</span>
+            <span className="text-[10px] font-semibold uppercase tracking-widest mt-0.5">Início</span>
+          </button>
+          <button
+            onClick={() => navigate('/painel')}
+            className="flex flex-col items-center justify-center text-stone-400 px-4 py-2 hover:text-white transition-all active:scale-90"
+          >
+            <span className="material-symbols-outlined text-xl">speed</span>
+            <span className="text-[10px] font-semibold uppercase tracking-widest mt-0.5">Painel</span>
+          </button>
+          <button
+            onClick={() => navigate('/apps')}
+            className="flex flex-col items-center justify-center text-stone-400 px-4 py-2 hover:text-white transition-all active:scale-90"
+          >
+            <span className="material-symbols-outlined text-xl">grid_view</span>
+            <span className="text-[10px] font-semibold uppercase tracking-widest mt-0.5">Apps</span>
+          </button>
+          <button
+            onClick={() => setIsEditing(false)}
+            className="flex flex-col items-center justify-center bg-[#ff5f00] text-white rounded-full px-5 py-2 active:scale-90 shadow-lg"
+          >
+            <span className="material-symbols-outlined text-xl">person</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest mt-0.5">Perfil</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 };

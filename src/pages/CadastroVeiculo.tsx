@@ -1,37 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Bike, 
-  Car, 
-  Truck, 
-  Save, 
-  ShieldCheck, 
-  Info, 
-  Fuel, 
-  Wrench, 
-  Package, 
-  CheckCircle2
-} from 'lucide-react';
-import { AppHeader } from '@/components/layout/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { AppHeader } from '@/components/layout/AppHeader';
 
 export const CadastroVeiculo = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [tipoVeiculo, setTipoVeiculo] = useState<'moto' | 'carro' | 'van' | 'bike'>('moto');
+  const [avatar, setAvatar] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    marca: 'Honda',
-    modelo: 'CG 160 Fan',
-    ano: '2023',
-    placa: 'ABC-1D23',
-    cor: 'Preto Fosco',
-    tanque: '16.1',
-    consumo: '42.5',
-    trocaOleo: '3000',
-    combustivel: 'Flex',
+    marca: '',
+    modelo: '',
+    ano: '',
+    placa: '',
+    tanque: '',
+    consumo: '',
+    trocaOleo: '',
     carga: 'bag',
+    pneuDianteiro: '',
+    pneuTraseiro: '',
   });
 
   useEffect(() => {
@@ -39,6 +27,7 @@ export const CadastroVeiculo = () => {
       try {
         const { data: u } = await supabase.auth.getUser();
         if (!u.user) return;
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -47,17 +36,19 @@ export const CadastroVeiculo = () => {
 
         if (profile) {
           const p = profile as any;
+          if (p.avatar_url) setAvatar(p.avatar_url);
+
           setForm({
             marca: p.vehicle_brand ?? 'Honda',
-            modelo: p.vehicle_model ?? 'CG 160 Fan',
-            ano: p.vehicle_year ? String(p.vehicle_year) : '2023',
-            placa: p.plate ?? 'ABC-1D23',
-            cor: p.vehicle_color ?? 'Preto Fosco',
-            tanque: p.tank_size_l ? String(p.tank_size_l) : '16.1',
-            consumo: p.avg_consumption_kml ? String(p.avg_consumption_kml) : '42.5',
-            trocaOleo: p.oil_change_km ? String(p.oil_change_km) : '3000',
-            combustivel: p.fuel_type ?? 'Flex',
+            modelo: p.vehicle_model ?? 'CB 500X',
+            ano: p.vehicle_year ? String(p.vehicle_year) : '2024',
+            placa: p.plate ?? 'ABC-1234',
+            tanque: p.tank_size_l ? String(p.tank_size_l) : '17',
+            consumo: p.avg_consumption_kml ? String(p.avg_consumption_kml) : '25.5',
+            trocaOleo: p.oil_change_km ? String(p.oil_change_km) : '5000',
             carga: p.has_bag ? 'bag' : 'bau',
+            pneuDianteiro: p.tire_size_front ?? '110/80 R19',
+            pneuTraseiro: p.tire_size_rear ?? '160/60 R17',
           });
         }
       } catch (err) {
@@ -67,7 +58,7 @@ export const CadastroVeiculo = () => {
   }, []);
 
   const setField = (field: keyof typeof form, value: string) => {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -89,6 +80,8 @@ export const CadastroVeiculo = () => {
         tank_size_l: form.tanque ? Number(form.tanque.replace(',', '.')) : null,
         avg_consumption_kml: form.consumo ? Number(form.consumo.replace(',', '.')) : null,
         oil_change_km: form.trocaOleo ? Number(form.trocaOleo.replace(',', '.')) : null,
+        tire_size_front: form.pneuDianteiro.trim() || null,
+        tire_size_rear: form.pneuTraseiro.trim() || null,
         has_bag: form.carga === 'bag',
         updated_at: new Date().toISOString(),
       };
@@ -98,7 +91,7 @@ export const CadastroVeiculo = () => {
       if (error) {
         toast.error(`Erro ao salvar dados do veículo: ${error.message}`);
       } else {
-        toast.success('Informações do veículo atualizadas com sucesso!');
+        toast.success('Veículo cadastrado com sucesso!');
       }
     } catch (err: any) {
       toast.error('Erro ao salvar veículo.');
@@ -108,174 +101,236 @@ export const CadastroVeiculo = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#131313] text-[#e5e2e1] font-lexend pb-28">
-      <AppHeader title="CADASTRO DO VEÍCULO" subtitle="Velocity Log - Dados Técnicos" />
+    <div className="bg-[#000000] text-[#e5e2e1] min-h-screen font-lexend pb-32">
+      {/* TopAppBar Navigation Shell */}
+      <AppHeader 
+        title="Cadastro do Veículo" 
+        subtitle="Velocity Log" 
+      />
 
-      <main className="px-5 pt-6 max-w-xl mx-auto space-y-6">
-        {/* Banner Informativo */}
-        <div className="bg-[#1c1b1b] p-5 rounded-3xl border-2 border-[#ff5f00]/40 flex items-center gap-4 relative overflow-hidden shadow-xl">
-          <div className="p-3 bg-[#ff5f00] text-black rounded-2xl shrink-0 font-extrabold">
-            <Bike className="size-8" />
-          </div>
-          <div>
-            <h2 className="font-extrabold text-lg text-[#e5e2e1]">Veículo da Frota</h2>
-            <p className="text-xs text-[#ab8a7d] mt-0.5 font-medium">
-              Configure as especificações para calcular autonomia, revisões de óleo e custos por km.
-            </p>
-          </div>
-        </div>
+      {/* Main Content Canvas */}
+      <main className="mt-6 px-4 md:px-8 max-w-5xl mx-auto space-y-6">
+        <header className="mb-6">
+          <p className="text-[#e4bfb1] text-base">
+            Preencha as informações técnicas do seu veículo para otimizar suas rotas e manutenções.
+          </p>
+        </header>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Seleção do Tipo de Veículo */}
-          <div className="bg-[#1c1b1b] p-5 rounded-3xl border border-[#2a2a2a] space-y-3">
-            <label className="block text-xs font-extrabold uppercase tracking-wider text-[#ff5f00]">
-              Tipo de Veículo
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { id: 'moto', label: 'Moto', icon: Bike },
-                { id: 'carro', label: 'Carro', icon: Car },
-                { id: 'van', label: 'Van', icon: Truck },
-                { id: 'bike', label: 'Bicicleta', icon: Bike },
-              ].map((item) => {
-                const Icon = item.icon;
-                const selected = tipoVeiculo === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setTipoVeiculo(item.id as any)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all active:scale-95 ${
-                      selected
-                        ? 'bg-[#ff5f00] text-black border-[#ff5f00] font-extrabold shadow-lg'
-                        : 'bg-[#201f1f] text-[#e5e2e1] border-stone-800 hover:border-stone-700 font-bold'
-                    }`}
-                  >
-                    <Icon className="size-5 mb-1" />
-                    <span className="text-xs">{item.label}</span>
-                  </button>
-                );
-              })}
+        {/* Form Bento Grid */}
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          {/* Basic Info Card */}
+          <section className="md:col-span-8 bg-[#121212]/80 backdrop-blur-xl border border-white/5 p-6 rounded-2xl shadow-xl">
+            <div className="flex items-center gap-2 mb-4 text-[#ff5f00]">
+              <span className="material-symbols-outlined text-2xl">directions_car</span>
+              <h2 className="text-xl font-semibold text-white">Informações Básicas</h2>
             </div>
-          </div>
-
-          {/* Dados Gerais do Veículo */}
-          <div className="bg-[#1c1b1b] p-5 rounded-3xl border border-[#2a2a2a] space-y-4">
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-[#ff5f00] flex items-center gap-2">
-              <Bike className="size-4" /> Informações do Veículo
-            </h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Marca</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Marca</label>
                 <input
-                  type="text"
                   value={form.marca}
                   onChange={(e) => setField('marca', e.target.value)}
+                  className="bg-[#201f1f] border border-[#333333] rounded-full px-4 py-2.5 text-white placeholder-[#393939] outline-none focus:ring-2 focus:ring-[#ff5f00]/40 transition-all text-sm"
                   placeholder="Ex: Honda"
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
-                  required
+                  type="text"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Modelo</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Modelo</label>
                 <input
-                  type="text"
                   value={form.modelo}
                   onChange={(e) => setField('modelo', e.target.value)}
-                  placeholder="Ex: CG 160 Fan"
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
-                  required
+                  className="bg-[#201f1f] border border-[#333333] rounded-full px-4 py-2.5 text-white placeholder-[#393939] outline-none focus:ring-2 focus:ring-[#ff5f00]/40 transition-all text-sm"
+                  placeholder="Ex: CB 500X"
+                  type="text"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Ano</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Ano</label>
                 <input
-                  type="text"
                   value={form.ano}
                   onChange={(e) => setField('ano', e.target.value)}
-                  placeholder="Ex: 2023"
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
+                  className="bg-[#201f1f] border border-[#333333] rounded-full px-4 py-2.5 text-white placeholder-[#393939] outline-none focus:ring-2 focus:ring-[#ff5f00]/40 transition-all text-sm"
+                  placeholder="2024"
+                  type="number"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Placa</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Placa</label>
                 <input
-                  type="text"
                   value={form.placa}
                   onChange={(e) => setField('placa', e.target.value.toUpperCase())}
-                  placeholder="ABC-1D23"
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-extrabold uppercase text-base outline-none transition"
+                  className="bg-[#201f1f] border border-[#333333] rounded-full px-4 py-2.5 text-white placeholder-[#393939] outline-none focus:ring-2 focus:ring-[#ff5f00]/40 transition-all text-sm uppercase font-bold"
+                  placeholder="ABC-1234"
+                  type="text"
                 />
               </div>
             </div>
+          </section>
 
+          {/* Status Quick Card */}
+          <aside className="md:col-span-4 bg-[#ff5f00] rounded-2xl p-6 flex flex-col justify-between text-[#531a00] shadow-xl">
             <div>
-              <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Cor</label>
-              <input
-                type="text"
-                value={form.cor}
-                onChange={(e) => setField('cor', e.target.value)}
-                placeholder="Ex: Preto Fosco / Prata"
-                className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
-              />
+              <span className="material-symbols-outlined text-5xl mb-4 filled-icon" style={{ fontVariationSettings: "'FILL' 1" }}>
+                verified_user
+              </span>
+              <h3 className="text-2xl font-bold leading-tight mb-2 text-[#5a1c00]">Pronto para a Estrada</h3>
+              <p className="text-sm font-medium opacity-90 leading-relaxed">
+                Mantenha seus dados atualizados para receber alertas de manutenção preventiva.
+              </p>
             </div>
-          </div>
+            <div className="mt-8 flex items-center gap-2 bg-black/20 p-3 rounded-xl backdrop-blur-sm text-black">
+              <span className="material-symbols-outlined text-xl">info</span>
+              <span className="text-xs font-semibold">Documentação em dia é obrigatória.</span>
+            </div>
+          </aside>
 
-          {/* Especificações de Desempenho e Manutenção */}
-          <div className="bg-[#1c1b1b] p-5 rounded-3xl border border-[#2a2a2a] space-y-4">
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-[#ff5f00] flex items-center gap-2">
-              <Fuel className="size-4" /> Desempenho e Consumo
-            </h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Tanque (Litros)</label>
+          {/* Technical Specs Card */}
+          <section className="md:col-span-12 bg-[#121212]/80 backdrop-blur-xl border border-white/5 p-6 rounded-2xl shadow-xl">
+            <div className="flex items-center gap-2 mb-4 text-[#ff5f00]">
+              <span className="material-symbols-outlined text-2xl">settings_suggest</span>
+              <h2 className="text-xl font-semibold text-white">Especificações Técnicas</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Capacidade do Tanque (L)</label>
                 <input
-                  type="text"
                   value={form.tanque}
                   onChange={(e) => setField('tanque', e.target.value)}
-                  placeholder="16.1"
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
+                  className="bg-[#201f1f] border border-[#333333] rounded-full px-4 py-2.5 text-white placeholder-[#393939] outline-none focus:ring-2 focus:ring-[#ff5f00]/40 transition-all text-sm"
+                  placeholder="17"
+                  type="number"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Média (km/L)</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Consumo Médio (KM/L)</label>
                 <input
-                  type="text"
                   value={form.consumo}
                   onChange={(e) => setField('consumo', e.target.value)}
-                  placeholder="42.5"
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
+                  className="bg-[#201f1f] border border-[#333333] rounded-full px-4 py-2.5 text-white placeholder-[#393939] outline-none focus:ring-2 focus:ring-[#ff5f00]/40 transition-all text-sm"
+                  placeholder="25.5"
+                  type="number"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Troca de Óleo (KM)</label>
+                <input
+                  value={form.trocaOleo}
+                  onChange={(e) => setField('trocaOleo', e.target.value)}
+                  className="bg-[#201f1f] border border-[#333333] rounded-full px-4 py-2.5 text-white placeholder-[#393939] outline-none focus:ring-2 focus:ring-[#ff5f00]/40 transition-all text-sm"
+                  placeholder="5000"
+                  type="number"
                 />
               </div>
             </div>
+          </section>
 
-            <div>
-              <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Intervalo Troca de Óleo (km)</label>
-              <input
-                type="text"
-                value={form.trocaOleo}
-                onChange={(e) => setField('trocaOleo', e.target.value)}
-                placeholder="3000"
-                className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-semibold text-base outline-none transition"
-              />
+          {/* Logistics & Tires */}
+          <section className="md:col-span-6 bg-[#121212]/80 backdrop-blur-xl border border-white/5 p-6 rounded-2xl shadow-xl border-l-4 border-[#ff5f00]">
+            <div className="flex items-center gap-2 mb-4 text-[#ff5f00]">
+              <span className="material-symbols-outlined text-2xl">inventory_2</span>
+              <h2 className="text-xl font-semibold text-white">Logística de Carga</h2>
             </div>
-          </div>
+            <div className="flex flex-col gap-3">
+              <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Tipo de Carga</label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setField('carga', 'bag')}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-xl border transition-all ${
+                    form.carga === 'bag'
+                      ? 'border-[#ff5f00] bg-[#ff5f00]/15 text-[#ff5f00] font-bold'
+                      : 'border-[#333333] text-[#e4bfb1] hover:bg-white/5'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl">shopping_bag</span>
+                  <span className="text-xs">Bag</span>
+                </button>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full min-h-[56px] bg-[#ff5f00] text-black font-extrabold text-base uppercase tracking-wider rounded-2xl shadow-xl hover:bg-[#ffb599] active:scale-98 transition flex items-center justify-center gap-2"
-          >
-            <Save className="size-5" />
-            <span>{loading ? 'Salvando...' : 'Salvar Dados do Veículo'}</span>
-          </button>
+                <button
+                  type="button"
+                  onClick={() => setField('carga', 'bau')}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-xl border transition-all ${
+                    form.carga === 'bau'
+                      ? 'border-[#ff5f00] bg-[#ff5f00]/15 text-[#ff5f00] font-bold'
+                      : 'border-[#333333] text-[#e4bfb1] hover:bg-white/5'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl">inventory_2</span>
+                  <span className="text-xs">Baú</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setField('carga', 'nenhum')}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-xl border transition-all ${
+                    form.carga === 'nenhum'
+                      ? 'border-[#ff5f00] bg-[#ff5f00]/15 text-[#ff5f00] font-bold'
+                      : 'border-[#333333] text-[#e4bfb1] hover:bg-white/5'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl">block</span>
+                  <span className="text-xs">Nenhum</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section className="md:col-span-6 bg-[#121212]/80 backdrop-blur-xl border border-white/5 p-6 rounded-2xl shadow-xl">
+            <div className="flex items-center gap-2 mb-4 text-[#ff5f00]">
+              <span className="material-symbols-outlined text-2xl">tire_repair</span>
+              <h2 className="text-xl font-semibold text-white">Rodagem</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Pneu Dianteiro</label>
+                <input
+                  value={form.pneuDianteiro}
+                  onChange={(e) => setField('pneuDianteiro', e.target.value)}
+                  className="bg-[#201f1f] border border-[#333333] rounded-full px-4 py-2.5 text-white placeholder-[#393939] outline-none focus:ring-2 focus:ring-[#ff5f00]/40 transition-all text-sm"
+                  placeholder="110/80 R19"
+                  type="text"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Pneu Traseiro</label>
+                <input
+                  value={form.pneuTraseiro}
+                  onChange={(e) => setField('pneuTraseiro', e.target.value)}
+                  className="bg-[#201f1f] border border-[#333333] rounded-full px-4 py-2.5 text-white placeholder-[#393939] outline-none focus:ring-2 focus:ring-[#ff5f00]/40 transition-all text-sm"
+                  placeholder="160/60 R17"
+                  type="text"
+                />
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-white/5 rounded-xl flex items-center gap-2">
+              <span className="material-symbols-outlined text-stone-400 text-lg">info</span>
+              <p className="text-xs text-[#e4bfb1]">Calibragem correta economiza até 15% de combustível.</p>
+            </div>
+          </section>
+
+          {/* Hidden Submit Button to support Enter key */}
+          <button type="submit" className="hidden" />
         </form>
       </main>
+
+      {/* Footer Action Bar */}
+      <div className="fixed bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black via-black/90 to-transparent z-40">
+        <div className="max-w-5xl mx-auto">
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full bg-[#ff5f00] text-white font-bold text-lg py-4 rounded-full shadow-2xl shadow-orange-900/40 active:scale-[0.98] transition-all hover:brightness-110 flex justify-center items-center gap-2 uppercase tracking-wider"
+          >
+            <span>{loading ? 'Salvando...' : 'Salvar Alterações'}</span>
+            <span className="material-symbols-outlined text-2xl">save</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Decorative ambient glows */}
+      <div className="fixed top-0 right-0 w-1/3 h-1/3 bg-[#ff5f00]/10 blur-[120px] pointer-events-none -z-10" />
+      <div className="fixed bottom-0 left-0 w-1/4 h-1/4 bg-[#00a3b6]/5 blur-[100px] pointer-events-none -z-10" />
     </div>
   );
 };
