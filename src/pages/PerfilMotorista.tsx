@@ -4,7 +4,7 @@ import { AppHeader } from '@/components/layout/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { X, Save, ArrowLeft } from 'lucide-react';
+import { X, Save, ArrowLeft, Edit3 } from 'lucide-react';
 
 // Help functions for visual masks
 const formatDisplayDate = (value: string): string => {
@@ -88,7 +88,6 @@ export const PerfilMotorista = () => {
   };
 
   const handleCloseEditClick = () => {
-    // Alerta o usuário que edições não salvas serão perdidas ao fechar no "X"
     setShowExitConfirm(true);
   };
 
@@ -104,7 +103,6 @@ export const PerfilMotorista = () => {
     try {
       const u = (await supabase.auth.getUser()).data.user;
       if (u) {
-        // Envia para o Banco de Dados os campos sem a máscara
         const rawPhone = unmaskDigits(celular);
         const rawDate = unmaskDigits(dataNasc);
 
@@ -294,75 +292,74 @@ export const PerfilMotorista = () => {
               </div>
             </section>
 
-            {/* Vehicle Info Section */}
+            {/* Vehicle Info Section - Apenas Visualização + Ícone de Edição */}
             <section className="space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="material-symbols-outlined text-[#ff5f00] text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  moped
-                </span>
-                <h2 className="text-xl font-bold text-white">Veículo Atual</h2>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#ff5f00] text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    moped
+                  </span>
+                  <h2 className="text-xl font-bold text-white">Veículo Atual</h2>
+                </div>
+
+                {/* Ícone de edição para abrir a tela de edição do veículo */}
+                <button
+                  type="button"
+                  onClick={() => navigate('/cadastro-veiculo')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#ff5f00]/15 text-[#ff5f00] border border-[#ff5f00]/40 hover:bg-[#ff5f00] hover:text-black font-extrabold text-xs uppercase tracking-wider transition active:scale-95"
+                  title="Editar Veículo"
+                >
+                  <span className="material-symbols-outlined text-base">edit</span>
+                  <span>Editar</span>
+                </button>
               </div>
-              <div className="bg-[#201f1f] border-2 border-[#353534] p-4 rounded-xl space-y-4">
+
+              <div className="bg-[#201f1f] border-2 border-[#353534] p-5 rounded-2xl space-y-4">
+                {/* Tipo de Veículo - Apenas Visualização */}
                 <div className="space-y-1">
-                  <label className="text-sm font-semibold text-[#ab8a7d]">Tipo de Veículo</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTipoVeiculo('moto')}
-                      className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
-                        tipoVeiculo === 'moto'
-                          ? 'border-[#ff5f00] bg-[#ff5f00]/10 text-[#ff5f00]'
-                          : 'border-[#353534] text-[#ab8a7d] hover:border-white/20'
-                      }`}
-                    >
+                  <label className="text-xs uppercase font-bold text-[#ab8a7d]">Tipo de Veículo (Visualização)</label>
+                  <div className="grid grid-cols-3 gap-2 pointer-events-none opacity-90">
+                    <div className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 transition-all ${
+                      tipoVeiculo === 'moto'
+                        ? 'border-[#ff5f00] bg-[#ff5f00]/15 text-[#ff5f00] font-bold'
+                        : 'border-[#353534] text-[#ab8a7d] bg-[#1a1a1a]'
+                    }`}>
                       <span className="material-symbols-outlined">moped</span>
                       <span className="text-[10px] font-black uppercase mt-1">Moto</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTipoVeiculo('carro')}
-                      className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
-                        tipoVeiculo === 'carro'
-                          ? 'border-[#ff5f00] bg-[#ff5f00]/10 text-[#ff5f00]'
-                          : 'border-[#353534] text-[#ab8a7d] hover:border-white/20'
-                      }`}
-                    >
+                    </div>
+                    <div className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 transition-all ${
+                      tipoVeiculo === 'carro'
+                        ? 'border-[#ff5f00] bg-[#ff5f00]/15 text-[#ff5f00] font-bold'
+                        : 'border-[#353534] text-[#ab8a7d] bg-[#1a1a1a]'
+                    }`}>
                       <span className="material-symbols-outlined">directions_car</span>
                       <span className="text-[10px] font-black uppercase mt-1">Carro</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTipoVeiculo('bike')}
-                      className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
-                        tipoVeiculo === 'bike'
-                          ? 'border-[#ff5f00] bg-[#ff5f00]/10 text-[#ff5f00]'
-                          : 'border-[#353534] text-[#ab8a7d] hover:border-white/20'
-                      }`}
-                    >
+                    </div>
+                    <div className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 transition-all ${
+                      tipoVeiculo === 'bike'
+                        ? 'border-[#ff5f00] bg-[#ff5f00]/15 text-[#ff5f00] font-bold'
+                        : 'border-[#353534] text-[#ab8a7d] bg-[#1a1a1a]'
+                    }`}>
                       <span className="material-symbols-outlined">pedal_bike</span>
                       <span className="text-[10px] font-black uppercase mt-1">Bike</span>
-                    </button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Modelo e Placa - Apenas Visualização */}
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-sm font-semibold text-[#ab8a7d]">Modelo</label>
-                    <input
-                      type="text"
-                      value={modeloVeiculo}
-                      onChange={(e) => setModeloVeiculo(e.target.value)}
-                      className="w-full h-12 bg-[#353534] border-none rounded-lg px-4 focus:ring-2 focus:ring-[#ff5f00] outline-none text-white font-medium"
-                    />
+                    <label className="text-xs uppercase font-bold text-[#ab8a7d]">Modelo (Visualização)</label>
+                    <div className="w-full h-12 bg-[#1a1a1a] border-2 border-[#353534] rounded-xl px-4 flex items-center text-[#e5e2e1] font-semibold text-sm">
+                      {modeloVeiculo}
+                    </div>
                   </div>
+
                   <div className="space-y-1">
-                    <label className="text-sm font-semibold text-[#ab8a7d]">Placa</label>
-                    <input
-                      type="text"
-                      value={placaVeiculo}
-                      onChange={(e) => setPlacaVeiculo(e.target.value.toUpperCase())}
-                      className="w-full h-12 bg-[#353534] border-none rounded-lg px-4 focus:ring-2 focus:ring-[#ff5f00] outline-none text-white font-bold uppercase"
-                    />
+                    <label className="text-xs uppercase font-bold text-[#ab8a7d]">Placa (Visualização)</label>
+                    <div className="w-full h-12 bg-[#1a1a1a] border-2 border-[#353534] rounded-xl px-4 flex items-center text-[#ffb599] font-black uppercase text-sm">
+                      {placaVeiculo}
+                    </div>
                   </div>
                 </div>
               </div>
