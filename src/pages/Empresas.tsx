@@ -113,10 +113,12 @@ const SwipeableEmpresaCard: React.FC<SwipeableCardProps> = ({
   const [isSwiping, setIsSwiping] = useState(false);
   const startXRef = useRef(0);
   const currentXRef = useRef(0);
+  const hasSwipedRef = useRef(false);
 
   const handleStart = (clientX: number) => {
     startXRef.current = clientX;
     currentXRef.current = clientX;
+    hasSwipedRef.current = false;
     setIsSwiping(true);
   };
 
@@ -124,6 +126,9 @@ const SwipeableEmpresaCard: React.FC<SwipeableCardProps> = ({
     if (!isSwiping) return;
     currentXRef.current = clientX;
     const diff = clientX - startXRef.current;
+    if (Math.abs(diff) > 10) {
+      hasSwipedRef.current = true;
+    }
     // Limita a distância visual do deslize
     const clamped = Math.max(-140, Math.min(140, diff));
     setTranslateX(clamped);
@@ -134,15 +139,26 @@ const SwipeableEmpresaCard: React.FC<SwipeableCardProps> = ({
     setIsSwiping(false);
     const diff = currentXRef.current - startXRef.current;
 
-    if (diff > 70) {
-      // Deslize da Esquerda para a Direita -> ENTRAR EM MODO DE EDIÇÃO
+    // Reseta o deslocamento visual do card
+    setTranslateX(0);
+
+    if (diff > 45) {
+      // Deslize da Esquerda para a Direita -> ENTRAR EM MODO DE EDIÇÃO DO REGISTRO
+      hasSwipedRef.current = true;
       onEdit(emp);
-    } else if (diff < -70) {
+    } else if (diff < -45) {
       // Deslize da Direita para a Esquerda -> EXCLUIR REGISTRO
+      hasSwipedRef.current = true;
       onDelete(emp.id, emp.name);
     }
+  };
 
-    setTranslateX(0);
+  const handleClick = (e: React.MouseEvent) => {
+    // Só entra no modo de visualização se NÃO houve gesto de deslizar (swipe)
+    if (!hasSwipedRef.current) {
+      onView(emp);
+    }
+    hasSwipedRef.current = false;
   };
 
   return (
@@ -174,11 +190,7 @@ const SwipeableEmpresaCard: React.FC<SwipeableCardProps> = ({
         onMouseMove={(e) => handleMove(e.clientX)}
         onMouseUp={handleEnd}
         onMouseLeave={handleEnd}
-        onClick={() => {
-          if (Math.abs(translateX) < 10) {
-            onView(emp);
-          }
-        }}
+        onClick={handleClick}
         style={{
           transform: `translateX(${translateX}px)`,
           transition: isSwiping ? 'none' : 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
