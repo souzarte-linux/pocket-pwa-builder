@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  User, 
-  Bike, 
-  Target, 
   LayoutDashboard, 
   BarChart3, 
   History, 
@@ -67,26 +64,8 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
     }
   };
 
+  // Menu items (Excluídas opções duplicadas: Perfil, Veículo e Metas)
   const menuItems = [
-    {
-      title: 'Perfil',
-      subtitle: 'Dados do motorista e CNH',
-      path: '/perfil',
-      icon: User,
-      highlight: true,
-    },
-    {
-      title: 'Veículo',
-      subtitle: 'Modelo, placa e documentos',
-      path: '/cadastro-veiculo',
-      icon: Bike,
-    },
-    {
-      title: 'Metas Financeiras',
-      subtitle: 'Objetivo de faturamento diário',
-      path: '/metas-financeiras',
-      icon: Target,
-    },
     {
       title: 'Painel Geral',
       subtitle: 'Resumo e indicadores',
@@ -94,7 +73,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
       icon: LayoutDashboard,
     },
     {
-      title: 'Relatorios',
+      title: 'Relatórios',
       subtitle: 'Desempenho e finanças',
       path: '/relatorios',
       icon: BarChart3,
@@ -129,11 +108,12 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
           <SheetTitle>Menu de Navegação</SheetTitle>
         </SheetHeader>
 
-        {/* Top Profile Banner Header */}
+        {/* Top Profile Banner Header - Clicar no usuário navega para o Perfil */}
         <div className="bg-[#1c1b1b] p-5 pt-8 border-b border-[#2a2a2a] relative">
           <div 
             onClick={() => handleNavigate('/perfil')}
             className="flex items-center gap-3 cursor-pointer group p-2 -m-2 rounded-xl hover:bg-[#252424] transition-all"
+            title="Acessar Perfil do Motorista"
           >
             <div className="relative size-14 shrink-0">
               <div className="size-14 rounded-full border-2 border-[#ff5f00] p-0.5 bg-[#0e0e0e] overflow-hidden">
@@ -177,19 +157,16 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
                 className={`w-full min-h-[56px] flex items-center justify-between px-4 py-3 rounded-xl transition-all text-left active:scale-[0.98] ${
                   isActive 
                     ? 'bg-[#ff5f00]/15 text-[#ffb599] border-l-4 border-[#ff5f00] font-bold' 
-                    : item.highlight
-                    ? 'bg-[#201f1f] text-[#e5e2e1] hover:bg-[#2a2a2a] border border-[#ff5f00]/30 font-semibold'
                     : 'bg-[#1c1b1b] text-[#e5e2e1] hover:bg-[#252424] font-medium'
                 }`}
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className={`p-2 rounded-lg shrink-0 ${isActive || item.highlight ? 'bg-[#ff5f00] text-black' : 'bg-[#2a2a2a] text-[#ffb599]'}`}>
+                  <div className={`p-2 rounded-lg shrink-0 ${isActive ? 'bg-[#ff5f00] text-black' : 'bg-[#2a2a2a] text-[#ffb599]'}`}>
                     <Icon className="size-5" />
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm tracking-tight flex items-center gap-1 font-bold">
                       {item.title}
-                      {item.highlight && <span className="text-[#ff5f00] ml-1">→</span>}
                     </div>
                     <p className="text-[11px] text-[#ab8a7d] truncate leading-tight mt-0.5">
                       {item.subtitle}

@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { AppHeader } from '@/components/layout/AppHeader';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { ArrowLeft, Save } from 'lucide-react';
 
 export const CadastroVeiculo = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
 
   const [form, setForm] = useState({
@@ -61,6 +63,16 @@ export const CadastroVeiculo = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleBackClick = () => {
+    // Alerta o usuário sobre perda de alterações não salvas
+    setShowExitConfirm(true);
+  };
+
+  const confirmBackWithoutSave = () => {
+    setShowExitConfirm(false);
+    navigate(-1);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -102,14 +114,37 @@ export const CadastroVeiculo = () => {
 
   return (
     <div className="bg-[#000000] text-[#e5e2e1] min-h-screen font-lexend pb-32">
-      {/* TopAppBar Navigation Shell */}
-      <AppHeader 
-        title="Cadastro do Veículo" 
-        subtitle="Velocity Log" 
-      />
+      {/* TopAppBar Navigation Shell com Seta para a Esquerda no canto superior esquerdo */}
+      <nav className="bg-[#000000]/80 backdrop-blur-lg border-b border-[#333333] flex justify-between items-center w-full px-5 py-4 fixed top-0 z-50">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleBackClick}
+            className="text-white hover:bg-white/10 p-2 rounded-full transition-colors active:scale-95 duration-150"
+            title="Voltar à tela anterior"
+          >
+            <ArrowLeft className="size-6 text-[#FF5F00]" />
+          </button>
+          <h1 className="font-bold text-xl text-white">Cadastro do Veículo</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[#FF5F00] font-black text-xl uppercase tracking-tighter hidden sm:inline">
+            Velocity Log
+          </span>
+          <div className="w-10 h-10 rounded-full bg-[#201f1f] border border-white/10 overflow-hidden">
+            {avatar ? (
+              <img src={avatar} alt="Perfil" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-[#FF5F00] text-black font-black text-base grid place-items-center">
+                M
+              </div>
+            )}
+          </div>
+        </div>
+      </nav>
 
       {/* Main Content Canvas */}
-      <main className="mt-6 px-4 md:px-8 max-w-5xl mx-auto space-y-6">
+      <main className="mt-24 px-4 md:px-8 max-w-5xl mx-auto space-y-6">
         <header className="mb-6">
           <p className="text-[#e4bfb1] text-base">
             Preencha as informações técnicas do seu veículo para otimizar suas rotas e manutenções.
@@ -328,9 +363,16 @@ export const CadastroVeiculo = () => {
         </div>
       </div>
 
-      {/* Decorative ambient glows */}
-      <div className="fixed top-0 right-0 w-1/3 h-1/3 bg-[#ff5f00]/10 blur-[120px] pointer-events-none -z-10" />
-      <div className="fixed bottom-0 left-0 w-1/4 h-1/4 bg-[#00a3b6]/5 blur-[100px] pointer-events-none -z-10" />
+      {/* Confirm Dialog ao clicar na seta para a esquerda */}
+      <ConfirmDialog
+        open={showExitConfirm}
+        title="Descartar Alterações?"
+        description="Você possui informações não salvas. Se voltar agora, todas as alterações efetuadas no cadastro do veículo serão perdidas."
+        confirmLabel="Sair sem Salvar"
+        cancelLabel="Continuar no Cadastro"
+        onConfirm={confirmBackWithoutSave}
+        onCancel={() => setShowExitConfirm(false)}
+      />
     </div>
   );
 };

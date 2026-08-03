@@ -3,18 +3,42 @@ import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { X, Save, ArrowLeft } from 'lucide-react';
+
+// Help functions for visual masks
+const formatDisplayDate = (value: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
+
+const formatDisplayPhone = (value: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 3) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2, 3)}.${digits.slice(3)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 3)}.${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
+const unmaskDigits = (value: string): string => {
+  return value.replace(/\D/g, '');
+};
 
 export const PerfilMotorista = () => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // Form & Profile states
   const [nome, setNome] = useState('Fernando Souza');
   const [sexo, setSexo] = useState('Masculino');
   const [dataNasc, setDataNasc] = useState('12/05/1994');
   const [email, setEmail] = useState('fernando.souza@email.com');
-  const [celular, setCelular] = useState('(11) 98765-4321');
+  const [celular, setCelular] = useState('(11) 9.8765-4321');
   const [whatsapp, setWhatsapp] = useState(true);
   const [redeSocial, setRedeSocial] = useState('fernando_souza');
   const [tipoVeiculo, setTipoVeiculo] = useState<'moto' | 'carro' | 'bike'>('moto');
@@ -44,13 +68,34 @@ export const PerfilMotorista = () => {
             const profileData = p as any;
             if (profileData.full_name) setNome(profileData.full_name);
             if (profileData.avatar_url) setAvatar(profileData.avatar_url);
-            if (profileData.phone) setCelular(profileData.phone);
+            if (profileData.phone) setCelular(formatDisplayPhone(profileData.phone));
+            if (profileData.birth_date) setDataNasc(formatDisplayDate(profileData.birth_date));
             if (profileData.vehicle_model) setModeloVeiculo(profileData.vehicle_model);
             if (profileData.plate) setPlacaVeiculo(profileData.plate);
           }
         });
     });
   }, []);
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatDisplayDate(e.target.value);
+    setDataNasc(formatted);
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatDisplayPhone(e.target.value);
+    setCelular(formatted);
+  };
+
+  const handleCloseEditClick = () => {
+    // Alerta o usuário que edições não salvas serão perdidas ao fechar no "X"
+    setShowExitConfirm(true);
+  };
+
+  const confirmExitWithoutSave = () => {
+    setShowExitConfirm(false);
+    setIsEditing(false);
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,10 +104,15 @@ export const PerfilMotorista = () => {
     try {
       const u = (await supabase.auth.getUser()).data.user;
       if (u) {
+        // Envia para o Banco de Dados os campos sem a máscara
+        const rawPhone = unmaskDigits(celular);
+        const rawDate = unmaskDigits(dataNasc);
+
         await supabase.from('profiles').upsert({
           id: u.id,
           full_name: nome,
-          phone: celular,
+          phone: rawPhone,
+          birth_date: rawDate,
           vehicle_model: modeloVeiculo,
           plate: placaVeiculo,
           updated_at: new Date().toISOString(),
@@ -78,12 +128,40 @@ export const PerfilMotorista = () => {
   };
 
   return (
-    <div className="bg-[#131313] text-[#e5e2e1] min-h-screen font-lexend pb-32">
-      {/* App Header with Hamburger menu */}
-      <AppHeader 
-        title={isEditing ? "EDITAR PERFIL" : "PERFIL MOTORISTA"} 
-        subtitle="Kinetic Velocity" 
-      />
+    <div className="bg-[#131313] text-[#e5e2e1] min-h-screen font-lexend pb-36">
+      {/* App Header com Menu Hamburger */}
+      {!isEditing ? (
+        <AppHeader 
+          title="PERFIL MOTORISTA" 
+          subtitle="Kinetic Velocity" 
+        />
+      ) : (
+        /* Cabeçalho de Edição com Título + Botão X no Canto Superior Direito */
+        <header className="sticky top-0 z-30 bg-[#000000] flex justify-between items-center w-full px-5 h-16 border-b-2 border-[#FF5F00] backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleCloseEditClick}
+              className="text-[#FF5F00] p-2 rounded-full hover:bg-white/5 transition active:scale-95"
+              title="Voltar"
+            >
+              <ArrowLeft className="size-6" />
+            </button>
+            <h1 className="font-lexend font-black uppercase tracking-tighter text-xl text-[#FF5F00]">
+              Editar Perfil
+            </h1>
+          </div>
+
+          {/* Botão Superior Direito X para fechar com Alerta */}
+          <button
+            type="button"
+            onClick={handleCloseEditClick}
+            className="size-10 grid place-items-center rounded-full bg-[#201f1f] text-[#FF5F00] hover:bg-red-900/30 hover:text-red-400 border border-stone-800 transition active:scale-95 shadow-md"
+            title="Fechar edição (X)"
+          >
+            <X className="size-6" />
+          </button>
+        </header>
+      )}
 
       <main className="mt-6 px-5 max-w-2xl mx-auto space-y-6">
         {isEditing ? (
@@ -155,8 +233,10 @@ export const PerfilMotorista = () => {
                   <input
                     type="text"
                     value={dataNasc}
-                    onChange={(e) => setDataNasc(e.target.value)}
-                    className="w-full h-14 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none text-base text-white"
+                    onChange={handleDateChange}
+                    placeholder="DD/MM/YYYY"
+                    maxLength={10}
+                    className="w-full h-14 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none text-base text-white font-medium"
                   />
                 </div>
               </div>
@@ -179,9 +259,10 @@ export const PerfilMotorista = () => {
                   <input
                     type="tel"
                     value={celular}
-                    onChange={(e) => setCelular(e.target.value)}
-                    className="flex-grow h-14 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none text-base text-white"
-                    placeholder="(11) 98765-4321"
+                    onChange={handlePhoneChange}
+                    placeholder="(00) 0.0000-0000"
+                    maxLength={16}
+                    className="flex-grow h-14 bg-[#201f1f] border-2 border-[#353534] rounded-full px-6 focus:border-[#ff5f00] outline-none text-base text-white font-medium"
                     required
                   />
                   <div className="flex items-center bg-[#201f1f] border-2 border-[#353534] rounded-full px-4 h-14 gap-2">
@@ -321,18 +402,18 @@ export const PerfilMotorista = () => {
               </div>
             </section>
 
-            {/* Fixed Footer Action Bar */}
-            <div className="fixed bottom-0 left-0 w-full p-5 bg-gradient-to-t from-[#131313] via-[#131313]/90 to-transparent pt-10 z-40">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-[64px] bg-[#ff5f00] text-black font-extrabold text-xl uppercase tracking-widest rounded-full shadow-[0_8px_24px_rgba(255,95,0,0.3)] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
-              >
-                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  save
-                </span>
-                <span>{loading ? 'Salvando...' : 'Salvar Alterações'}</span>
-              </button>
+            {/* Botão Inferior Centralizado "Salvar Alterações" */}
+            <div className="fixed bottom-0 left-0 w-full p-4 bg-gradient-to-t from-[#131313] via-[#131313]/95 to-transparent pt-8 z-40 flex justify-center">
+              <div className="max-w-2xl w-full">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-[64px] bg-[#ff5f00] text-black font-lexend font-black text-xl uppercase tracking-widest rounded-full shadow-[0_8px_24px_rgba(255,95,0,0.3)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+                >
+                  <Save className="size-6" />
+                  <span>{loading ? 'Salvando...' : 'Salvar Alterações'}</span>
+                </button>
+              </div>
             </div>
           </form>
         ) : (
@@ -359,6 +440,7 @@ export const PerfilMotorista = () => {
                   <span
                     onClick={() => setIsEditing(true)}
                     className="material-symbols-outlined text-gray-400 text-xl cursor-pointer hover:text-[#ff5f00] transition-colors"
+                    title="Editar Perfil"
                   >
                     edit
                   </span>
@@ -380,6 +462,7 @@ export const PerfilMotorista = () => {
                       type="button"
                       onClick={() => navigate('/metas-financeiras')}
                       className="w-9 h-9 rounded-full flex items-center justify-center bg-[#353534] hover:bg-[#ff5f00] text-white transition-all"
+                      title="Editar Metas"
                     >
                       <span className="material-symbols-outlined text-lg">edit</span>
                     </button>
@@ -440,39 +523,16 @@ export const PerfilMotorista = () => {
         )}
       </main>
 
-      {/* Floating Bottom Nav */}
-      <nav className="fixed bottom-6 left-0 w-full z-50 flex justify-center items-center px-4">
-        <div className="bg-[#121212]/90 backdrop-blur-2xl border border-white/10 rounded-full flex items-center justify-between px-6 py-2 w-full max-w-md shadow-2xl shadow-orange-900/20">
-          <button
-            onClick={() => navigate('/')}
-            className="flex flex-col items-center justify-center text-stone-400 px-4 py-2 hover:text-white transition-all active:scale-90"
-          >
-            <span className="material-symbols-outlined text-xl">home</span>
-            <span className="text-[10px] font-semibold uppercase tracking-widest mt-0.5">Início</span>
-          </button>
-          <button
-            onClick={() => navigate('/painel')}
-            className="flex flex-col items-center justify-center text-stone-400 px-4 py-2 hover:text-white transition-all active:scale-90"
-          >
-            <span className="material-symbols-outlined text-xl">speed</span>
-            <span className="text-[10px] font-semibold uppercase tracking-widest mt-0.5">Painel</span>
-          </button>
-          <button
-            onClick={() => navigate('/apps')}
-            className="flex flex-col items-center justify-center text-stone-400 px-4 py-2 hover:text-white transition-all active:scale-90"
-          >
-            <span className="material-symbols-outlined text-xl">grid_view</span>
-            <span className="text-[10px] font-semibold uppercase tracking-widest mt-0.5">Apps</span>
-          </button>
-          <button
-            onClick={() => setIsEditing(false)}
-            className="flex flex-col items-center justify-center bg-[#ff5f00] text-white rounded-full px-5 py-2 active:scale-90 shadow-lg"
-          >
-            <span className="material-symbols-outlined text-xl">person</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest mt-0.5">Perfil</span>
-          </button>
-        </div>
-      </nav>
+      {/* Alerta de confirmação para sair da edição sem salvar */}
+      <ConfirmDialog
+        open={showExitConfirm}
+        title="Descartar Alterações?"
+        description="Você possui alterações não salvas no perfil. Se sair agora, todas as edições serão perdidas."
+        confirmLabel="Sair sem Salvar"
+        cancelLabel="Continuar Editando"
+        onConfirm={confirmExitWithoutSave}
+        onCancel={() => setShowExitConfirm(false)}
+      />
     </div>
   );
 };
