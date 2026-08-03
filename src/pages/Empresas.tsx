@@ -207,7 +207,7 @@ export const Empresas = () => {
 
   return (
     <div className="bg-[#131313] text-[#e5e2e1] min-h-screen font-lexend pb-32">
-      <AppHeader title="PRESTADORAS DE SERVIÇOS" subtitle="Empresas, Oficinas e Restaurantes Cadastrados" />
+      <AppHeader title="PRESTADORAS DE SERVIÇOS" subtitle="Empresas, Oficinas e Restaurantes Cadastrados" back />
 
       <main className="px-5 pt-6 max-w-3xl mx-auto space-y-6">
         {/* Banner Superior */}
