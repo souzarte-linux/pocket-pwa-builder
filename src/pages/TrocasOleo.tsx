@@ -15,7 +15,10 @@ import {
   ShieldCheck, 
   History,
   Check,
-  X
+  X,
+  Eye,
+  Save,
+  FolderPlus
 } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,8 +64,17 @@ export const TrocasOleo = () => {
   const [notes, setNotes] = useState('');
   const [changeDate, setChangeDate] = useState(new Date().toISOString().slice(0, 16));
 
-  // Edição
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // Modal para criar nova peça com vida útil pelo botão "+"
+  const [showAddPartModal, setShowAddPartModal] = useState(false);
+  const [newPartNameInput, setNewPartNameInput] = useState('');
+  const [newPartLifeInput, setNewPartLifeInput] = useState('10000');
+
+  // Modal de Detalhes do Histórico (Exibição) + Edição
+  const [viewHistoryItem, setViewHistoryItem] = useState<any | null>(null);
+  const [isEditingHistoryModal, setIsEditingHistoryModal] = useState(false);
+  const [editHistoryKm, setEditHistoryKm] = useState('');
+  const [editHistoryDate, setEditHistoryDate] = useState('');
+  const [editHistoryNotes, setEditHistoryNotes] = useState('');
 
   const loadData = async () => {
     try {
@@ -129,6 +141,32 @@ export const TrocasOleo = () => {
     }
   };
 
+  // Criar nova peça com vida útil personalizada usando o botão "+"
+  const handleCreateCustomPart = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPartNameInput.trim()) {
+      toast.error('Informe o nome da nova peça');
+      return;
+    }
+
+    const lifeNum = Number(newPartLifeInput) || 10000;
+    const newPartObj: PartMaintenanceItem = {
+      id: `custom-${Date.now()}`,
+      part_name: newPartNameInput.trim(),
+      life_km: lifeNum,
+      last_change_km: currentOdometer,
+      last_change_date: new Date().toISOString(),
+    };
+
+    setParts((prev) => [newPartObj, ...prev]);
+    setSelectedPart(newPartNameInput.trim());
+    setLifeKm(String(lifeNum));
+    setShowAddPartModal(false);
+    setNewPartNameInput('');
+    setNewPartLifeInput('10000');
+    toast.success(`Peça "${newPartObj.part_name}" criada com vida útil de ${lifeNum.toLocaleString('pt-BR')} KM!`);
+  };
+
   const handleRegisterService = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -187,7 +225,7 @@ export const TrocasOleo = () => {
 
       setParts(updatedParts);
 
-      // Tenta atualizar no Supabase se existir a tabela part_maintenance
+      // Tenta atualizar no Supabase
       await supabase.from('part_maintenance' as any).upsert({
         user_id: u.user.id,
         part_name: partName,
@@ -209,11 +247,62 @@ export const TrocasOleo = () => {
     }
   };
 
-  const handleDeleteHistoryItem = async (id: string) => {
+  // Exibir Modal de Detalhes Completo
+  const handleOpenViewHistory = (it: any) => {
+    setViewHistoryItem(it);
+    setIsEditingHistoryModal(false);
+    setEditHistoryKm(String(it.km_at_change));
+    setEditHistoryDate(new Date(it.changed_at).toISOString().slice(0, 16));
+    setEditHistoryNotes(it.notes ?? '');
+  };
+
+  // Abrir direto modo Edição
+  const handleOpenEditHistory = (e: React.MouseEvent, it: any) => {
+    e.stopPropagation();
+    setViewHistoryItem(it);
+    setIsEditingHistoryModal(true);
+    setEditHistoryKm(String(it.km_at_change));
+    setEditHistoryDate(new Date(it.changed_at).toISOString().slice(0, 16));
+    setEditHistoryNotes(it.notes ?? '');
+  };
+
+  // Salvar Edição do Histórico
+  const handleSaveHistoryEdit = async () => {
+    if (!viewHistoryItem) return;
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('oil_changes' as any)
+        .update({
+          changed_at: new Date(editHistoryDate).toISOString(),
+          km_at_change: Number(editHistoryKm) || 0,
+          notes: editHistoryNotes || null,
+        } as any)
+        .eq('id', viewHistoryItem.id);
+
+      if (error) {
+        toast.error('Erro ao atualizar: ' + error.message);
+      } else {
+        toast.success('Registro do histórico atualizado!');
+        setViewHistoryItem(null);
+        setIsEditingHistoryModal(false);
+        loadData();
+      }
+    } catch (err: any) {
+      toast.error('Erro ao atualizar registro.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteHistoryItem = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
     if (!confirm('Deseja remover este registro do histórico?')) return;
     try {
       await supabase.from('oil_changes' as any).delete().eq('id', id);
       toast.success('Registro removido com sucesso!');
+      if (viewHistoryItem?.id === id) setViewHistoryItem(null);
       loadData();
     } catch (err: any) {
       toast.error('Erro ao remover registro.');
@@ -326,34 +415,49 @@ export const TrocasOleo = () => {
         </section>
 
         {/* ========================================================
-           SEÇÃO 2: REGISTRAR NOVA TROCA OU SERVIÇO REALIZADO
+           SEÇÃO 2: REGISTRAR NOVA TROCA (COM BOTÃO + PARA NOVA PEÇA)
            ======================================================== */}
         <section className="bg-[#1c1b1b] p-6 rounded-3xl border border-[#2a2a2a] space-y-4">
-          <div className="flex items-center gap-2 text-[#ff5f00]">
-            <Plus className="size-5" />
-            <h2 className="text-lg font-extrabold text-white uppercase tracking-tight">
-              Registrar Nova Troca / Manutenção
-            </h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[#ff5f00]">
+              <Plus className="size-5" />
+              <h2 className="text-lg font-extrabold text-white uppercase tracking-tight">
+                Registrar Nova Troca / Manutenção
+              </h2>
+            </div>
           </div>
 
           <form onSubmit={handleRegisterService} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Campo Peça / Serviço com Botão "+" ao lado */}
               <div>
                 <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">
                   Peça / Serviço
                 </label>
-                <select
-                  value={selectedPart}
-                  onChange={(e) => handlePartSelect(e.target.value)}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
-                >
-                  {DEFAULT_PARTS.map((p) => (
-                    <option key={p.part_name} value={p.part_name}>
-                      {p.part_name} (Vida: {p.life_km.toLocaleString('pt-BR')} KM)
-                    </option>
-                  ))}
-                  <option value="Outra Peça">Outra Peça / Serviço Personalizado</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedPart}
+                    onChange={(e) => handlePartSelect(e.target.value)}
+                    className="flex-grow h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                  >
+                    {parts.map((p) => (
+                      <option key={p.id || p.part_name} value={p.part_name}>
+                        {p.part_name} (Vida: {p.life_km.toLocaleString('pt-BR')} KM)
+                      </option>
+                    ))}
+                    <option value="Outra Peça">Outra Peça / Serviço Personalizado</option>
+                  </select>
+
+                  {/* Botão "+" ao lado da lista Peça / Serviço */}
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPartModal(true)}
+                    className="size-14 shrink-0 bg-[#ff5f00] text-black font-extrabold rounded-2xl grid place-items-center hover:bg-[#ffb599] active:scale-95 transition shadow-lg"
+                    title="Criar nova peça com vida útil personalizada (+)"
+                  >
+                    <Plus className="size-6 stroke-[3]" />
+                  </button>
+                </div>
               </div>
 
               {selectedPart === 'Outra Peça' && (
@@ -474,14 +578,15 @@ export const TrocasOleo = () => {
               {history.map((it) => (
                 <div 
                   key={it.id}
-                  className="bg-[#201f1f] p-4 rounded-2xl border border-stone-800 flex items-center justify-between gap-3 hover:border-stone-700 transition"
+                  onClick={() => handleOpenViewHistory(it)}
+                  className="bg-[#201f1f] p-4 rounded-2xl border border-stone-800 flex items-center justify-between gap-3 hover:border-[#ff5f00]/50 transition cursor-pointer group"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="p-3 bg-[#ff5f00]/15 text-[#ff5f00] rounded-xl shrink-0">
+                    <div className="p-3 bg-[#ff5f00]/15 text-[#ff5f00] rounded-xl shrink-0 group-hover:bg-[#ff5f00] group-hover:text-black transition">
                       <Wrench className="size-5" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-extrabold text-sm text-white truncate">
+                      <h4 className="font-extrabold text-sm text-white group-hover:text-[#ffb599] transition truncate">
                         {it.notes || 'Troca de Óleo / Serviço'}
                       </h4>
                       <p className="text-xs text-[#ab8a7d] font-semibold mt-0.5">
@@ -490,19 +595,234 @@ export const TrocasOleo = () => {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleDeleteHistoryItem(it.id)}
-                    className="p-2 text-stone-500 hover:text-red-400 hover:bg-red-950/40 rounded-xl transition shrink-0"
-                    title="Excluir do histórico"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
+                  {/* Ícones de Edição e Lixeira no Histórico */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={(e) => handleOpenEditHistory(e, it)}
+                      className="p-2 text-stone-400 hover:text-[#ff5f00] hover:bg-[#ff5f00]/15 rounded-xl transition"
+                      title="Editar registro do histórico"
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteHistoryItem(e, it.id)}
+                      className="p-2 text-stone-500 hover:text-red-400 hover:bg-red-950/40 rounded-xl transition"
+                      title="Excluir registro do histórico"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </section>
       </main>
+
+      {/* ========================================================
+         MODAL 1: CRIAR NOVA PEÇA COM VIDA ÚTIL (BOTÃO "+")
+         ======================================================== */}
+      {showAddPartModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 font-lexend">
+          <div className="w-full max-w-md bg-[#1c1b1b] border-2 border-[#ff5f00]/50 rounded-3xl p-6 shadow-2xl space-y-5 text-[#e5e2e1] relative">
+            <button
+              onClick={() => setShowAddPartModal(false)}
+              className="absolute top-4 right-4 p-2 text-[#ab8a7d] hover:text-white rounded-full bg-[#201f1f] transition"
+            >
+              <X className="size-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-[#ff5f00] text-black rounded-2xl shrink-0 font-extrabold">
+                <FolderPlus className="size-6" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-lg text-white uppercase tracking-tight">Nova Peça para Monitoramento</h3>
+                <p className="text-xs text-[#ab8a7d]">Cadastre uma peça personalizada e sua vida útil recomendada.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateCustomPart} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Nome da Peça / Serviço</label>
+                <input
+                  type="text"
+                  value={newPartNameInput}
+                  onChange={(e) => setNewPartNameInput(e.target.value)}
+                  placeholder="Ex: Amortecedor Traseiro"
+                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Vida Útil Recomendada (KM)</label>
+                <input
+                  type="number"
+                  value={newPartLifeInput}
+                  onChange={(e) => setNewPartLifeInput(e.target.value)}
+                  placeholder="Ex: 20000"
+                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddPartModal(false)}
+                  className="flex-1 h-12 rounded-2xl bg-[#201f1f] text-[#e5e2e1] font-bold text-sm hover:bg-[#252424] transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg"
+                >
+                  Adicionar Peça
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+         MODAL 2: DETALHES COMPLETOS / EDIÇÃO DO ITEM DO HISTÓRICO
+         ======================================================== */}
+      {viewHistoryItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 font-lexend">
+          <div className="w-full max-w-lg bg-[#1c1b1b] border-2 border-[#ff5f00]/50 rounded-3xl p-6 shadow-2xl space-y-5 text-[#e5e2e1] relative overflow-hidden">
+            {/* Cabeçalho do Modal */}
+            <div className="flex items-center justify-between border-b border-[#2a2a2a] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-[#ff5f00]/20 text-[#ff5f00] rounded-2xl shrink-0 font-extrabold">
+                  <Wrench className="size-6" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-lg text-white uppercase tracking-tight">
+                    {isEditingHistoryModal ? 'Editar Registro de Serviço' : 'Detalhes do Serviço Realizado'}
+                  </h3>
+                  <p className="text-xs text-[#ab8a7d]">
+                    {isEditingHistoryModal ? 'Altere as informações necessárias abaixo' : 'Modo de visualização detalhada'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Ícone de Edição dentro da Janela de Detalhes */}
+                {!isEditingHistoryModal && (
+                  <button
+                    onClick={() => setIsEditingHistoryModal(true)}
+                    className="p-2.5 text-[#ff5f00] hover:bg-[#ff5f00]/15 rounded-2xl border border-[#ff5f00]/30 transition"
+                    title="Editar informações deste serviço"
+                  >
+                    <Pencil className="size-5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setViewHistoryItem(null)}
+                  className="p-2 text-[#ab8a7d] hover:text-white rounded-full bg-[#201f1f] transition"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+            </div>
+
+            {isEditingHistoryModal ? (
+              /* MODO DE EDIÇÃO NO MODAL */
+              <div className="space-y-4 pt-1">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Data e Hora do Serviço</label>
+                  <input
+                    type="datetime-local"
+                    value={editHistoryDate}
+                    onChange={(e) => setEditHistoryDate(e.target.value)}
+                    className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">KM no Momento da Troca</label>
+                  <input
+                    type="number"
+                    value={editHistoryKm}
+                    onChange={(e) => setEditHistoryKm(e.target.value)}
+                    className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Detalhes / Observações</label>
+                  <input
+                    type="text"
+                    value={editHistoryNotes}
+                    onChange={(e) => setEditHistoryNotes(e.target.value)}
+                    className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingHistoryModal(false)}
+                    className="flex-1 h-12 rounded-2xl bg-[#201f1f] text-[#e5e2e1] font-bold text-sm hover:bg-[#252424] transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveHistoryEdit}
+                    disabled={loading}
+                    className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <Save className="size-4" />
+                    <span>Salvar Alterações</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* MODO DE VISUALIZAÇÃO COMPLETA NO MODAL */
+              <div className="space-y-4 pt-1">
+                <div className="bg-[#201f1f] p-4 rounded-2xl border border-stone-800 space-y-3">
+                  <div>
+                    <span className="block text-[10px] text-[#ab8a7d] uppercase font-extrabold">Serviço / Peça</span>
+                    <span className="text-base font-extrabold text-white">
+                      {viewHistoryItem.notes || 'Troca de Óleo / Manutenção'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-stone-800">
+                    <div>
+                      <span className="block text-[10px] text-[#ab8a7d] uppercase font-extrabold">Data do Registro</span>
+                      <span className="text-sm font-bold text-[#e5e2e1]">
+                        {new Date(viewHistoryItem.changed_at).toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="block text-[10px] text-[#ab8a7d] uppercase font-extrabold">KM Registrado</span>
+                      <span className="text-sm font-extrabold text-[#ff5f00]">
+                        {Number(viewHistoryItem.km_at_change).toLocaleString('pt-BR')} KM
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setViewHistoryItem(null)}
+                    className="w-full h-12 rounded-2xl bg-[#201f1f] text-[#e5e2e1] font-bold text-sm hover:bg-[#252424] transition"
+                  >
+                    Fechar Visualização
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
