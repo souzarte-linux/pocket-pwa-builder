@@ -87,14 +87,21 @@ export const parseCurrencyInput = (val: string): { display: string; numeric: num
   return { display, numeric };
 };
 
-/** Phone number mask (00) 00000-0000 */
+/** Phone number mask (00) 0.0000-0000 */
 export const formatPhoneMask = (val: string): string => {
   const digits = val.replace(/\D/g, '').slice(0, 11);
   if (digits.length === 0) return '';
   if (digits.length <= 2) return `(${digits}`;
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  if (digits.length <= 3) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2, 3)}.${digits.slice(3)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 3)}.${digits.slice(3, 7)}-${digits.slice(7)}`;
 };
+
+/** Unformat phone number to contain numbers only (digits without mask) */
+export const unformatPhone = (val: string): string => {
+  return val.replace(/\D/g, '');
+};
+
 
 /** CEP mask 00000-000 */
 export const formatCepMask = (val: string): string => {

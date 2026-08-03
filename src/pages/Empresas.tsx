@@ -20,6 +20,7 @@ import {
 import { AppHeader } from '@/components/layout/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { formatPhoneMask, unformatPhone } from '@/lib/format';
 
 interface EmpresaItem {
   id: string;
@@ -145,11 +146,13 @@ export const Empresas = () => {
       return;
     }
 
+    const rawDigits = unformatPhone(phone);
+
     const newEmpresa: EmpresaItem = {
       id: `emp-${Date.now()}`,
       name: name.trim(),
       category,
-      phone: phone.trim() || undefined,
+      phone: rawDigits || undefined,
       address: address.trim() || undefined,
       total_services: 1,
       last_service_date: new Date().toISOString(),
@@ -168,8 +171,17 @@ export const Empresas = () => {
     e.preventDefault();
     if (!editingItem) return;
 
+    // Quando for armazenado no banco de dados, é enviada apenas a numeração (SEM a máscara)
+    const rawDigits = editingItem.phone ? unformatPhone(editingItem.phone) : undefined;
+    const updatedItem: EmpresaItem = {
+      ...editingItem,
+      name: editingItem.name.trim(),
+      phone: rawDigits || undefined,
+      address: editingItem.address ? editingItem.address.trim() : undefined,
+    };
+
     setEmpresas((prev) =>
-      prev.map((eItem) => (eItem.id === editingItem.id ? editingItem : eItem))
+      prev.map((eItem) => (eItem.id === editingItem.id ? updatedItem : eItem))
     );
 
     setEditingItem(null);
@@ -318,7 +330,7 @@ export const Empresas = () => {
                   {emp.phone && (
                     <div className="flex items-center gap-2">
                       <Phone className="size-3.5 text-[#ff5f00]" />
-                      <span className="font-medium text-white">{emp.phone}</span>
+                      <span className="font-medium text-white">{formatPhoneMask(emp.phone)}</span>
                     </div>
                   )}
 
@@ -475,11 +487,12 @@ export const Empresas = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Telefone</label>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Telefone / Celular</label>
                 <input
                   type="text"
-                  value={editingItem.phone || ''}
-                  onChange={(e) => setEditingItem({ ...editingItem, phone: e.target.value })}
+                  value={editingItem.phone ? formatPhoneMask(editingItem.phone) : ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, phone: formatPhoneMask(e.target.value) })}
+                  placeholder="(00) 0.0000-0000"
                   className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
                 />
               </div>
@@ -583,7 +596,7 @@ export const Empresas = () => {
                 <div className="flex items-center gap-3 bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
                   <Phone className="size-4 text-[#ff5f00] shrink-0" />
                   <span className="text-sm font-semibold text-white">
-                    {viewingItem.phone || 'Não cadastrado'}
+                    {viewingItem.phone ? formatPhoneMask(viewingItem.phone) : 'Não cadastrado'}
                   </span>
                 </div>
               </div>

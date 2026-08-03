@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Field, Input, TextArea, SubmitButton } from '@/components/forms/Form';
-import { formatPhoneMask, formatCepMask, formatCnpjMask, validateCNPJ } from '@/lib/format';
+import { formatPhoneMask, formatCepMask, formatCnpjMask, validateCNPJ, unformatPhone } from '@/lib/format';
 import { supabase } from '@/integrations/supabase/client';
 import { MessageCircle, Share, Building2, MapPin, FileText, Globe, Search, Loader2, Hash, FileEdit } from 'lucide-react';
 import { toast } from 'sonner';
@@ -107,7 +107,7 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
         number: number.trim() || null,
         complement: complement.trim() || null,
         cnpj: cleanCnpj || null,
-        phone: phone.trim() || null,
+        phone: unformatPhone(phone) || null,
         is_whatsapp: isWhatsapp,
         social_media: socialMedia.trim() || null,
         website: website.trim() || null,
@@ -279,7 +279,7 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
                 <Input
                   value={phone}
                   onChange={(e) => handlePhoneChange(e.target.value)}
-                  placeholder="(00) 00000-0000"
+                  placeholder="(00) 0.0000-0000"
                   type="tel"
                 />
               </div>
