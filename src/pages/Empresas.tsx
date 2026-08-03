@@ -534,22 +534,7 @@ export const Empresas = () => {
             </button>
           </div>
 
-          {/* Filtro Rápido por Categoria */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
-            {['Todas', ...categories].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setFilterCategory(cat)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition border ${
-                  filterCategory === cat
-                    ? 'bg-[#ff5f00] text-black border-[#ff5f00]'
-                    : 'bg-[#1c1b1b] text-[#ab8a7d] border-stone-800 hover:text-white'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+
 
           {/* Dica de Uso com Deslize (Slide Gesture) */}
           <div className="flex flex-col items-center justify-center text-center text-xs py-1 space-y-1 font-bold">
