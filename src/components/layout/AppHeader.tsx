@@ -1,7 +1,8 @@
-import { Bell, ChevronLeft } from 'lucide-react';
+import { Bell, ChevronLeft, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { SideDrawer } from './SideDrawer';
 
 interface Props {
   title?: string;
@@ -12,6 +13,7 @@ interface Props {
 
 export const AppHeader = ({ title = 'CENTRAL DO\nMOTORISTA', subtitle, back, right }: Props) => {
   const navigate = useNavigate();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [name, setName] = useState<string>('');
 
@@ -33,56 +35,50 @@ export const AppHeader = ({ title = 'CENTRAL DO\nMOTORISTA', subtitle, back, rig
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 bg-background/85 backdrop-blur-xl border-b border-border/40 safe-top">
-      <div className="flex items-center justify-between gap-3 px-5 py-3">
-        <div className="flex items-center gap-3 min-w-0">
-          {back ? (
-            <button
-              onClick={() => navigate(-1)}
-              className="size-10 grid place-items-center rounded-full text-primary hover:bg-surface-high active:scale-95 transition"
-              aria-label="Voltar"
-            >
-              <ChevronLeft className="size-6" />
-            </button>
-          ) : (
+    <>
+      <header className="sticky top-0 z-30 bg-[#131313]/90 backdrop-blur-xl border-b border-[#ff5f00]/30 safe-top">
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {back ? (
+              <button
+                onClick={() => navigate(-1)}
+                className="size-11 min-h-[44px] min-w-[44px] grid place-items-center rounded-xl bg-[#201f1f] text-[#ff5f00] hover:bg-[#2a2a2a] active:scale-95 transition border border-[#ff5f00]/20"
+                aria-label="Voltar"
+              >
+                <ChevronLeft className="size-6" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setDrawerOpen(true)}
+                className="size-11 min-h-[44px] min-w-[44px] shrink-0 grid place-items-center rounded-xl bg-[#201f1f] text-[#ff5f00] hover:bg-[#2a2a2a] border-2 border-[#ff5f00]/40 active:scale-95 transition shadow-lg"
+                aria-label="Abrir menu de navegação"
+              >
+                <Menu className="size-6" />
+              </button>
+            )}
+            <div className="min-w-0">
+              <h1 className="font-lexend font-extrabold text-[#ffb599] text-lg leading-[1.1] whitespace-pre-line uppercase tracking-tight">
+                {title}
+              </h1>
+              {subtitle && (
+                <p className="text-xs text-[#ab8a7d] mt-0.5 truncate font-medium">{subtitle}</p>
+              )}
+            </div>
+          </div>
+          {right ?? (
             <button
               onClick={() => navigate('/configuracoes')}
-              className="relative size-11 shrink-0"
-              aria-label="Configurações"
+              className="size-11 min-h-[44px] min-w-[44px] grid place-items-center rounded-xl bg-[#201f1f] text-[#e5e2e1] hover:bg-[#2a2a2a] transition border border-stone-800"
+              aria-label="Notificações"
             >
-              <div className="size-11 rounded-full border-2 border-primary p-[2px] bg-surface">
-                {avatar ? (
-                  <img
-                    src={avatar}
-                    alt={name}
-                    className="size-full rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="size-full rounded-full bg-gradient-primary grid place-items-center text-primary-foreground font-bold text-sm">
-                    {name?.[0]?.toUpperCase() || 'D'}
-                  </div>
-                )}
-              </div>
+              <Bell className="size-5 text-[#ffb599]" />
             </button>
           )}
-          <div className="min-w-0">
-            <h1 className="display text-primary text-lg leading-[1.05] whitespace-pre-line">
-              {title}
-            </h1>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>
-            )}
-          </div>
         </div>
-        {right ?? (
-          <button
-            className="size-10 grid place-items-center rounded-xl bg-surface-high text-foreground hover:bg-surface-highest transition"
-            aria-label="Notificações"
-          >
-            <Bell className="size-5" />
-          </button>
-        )}
-      </div>
-    </header>
+      </header>
+
+      <SideDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
+    </>
   );
 };
+

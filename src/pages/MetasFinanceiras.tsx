@@ -1,148 +1,183 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Info, Sparkles, Target } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Target, 
+  TrendingUp, 
+  Sparkles, 
+  Save, 
+  DollarSign, 
+  Calendar, 
+  CheckCircle2, 
+  Plus 
+} from 'lucide-react';
+import { AppHeader } from '@/components/layout/AppHeader';
+import { toast } from 'sonner';
 
-const MetasFinanceiras = () => {
+export const MetasFinanceiras = () => {
   const navigate = useNavigate();
-  const [metaDiaria, setMetaDiaria] = useState("350,00");
-  const [metaSemanal, setMetaSemanal] = useState("2.100,00");
-  const [metaMensal, setMetaMensal] = useState("8.500,00");
+  const [metaDiaria, setMetaDiaria] = useState('350');
+  const [metaSemanal, setMetaSemanal] = useState('2100');
+  const [metaMensal, setMetaMensal] = useState('8400');
+  const [acumuladoMes, setAcumuladoMes] = useState('5880');
+  const [loading, setLoading] = useState(false);
+
+  const numDiaria = parseFloat(metaDiaria) || 0;
+  const numMensal = parseFloat(metaMensal) || 1;
+  const numAcumulado = parseFloat(acumuladoMes) || 0;
+  const progresso = Math.min(100, Math.round((numAcumulado / numMensal) * 100));
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      toast.success('Metas financeiras salvas com sucesso!');
+    }, 500);
+  };
+
+  const handleAddPreset = (value: number) => {
+    const novao = (numDiaria + value).toString();
+    setMetaDiaria(novao);
+    setMetaSemanal((parseFloat(novao) * 6).toString());
+    setMetaMensal((parseFloat(novao) * 24).toString());
+  };
 
   return (
-    <div className="min-h-screen bg-[#070707] text-white flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md rounded-[36px] border border-white/10 bg-[#101010] shadow-[0_60px_120px_rgba(0,0,0,0.35)] overflow-hidden">
-        <div className="p-7 space-y-7">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center justify-center shrink-0 w-12 h-12 rounded-2xl bg-[#1b1b1b] border border-[#FF5F00]/20 text-[#FF8A2D]">
-              <Target size={24} />
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-2xl font-black uppercase tracking-tight text-white">Metas Financeiras</h1>
-              <p className="text-sm leading-6 text-[#c8b1a4] max-w-xs">
-                Ajuste seus objetivos de faturamento para otimizar sua performance logística.
-              </p>
-            </div>
-          </div>
+    <div className="min-h-screen bg-[#131313] text-[#e5e2e1] font-lexend pb-28">
+      <AppHeader title="METAS FINANCEIRAS" subtitle="Planejamento de Faturamento" />
 
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#dab9a6]">Meta Diária</span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-[#FFB699] transition hover:bg-white/15">
-                      <Info size={12} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-[#121212] text-white border border-white/10">
-                    Valor recomendado com base no histórico de entregas.
-                  </TooltipContent>
-                </Tooltip>
+      <main className="px-5 pt-6 max-w-xl mx-auto space-y-6">
+        {/* Banner Hero */}
+        <div className="bg-[#1c1b1b] p-6 rounded-3xl border-2 border-[#ff5f00]/40 relative overflow-hidden shadow-2xl space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-3.5 bg-[#ff5f00] text-black rounded-2xl font-black shrink-0 shadow-lg">
+                <Target className="size-7" />
               </div>
-              <div className="rounded-full border border-white/10 bg-white/5 px-5 py-4 flex items-center justify-between gap-3">
-                <span className="text-sm uppercase tracking-[0.18em] text-[#d6b9a7]">R$</span>
-                <input
-                  value={metaDiaria}
-                  onChange={(event) => setMetaDiaria(event.target.value)}
-                  className="w-full bg-transparent text-right text-2xl font-semibold text-white outline-none placeholder:text-white/30"
-                  placeholder="0,00"
-                  type="text"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#dab9a6]">Meta Semanal</span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-[#FFB699] transition hover:bg-white/15">
-                      <Info size={12} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-[#121212] text-white border border-white/10">
-                    Esta meta ajuda a planejar receitas semanais de forma mais consistente.
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <div className="rounded-full border border-white/10 bg-white/5 px-5 py-4 flex items-center justify-between gap-3">
-                <span className="text-sm uppercase tracking-[0.18em] text-[#d6b9a7]">R$</span>
-                <input
-                  value={metaSemanal}
-                  onChange={(event) => setMetaSemanal(event.target.value)}
-                  className="w-full bg-transparent text-right text-2xl font-semibold text-white outline-none placeholder:text-white/30"
-                  placeholder="0,00"
-                  type="text"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#dab9a6]">Meta Mensal</span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-[#FFB699] transition hover:bg-white/15">
-                      <Info size={12} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-[#121212] text-white border border-white/10">
-                    Com base nas metas diárias e semanais, é mais fácil manter o foco mensal.
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <div className="rounded-full border border-white/10 bg-white/5 px-5 py-4 flex items-center justify-between gap-3">
-                <span className="text-sm uppercase tracking-[0.18em] text-[#d6b9a7]">R$</span>
-                <input
-                  value={metaMensal}
-                  onChange={(event) => setMetaMensal(event.target.value)}
-                  className="w-full bg-transparent text-right text-2xl font-semibold text-white outline-none placeholder:text-white/30"
-                  placeholder="0,00"
-                  type="text"
-                />
+              <div>
+                <h2 className="font-extrabold text-xl text-[#e5e2e1]">Objetivo Financeiro</h2>
+                <p className="text-xs text-[#ab8a7d] mt-0.5 font-medium">Foco diário para máxima rentabilidade</p>
               </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full rounded-full border-[#FF5F00] text-[#FF8A2D] hover:bg-[#ff5f00]/10"
-              onClick={() => navigate(-1)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              className="w-full rounded-full bg-[#FF5F00] text-black shadow-[0_20px_30px_rgba(255,95,0,0.32)] hover:bg-[#ff7b2e]"
-            >
-              Salvar
-            </Button>
+          {/* Progress Tracker Bar */}
+          <div className="bg-[#201f1f] p-4 rounded-2xl border border-stone-800 space-y-2">
+            <div className="flex justify-between items-center text-xs font-extrabold">
+              <span className="text-[#ab8a7d] uppercase tracking-wider">Progresso Mês Atual</span>
+              <span className="text-[#ff5f00]">R$ {numAcumulado.toLocaleString('pt-BR')} ({progresso}%)</span>
+            </div>
+            <div className="h-4 bg-[#0e0e0e] rounded-full overflow-hidden p-0.5 border border-stone-800">
+              <div 
+                className="h-full bg-gradient-to-r from-[#ff5f00] to-[#ffb599] rounded-full transition-all duration-500" 
+                style={{ width: `${progresso}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-[#ab8a7d] font-semibold text-right">
+              Faltam R$ {Math.max(0, numMensal - numAcumulado).toLocaleString('pt-BR')} para atingir a meta
+            </p>
           </div>
         </div>
 
-        <div className="border-t border-white/10 bg-[#090909] px-7 py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 text-sm text-[#d6b9a7]">
-            <div className="w-9 h-9 rounded-2xl bg-[#111111] border border-white/10 flex items-center justify-center text-[#4de6ff]">
-              <Sparkles size={18} />
+        {/* Form Meta inputs */}
+        <form onSubmit={handleSave} className="space-y-5">
+          <div className="bg-[#1c1b1b] p-5 rounded-3xl border border-[#2a2a2a] space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-[#ff5f00] flex items-center gap-2">
+                <DollarSign className="size-4" /> Meta Diária (R$)
+              </h3>
+              <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2.5 py-1 rounded-full">
+                ~ {Math.ceil(numDiaria / 15)} entregas/dia
+              </span>
             </div>
-            <span>Sugestão baseada no histórico: R$ 420,00/dia</span>
+
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-xl text-[#ff5f00]">R$</span>
+              <input
+                type="number"
+                value={metaDiaria}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setMetaDiaria(val);
+                  const n = parseFloat(val) || 0;
+                  setMetaSemanal((n * 6).toString());
+                  setMetaMensal((n * 24).toString());
+                }}
+                className="w-full h-16 pl-14 pr-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-black text-2xl outline-none transition"
+                placeholder="350"
+                required
+              />
+            </div>
+
+            {/* Presets rápidas */}
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-xs font-bold text-[#ab8a7d] mr-1">Incrementar:</span>
+              {[50, 100, 200].map((val) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => handleAddPreset(val)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#201f1f] text-[#ffb599] border border-stone-800 hover:border-[#ff5f00] font-bold text-xs active:scale-95 transition"
+                >
+                  <Plus className="size-3" /> R$ {val}
+                </button>
+              ))}
+            </div>
           </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="w-10 h-10 rounded-full border border-white/10 bg-white/5 text-[#FFB699] hover:bg-white/10 transition-colors">
-                <Info size={18} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent className="bg-[#121212] text-white border border-white/10">
-              Ajuste sua meta para melhorar o desempenho e manter a consistência de ganhos.
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
+
+          <div className="bg-[#1c1b1b] p-5 rounded-3xl border border-[#2a2a2a] space-y-4">
+            <h3 className="text-sm font-extrabold uppercase tracking-wider text-[#ff5f00] flex items-center gap-2">
+              <Calendar className="size-4" /> Projeção Semanal e Mensal
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Meta Semanal (6 dias)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={metaSemanal}
+                    onChange={(e) => setMetaSemanal(e.target.value)}
+                    className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-extrabold text-lg outline-none transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Meta Mensal (24 dias)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={metaMensal}
+                    onChange={(e) => setMetaMensal(e.target.value)}
+                    className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-[#e5e2e1] font-extrabold text-lg outline-none transition"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card de Sugestão Inteligente */}
+          <div className="bg-[#0e0e0e] p-4 rounded-2xl border border-stone-800 flex items-center gap-3">
+            <div className="p-2.5 bg-[#00daf3]/20 text-[#00daf3] rounded-xl shrink-0 font-bold">
+              <Sparkles className="size-5" />
+            </div>
+            <div className="text-xs">
+              <span className="font-extrabold text-[#e5e2e1] block">Recomendação do Sistema:</span>
+              <span className="text-[#ab8a7d]">Com base nos seus horários de maior demanda, metas acima de R$ 380/dia são altamente atingíveis.</span>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full min-h-[56px] bg-[#ff5f00] text-black font-extrabold text-base uppercase tracking-wider rounded-2xl shadow-xl hover:bg-[#ffb599] active:scale-98 transition flex items-center justify-center gap-2"
+          >
+            <Save className="size-5" />
+            <span>{loading ? 'Salvando...' : 'Salvar Metas Financeiras'}</span>
+          </button>
+        </form>
+      </main>
     </div>
   );
 };
