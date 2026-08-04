@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { startOfWeek, startOfMonth, addDays } from 'date-fns';
 import { Field, Input, Select } from '@/components/forms/Form';
 import { checkOverlap, getPlatformCycleIntervals } from '@/lib/billing';
+import { ConfirmCycleModal } from '@/components/faturas/ConfirmCycleModal';
 
 interface BillingCycle {
   id: string;
@@ -48,10 +49,11 @@ interface EditState {
   status: string;
 }
 
-const STATUS_OPTIONS = ['pending', 'open', 'pago', 'cancelado'];
+const STATUS_OPTIONS = ['pending', 'open', 'pendente_confirmacao', 'pago', 'cancelado'];
 const STATUS_LABEL: Record<string, string> = {
   pending: 'Pendente', 
-  open: 'Em Aberto', 
+  open: 'A receber', 
+  pendente_confirmacao: 'Pendente Confirmação',
   pago: 'Recebido', 
   cancelado: 'Cancelado',
 };
@@ -62,6 +64,7 @@ interface SwipeableCycleCardProps {
   onPay: (c: BillingCycle) => void;
   onEdit: (c: BillingCycle) => void;
   onView: (c: BillingCycle) => void;
+  onConfirm?: (c: BillingCycle) => void;
   fmtDate: (iso: string) => string;
   isOverdue: boolean;
 }
@@ -71,6 +74,7 @@ const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
   onPay,
   onEdit,
   onView,
+  onConfirm,
   fmtDate,
   isOverdue,
 }) => {
@@ -106,9 +110,13 @@ const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
     setTranslateX(0);
 
     if (diff > 45) {
-      // Deslize da Esquerda para a Direita -> BAIXAR (Liquidar Fatura)
+      // Deslize da Esquerda para a Direita -> BAIXAR (Liquidar Fatura) ou CONFIRMAR
       hasSwipedRef.current = true;
-      onPay(c);
+      if (c.status === 'pendente_confirmacao' && onConfirm) {
+        onConfirm(c);
+      } else {
+        onPay(c);
+      }
     } else if (diff < -45) {
       // Deslize da Direita para a Esquerda -> EDITAR FATURA
       hasSwipedRef.current = true;
@@ -118,20 +126,28 @@ const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
 
   const handleClick = () => {
     if (!hasSwipedRef.current) {
-      onView(c);
+      if (c.status === 'pendente_confirmacao' && onConfirm) {
+        onConfirm(c);
+      } else {
+        onView(c);
+      }
     }
     hasSwipedRef.current = false;
   };
 
   return (
     <div className="relative overflow-hidden rounded-3xl group select-none touch-pan-y shadow-md">
-      {/* Fundo Ação Esquerda -> Direita: BAIXAR (Verde) */}
+      {/* Fundo Ação Esquerda -> Direita: BAIXAR ou CONFIRMAR */}
       <div
-        className="absolute inset-y-0 left-0 w-full bg-emerald-600 text-white font-extrabold flex items-center justify-start pl-6 gap-2 rounded-3xl transition-opacity"
+        className={`absolute inset-y-0 left-0 w-full text-white font-extrabold flex items-center justify-start pl-6 gap-2 rounded-3xl transition-opacity ${
+          c.status === 'pendente_confirmacao' ? 'bg-[#ff5f00] text-black' : 'bg-emerald-600'
+        }`}
         style={{ opacity: translateX > 10 ? Math.min(1, translateX / 60) : 0 }}
       >
         <CheckCircle className="size-6 stroke-[3]" />
-        <span className="text-sm uppercase tracking-wider">BAIXAR FATURA</span>
+        <span className="text-sm uppercase tracking-wider">
+          {c.status === 'pendente_confirmacao' ? 'CONFIRMAR VALORES' : 'BAIXAR FATURA'}
+        </span>
       </div>
 
       {/* Fundo Ação Direita -> Esquerda: EDITAR (Laranja) */}
@@ -158,7 +174,9 @@ const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
           transition: isSwiping ? 'none' : 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
         className={`p-5 rounded-3xl border-2 transition-colors space-y-3 relative cursor-grab active:cursor-grabbing z-10 ${
-          isOverdue
+          c.status === 'pendente_confirmacao'
+            ? 'bg-[#1c1b1b] border-amber-500/60 hover:border-amber-400'
+            : isOverdue
             ? 'bg-[#1c1b1b] border-red-800/80 hover:border-red-600'
             : 'bg-[#1c1b1b] border-stone-800 hover:border-[#ff5f00]/50'
         }`}
@@ -179,12 +197,18 @@ const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
             </p>
             <span
               className={`inline-block mt-1 text-[10px] uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full border ${
-                isOverdue
+                c.status === 'pendente_confirmacao'
+                  ? 'bg-amber-950/90 text-amber-300 border-amber-600/80 animate-pulse'
+                  : isOverdue
                   ? 'bg-red-950/80 text-red-400 border-red-800/60'
                   : 'bg-amber-950/80 text-amber-400 border-amber-800/60'
               }`}
             >
-              {isOverdue ? 'Atrasado' : 'Em Aberto'}
+              {c.status === 'pendente_confirmacao'
+                ? 'Pendente Confirmação'
+                : isOverdue
+                ? 'Atrasado'
+                : 'A receber'}
             </span>
           </div>
         </div>
@@ -196,16 +220,29 @@ const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onPay(c);
-              }}
-              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase rounded-xl transition shadow"
-              title="Baixar Fatura"
-            >
-              Baixar
-            </button>
+            {c.status === 'pendente_confirmacao' ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onConfirm) onConfirm(c);
+                }}
+                className="px-3 py-1.5 bg-[#ff5f00] hover:bg-[#ff5f00]/80 text-black font-extrabold text-xs uppercase rounded-xl transition shadow"
+                title="Confirmar Valores"
+              >
+                Confirmar
+              </button>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPay(c);
+                }}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase rounded-xl transition shadow"
+                title="Baixar Fatura"
+              >
+                Baixar
+              </button>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -243,10 +280,10 @@ const Faturas = () => {
   const [platformsDb, setPlatformsDb] = useState<PlatformDb[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Modais de Edição, Baixa e Visualização
   const [editingCycle, setEditingCycle] = useState<BillingCycle | null>(null);
   const [editState, setEditState] = useState<EditState | null>(null);
   const [viewingCycle, setViewingCycle] = useState<BillingCycle | null>(null);
+  const [confirmingCycle, setConfirmingCycle] = useState<BillingCycle | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [filterPlatform, setFilterPlatform] = useState<string>('all');
@@ -372,12 +409,20 @@ const Faturas = () => {
             period_start: periodStart,
             period_end: periodEnd,
             expected_payment_date: expectedPaymentDate,
-            status: 'open',
+            status: 'pendente_confirmacao',
           })
           .select('id')
           .single();
 
         if (insertErr || !newCycle) continue;
+
+        // Criar registro de notificação
+        await supabase.from('notifications').insert({
+          user_id: u.user.id,
+          type: 'fatura_gerada',
+          billing_cycle_id: newCycle.id,
+          read: false,
+        });
 
         // 1 & 4. Associar automaticamente os registros sem fatura ou pertencentes a esta mesma fatura
         await supabase
@@ -672,6 +717,7 @@ const Faturas = () => {
                   onPay={openPay}
                   onEdit={openEdit}
                   onView={setViewingCycle}
+                  onConfirm={setConfirmingCycle}
                   fmtDate={fmtDate}
                   isOverdue={isBeforeToday(c.expected_payment_date)}
                 />
@@ -951,6 +997,15 @@ const Faturas = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Modal de Confirmação para Fatura Gerada Automaticamente */}
+      {confirmingCycle && (
+        <ConfirmCycleModal
+          cycle={confirmingCycle}
+          onClose={() => setConfirmingCycle(null)}
+          onSuccess={() => fetchCycles()}
+        />
       )}
 
       {/* Floating Action Buttons */}
