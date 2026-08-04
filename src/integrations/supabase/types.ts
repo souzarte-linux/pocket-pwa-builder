@@ -55,41 +55,6 @@ export type Database = {
           },
         ]
       }
-      notifications: {
-        Row: {
-          billing_cycle_id: string | null
-          created_at: string
-          id: string
-          read: boolean
-          type: string
-          user_id: string
-        }
-        Insert: {
-          billing_cycle_id?: string | null
-          created_at?: string
-          id?: string
-          read?: boolean
-          type: string
-          user_id: string
-        }
-        Update: {
-          billing_cycle_id?: string | null
-          created_at?: string
-          id?: string
-          read?: boolean
-          type?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notifications_billing_cycle_id_fkey"
-            columns: ["billing_cycle_id"]
-            isOneToOne: false
-            referencedRelation: "billing_cycles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       card_operators: {
         Row: {
           created_at: string
@@ -350,6 +315,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      notifications: {
+        Row: {
+          billing_cycle_id: string | null
+          created_at: string
+          id: string
+          read: boolean
+          type: string
+          user_id: string
+        }
+        Insert: {
+          billing_cycle_id?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          type: string
+          user_id: string
+        }
+        Update: {
+          billing_cycle_id?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_billing_cycle_id_fkey"
+            columns: ["billing_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "billing_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       oil_changes: {
         Row: {
