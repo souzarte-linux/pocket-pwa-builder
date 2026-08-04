@@ -10,17 +10,17 @@ const NovaFatura = () => {
   const navigate = useNavigate();
   const [platforms, setPlatforms] = useState<{ id: string; name: string }[]>([]);
   const [platformId, setPlatformId] = useState('');
-  
+
   // Default to last week
   const lastWeekStart = new Date();
   lastWeekStart.setDate(lastWeekStart.getDate() - 7);
   const [periodStart, setPeriodStart] = useState(lastWeekStart.toISOString().slice(0, 10));
   const [periodEnd, setPeriodEnd] = useState(new Date().toISOString().slice(0, 10));
-  
+
   const nextFriday = new Date();
   nextFriday.setDate(nextFriday.getDate() + ((5 + 7 - nextFriday.getDay()) % 7 || 7));
   const [expectedDate, setExpectedDate] = useState(nextFriday.toISOString().slice(0, 10));
-  
+
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -82,7 +82,7 @@ const NovaFatura = () => {
       .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${cycle.id}`)
       .gte('occurred_at', `${periodStart}T00:00:00`)
       .lte('occurred_at', `${periodEnd}T23:59:59`);
-      
+
     // 3. Associate Adjustments
     const { error: adjErr } = await supabase.from('financial_adjustments')
       .update({ billing_cycle_id: cycle.id })
@@ -118,7 +118,7 @@ const NovaFatura = () => {
           <Field label="Data Prevista para Pagamento">
             <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} required />
           </Field>
-          
+
           <div className="rounded-xl border-l-4 border-info bg-surface p-4 flex gap-3 text-sm text-muted-foreground mt-4">
             <span className="text-info font-black">ⓘ</span>
             <p>
