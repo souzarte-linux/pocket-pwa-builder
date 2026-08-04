@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { FormShell, Field, Select, Input, SubmitButton } from '@/components/forms/Form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { checkOverlap } from '@/lib/billing';
 
 const NovaFatura = () => {
   const navigate = useNavigate();
@@ -38,6 +39,20 @@ const NovaFatura = () => {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
 
+    // Validar sobreposição antes de criar a fatura
+    const overlapResult = await checkOverlap(platformId, periodStart, periodEnd);
+    if (overlapResult.hasOverlap && overlapResult.conflictingCycle) {
+      setLoading(false);
+      const conf = overlapResult.conflictingCycle;
+      const fmtDateStr = (iso: string) => {
+        const [y, m, d] = iso.slice(0, 10).split('-');
+        return `${d}/${m}/${y}`;
+      };
+      return toast.error(
+        `Conflito de período! A fatura de ${conf.platform_name || 'outra'} no período ${fmtDateStr(conf.period_start)} até ${fmtDateStr(conf.period_end)} já está ativa.`
+      );
+    }
+
     // 1. Create Billing Cycle
     const { data: cycle, error: cycleErr } = await supabase.from('billing_cycles').insert({
       user_id: u.user.id,
@@ -53,19 +68,18 @@ const NovaFatura = () => {
       return toast.error(cycleErr?.message || 'Erro ao criar fatura');
     }
 
-    // 2. Associate Routes without a cycle in this period
-    // We add T00:00:00 and T23:59:59 to encompass full days
+    // 2. Associate Routes without a cycle or owned by this cycle in this period
     const { error: routeErr } = await supabase.from('routes')
       .update({ billing_cycle_id: cycle.id })
       .eq('platform_id', platformId)
-      .is('billing_cycle_id', null)
+      .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${cycle.id}`)
       .gte('occurred_at', `${periodStart}T00:00:00`)
       .lte('occurred_at', `${periodEnd}T23:59:59`);
 
     const { error: dailyErr } = await supabase.from('daily_totals')
       .update({ billing_cycle_id: cycle.id })
       .eq('platform_id', platformId)
-      .is('billing_cycle_id', null)
+      .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${cycle.id}`)
       .gte('occurred_at', `${periodStart}T00:00:00`)
       .lte('occurred_at', `${periodEnd}T23:59:59`);
       
@@ -73,7 +87,7 @@ const NovaFatura = () => {
     const { error: adjErr } = await supabase.from('financial_adjustments')
       .update({ billing_cycle_id: cycle.id })
       .eq('platform_id', platformId)
-      .is('billing_cycle_id', null)
+      .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${cycle.id}`)
       .gte('occurred_at', periodStart)
       .lte('occurred_at', periodEnd);
 

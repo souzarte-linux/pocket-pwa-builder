@@ -22,6 +22,7 @@ import {
 import { toast } from 'sonner';
 import { startOfWeek, startOfMonth, addDays } from 'date-fns';
 import { Field, Input, Select } from '@/components/forms/Form';
+import { checkOverlap, getPlatformCycleIntervals } from '@/lib/billing';
 
 interface BillingCycle {
   id: string;
@@ -306,97 +307,103 @@ const Faturas = () => {
   };
 
   const generateBillingCycles = async () => {
+    // 1. Buscar apenas plataformas ATIVAS
     const { data: platforms } = await supabase
       .from('platforms')
-      .select('id, name, cycle, payment_day, rules, active');
+      .select('id, name, cycle, payment_day, rules, active')
+      .eq('active', true);
 
-    if (!platforms) return;
+    if (!platforms || platforms.length === 0) return;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const { data: u } = await supabase.auth.getUser();
     if (!u?.user) return;
 
-    // Gerar ciclos apenas para plataformas ativas
-    for (const platform of platforms.filter((p) => p.active !== false)) {
-      const rules = platform.rules as any;
+    for (const platform of platforms) {
+      // 2. Calcular intervalos do ciclo ATUAL e PRÓXIMO ciclo (mês corrente e mês seguinte)
+      const intervals = getPlatformCycleIntervals(platform);
 
-      if (platform.cycle === 'misto') {
-        const entries: { cut: number; payDelay: number }[] = Array.isArray(rules?.cycle_entries)
-          ? rules.cycle_entries
-          : (Array.isArray(rules?.cycle_days)
-              ? rules.cycle_days.map((d: number) => ({ cut: d, payDelay: rules?.fixed_pay_delay ?? 7 }))
-              : []);
+      for (const interval of intervals) {
+        const { periodStart, periodEnd, expectedPaymentDate } = interval;
+        const startISO = `${periodStart}T00:00:00`;
+        const endISO = `${periodEnd}T23:59:59`;
 
-        if (entries.length === 0) continue;
+        // 3. Validar sobreposição antes de tentar criar
+        const overlapResult = await checkOverlap(platform.id, periodStart, periodEnd);
+        if (overlapResult.hasOverlap) {
+          continue; // Pular pois já existe ciclo ativo sobreposto
+        }
 
-        const dom = today.getDate();
-        const sorted = [...entries].sort((a, b) => a.cut - b.cut);
-
-        const activeEntry = sorted.filter(e => e.cut <= dom).pop() ?? sorted[sorted.length - 1];
-        const prevCut = activeEntry.cut;
-        const prevCutMonth = prevCut <= dom ? today.getMonth() : today.getMonth() - 1;
-        const cycleStart = new Date(today.getFullYear(), prevCutMonth, prevCut);
-
-        const nextEntryIdx = (sorted.indexOf(activeEntry) + 1) % sorted.length;
-        const nextEntry = sorted[nextEntryIdx];
-        const nextCutMonth = nextEntry.cut <= prevCut ? today.getMonth() + 1 : today.getMonth();
-        const rawEnd = new Date(today.getFullYear(), nextCutMonth, nextEntry.cut - 1);
-        const cycleEnd = today < rawEnd ? today : rawEnd;
-
-        const { data: existing } = await supabase.from('billing_cycles')
+        // 1 & 2. Verificar se existe ao menos um registro em routes ou daily_totals sem fatura
+        const { data: unassignedRoutes } = await supabase
+          .from('routes')
           .select('id')
           .eq('platform_id', platform.id)
-          .in('status', ['open', 'pending'])
-          .lte('period_start', today.toISOString().slice(0, 10))
-          .gte('period_end', cycleStart.toISOString().slice(0, 10))
+          .is('billing_cycle_id', null)
+          .gte('occurred_at', startISO)
+          .lte('occurred_at', endISO)
           .limit(1);
-        if (existing && existing.length > 0) continue;
 
-        const payDate = addDays(cycleEnd, activeEntry.payDelay);
-        await supabase.from('billing_cycles').insert({
-          user_id: u.user.id,
-          platform_id: platform.id,
-          period_start: cycleStart.toISOString().slice(0, 10),
-          period_end: cycleEnd.toISOString().slice(0, 10),
-          expected_payment_date: payDate.toISOString().slice(0, 10),
-          status: 'open',
-        });
-        continue;
+        const hasRoutes = unassignedRoutes && unassignedRoutes.length > 0;
+
+        let hasDailies = false;
+        if (!hasRoutes) {
+          const { data: unassignedDailies } = await supabase
+            .from('daily_totals')
+            .select('id')
+            .eq('platform_id', platform.id)
+            .is('billing_cycle_id', null)
+            .gte('occurred_at', startISO)
+            .lte('occurred_at', endISO)
+            .limit(1);
+          hasDailies = !!(unassignedDailies && unassignedDailies.length > 0);
+        }
+
+        // Se não houver nenhum registro sem fatura no período, NÃO criar a fatura
+        if (!hasRoutes && !hasDailies) {
+          continue;
+        }
+
+        // Criar o billing_cycle
+        const { data: newCycle, error: insertErr } = await supabase
+          .from('billing_cycles')
+          .insert({
+            user_id: u.user.id,
+            platform_id: platform.id,
+            period_start: periodStart,
+            period_end: periodEnd,
+            expected_payment_date: expectedPaymentDate,
+            status: 'open',
+          })
+          .select('id')
+          .single();
+
+        if (insertErr || !newCycle) continue;
+
+        // 1 & 4. Associar automaticamente os registros sem fatura ou pertencentes a esta mesma fatura
+        await supabase
+          .from('routes')
+          .update({ billing_cycle_id: newCycle.id })
+          .eq('platform_id', platform.id)
+          .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${newCycle.id}`)
+          .gte('occurred_at', startISO)
+          .lte('occurred_at', endISO);
+
+        await supabase
+          .from('daily_totals')
+          .update({ billing_cycle_id: newCycle.id })
+          .eq('platform_id', platform.id)
+          .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${newCycle.id}`)
+          .gte('occurred_at', startISO)
+          .lte('occurred_at', endISO);
+
+        await supabase
+          .from('financial_adjustments')
+          .update({ billing_cycle_id: newCycle.id })
+          .eq('platform_id', platform.id)
+          .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${newCycle.id}`)
+          .gte('occurred_at', periodStart)
+          .lte('occurred_at', periodEnd);
       }
-
-      const payDelay = Number(rules?.fixed_pay_delay) || 7;
-      let cycleStart: Date;
-      if (platform.cycle === 'semanal') {
-        cycleStart = startOfWeek(today, { weekStartsOn: 1 });
-      } else if (platform.cycle === 'quinzenal') {
-        const midMonth = addDays(startOfMonth(today), 14);
-        cycleStart = today < midMonth ? startOfMonth(today) : midMonth;
-      } else if (platform.cycle === 'mensal') {
-        cycleStart = startOfMonth(today);
-      } else {
-        continue;
-      }
-
-      const todayStr = today.toISOString().slice(0, 10);
-      const cycleStartStr = cycleStart.toISOString().slice(0, 10);
-      const { data: existing } = await supabase.from('billing_cycles')
-        .select('id')
-        .eq('platform_id', platform.id)
-        .in('status', ['open', 'pending'])
-        .lte('period_start', todayStr)
-        .gte('period_end', cycleStartStr)
-        .limit(1);
-      if (existing && existing.length > 0) continue;
-
-      await supabase.from('billing_cycles').insert({
-        user_id: u.user.id,
-        platform_id: platform.id,
-        period_start: cycleStartStr,
-        period_end: todayStr,
-        expected_payment_date: addDays(today, payDelay).toISOString().slice(0, 10),
-        status: 'open',
-      });
     }
 
     fetchCycles();
@@ -417,6 +424,23 @@ const Faturas = () => {
   const saveEdit = async () => {
     if (!editingCycle || !editState) return;
     setSaving(true);
+
+    // 3. Validar sobreposição antes de salvar edições manuais
+    const overlapResult = await checkOverlap(
+      editingCycle.platform_id,
+      editState.period_start,
+      editState.period_end,
+      editingCycle.id
+    );
+
+    if (overlapResult.hasOverlap && overlapResult.conflictingCycle) {
+      setSaving(false);
+      const conf = overlapResult.conflictingCycle;
+      return toast.error(
+        `Conflito de período! A fatura de ${conf.platform_name || editingCycle.platform_name} no período ${fmtDate(conf.period_start)} até ${fmtDate(conf.period_end)} já está ativa.`
+      );
+    }
+
     const { error } = await supabase.from('billing_cycles').update({
       period_start: editState.period_start,
       period_end: editState.period_end,
@@ -425,17 +449,27 @@ const Faturas = () => {
     }).eq('id', editingCycle.id);
 
     if (!error) {
+      // 4. Só associar registros sem fatura ou já vinculados a esta própria fatura
       await supabase.from('routes')
         .update({ billing_cycle_id: editingCycle.id })
         .eq('platform_id', editingCycle.platform_id)
+        .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${editingCycle.id}`)
         .gte('occurred_at', `${editState.period_start}T00:00:00`)
         .lte('occurred_at', `${editState.period_end}T23:59:59`);
 
       await supabase.from('daily_totals')
         .update({ billing_cycle_id: editingCycle.id })
         .eq('platform_id', editingCycle.platform_id)
+        .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${editingCycle.id}`)
         .gte('occurred_at', `${editState.period_start}T00:00:00`)
         .lte('occurred_at', `${editState.period_end}T23:59:59`);
+
+      await supabase.from('financial_adjustments')
+        .update({ billing_cycle_id: editingCycle.id })
+        .eq('platform_id', editingCycle.platform_id)
+        .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${editingCycle.id}`)
+        .gte('occurred_at', editState.period_start)
+        .lte('occurred_at', editState.period_end);
     }
 
     setSaving(false);
