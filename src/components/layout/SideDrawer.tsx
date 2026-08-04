@@ -89,6 +89,12 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
     {
       title: 'Emissores',
       subtitle: 'Instituições Emissoras dos Cartões',
+      path: '/emissores',
+      icon: CreditCard,
+    },
+    {
+      title: 'Apps & Plataformas',
+      subtitle: 'Plataformas de entrega e repasse',
       path: '/apps',
       icon: Smartphone,
     },
