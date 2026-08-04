@@ -27,6 +27,7 @@ import NovoPosto from "./pages/NovoPosto";
 import Empresas from "./pages/Empresas";
 import Bandeiras from "./pages/Bandeiras";
 import { Emissores } from "./pages/Emissores";
+import OAuthConsent from "./pages/OAuthConsent";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ const App = () => (
           <Route path="/empresas" element={<RequireAuth><Empresas /></RequireAuth>} />
           <Route path="/bandeiras" element={<RequireAuth><Bandeiras /></RequireAuth>} />
           <Route path="/emissores" element={<RequireAuth><Emissores /></RequireAuth>} />
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

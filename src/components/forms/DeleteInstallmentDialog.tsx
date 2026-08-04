@@ -12,7 +12,6 @@ interface InstallmentItem {
   installment_number: number | null;
   installment_total: number | null;
   occurred_at: string;
-  card_due_date: string | null;
 }
 
 interface DeleteInstallmentDialogProps {
@@ -49,7 +48,7 @@ export const DeleteInstallmentDialog = ({
 
     supabase
       .from('expenses')
-      .select('id, title, amount, installment_number, installment_total, occurred_at, card_due_date')
+      .select('id, title, amount, installment_number, installment_total, occurred_at')
       .eq('installment_group_id', installmentGroupId)
       .order('installment_number', { ascending: true })
       .then(({ data, error }) => {
@@ -180,9 +179,7 @@ export const DeleteInstallmentDialog = ({
                     inst.installment_number && inst.installment_total
                       ? `${inst.installment_number}/${inst.installment_total}`
                       : '—';
-                  const dateStr = inst.card_due_date
-                    ? fmtDate(inst.card_due_date)
-                    : fmtDate(inst.occurred_at);
+                  const dateStr = fmtDate(inst.occurred_at);
 
                   return (
                     <div

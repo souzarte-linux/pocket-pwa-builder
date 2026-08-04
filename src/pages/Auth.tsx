@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, LogIn, User, Lock, Apple, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
@@ -7,6 +7,13 @@ import { toast } from 'sonner';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawNext = searchParams.get('next');
+  const nextPath = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
+  const goNext = () => {
+    if (nextPath) window.location.href = nextPath;
+    else navigate('/', { replace: true });
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
@@ -16,9 +23,12 @@ const Auth = () => {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate('/', { replace: true });
+      if (data.session) {
+        if (nextPath) window.location.href = nextPath;
+        else navigate('/', { replace: true });
+      }
     });
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +37,7 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       toast.success('Acelerando…');
-      navigate('/', { replace: true });
+      goNext();
     } catch (err: any) {
       const msg = err?.message ?? 'Erro inesperado';
       const friendly = msg.includes('Invalid login')
@@ -43,12 +53,12 @@ const Auth = () => {
     setOauthLoading('google');
     try {
       const result = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin,
+        redirect_uri: nextPath ? window.location.origin + nextPath : window.location.origin,
       });
       if (result.error) throw result.error;
       if (!result.redirected) {
         toast.success('Login com Google realizado com sucesso.');
-        navigate('/', { replace: true });
+        goNext();
       }
     } catch (err: any) {
       console.error(err);
@@ -62,12 +72,12 @@ const Auth = () => {
     setOauthLoading('apple');
     try {
       const result = await lovable.auth.signInWithOAuth('apple', {
-        redirect_uri: window.location.origin,
+        redirect_uri: nextPath ? window.location.origin + nextPath : window.location.origin,
       });
       if (result.error) throw result.error;
       if (!result.redirected) {
         toast.success('Login com Apple realizado com sucesso.');
-        navigate('/', { replace: true });
+        goNext();
       }
     } catch (err: any) {
       console.error(err);
