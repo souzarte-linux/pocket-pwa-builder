@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://tkktqdxdshmkwdfvfpez.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "pocket-pwa-builder",
+      "version": "0.1.0",
+      "title": "Pocket PWA Builder"
+    },
+    "tools": [
+      {
+        "name": "earnings_summary",
+        "title": "Resumo financeiro",
+        "description": "Resumo de receita, despesas, lucro, KM rodados e horas trabalhadas do motorista autenticado em um período.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "since": {
+              "description": "Data inicial ISO. Padrão: últimos 30 dias.",
+              "type": "string"
+            },
+            "until": {
+              "description": "Data final ISO. Padrão: hoje.",
+              "type": "string"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_routes",
+        "title": "Listar rotas",
+        "description": "Lista as rotas/corridas do motorista autenticado em um intervalo de datas, com valor, distância e pacotes.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "since": {
+              "description": "Data inicial ISO (ex.: 2026-08-01). Padrão: últimos 30 dias.",
+              "type": "string"
+            },
+            "until": {
+              "description": "Data final ISO (ex.: 2026-08-31).",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Máximo de registros (padrão 50, teto 200).",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_expenses",
+        "title": "Listar despesas",
+        "description": "Lista as despesas do motorista autenticado (combustível, manutenção, alimentação) em um intervalo de datas.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "category": {
+              "description": "Filtra por categoria de despesa.",
+              "type": "string",
+              "enum": [
+                "combustivel",
+                "manutencao",
+                "alimentacao"
+              ]
+            },
+            "since": {
+              "description": "Data inicial ISO. Padrão: últimos 30 dias.",
+              "type": "string"
+            },
+            "until": {
+              "description": "Data final ISO.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Máximo de registros (padrão 50, teto 200).",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_expense",
+        "title": "Registrar despesa",
+        "description": "Registra uma nova despesa (combustível, manutenção ou alimentação) para o motorista autenticado.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Descrição curta da despesa."
+            },
+            "amount": {
+              "type": "number",
+              "description": "Valor em reais."
+            },
+            "category": {
+              "type": "string",
+              "enum": [
+                "combustivel",
+                "manutencao",
+                "alimentacao"
+              ],
+              "description": "Categoria da despesa."
+            },
+            "occurred_at": {
+              "description": "Data/hora ISO. Padrão: agora.",
+              "type": "string"
+            },
+            "liters": {
+              "description": "Litros abastecidos (combustível).",
+              "type": "number"
+            },
+            "is_full_tank": {
+              "description": "Se o abastecimento completou o tanque.",
+              "type": "boolean"
+            },
+            "odometer_km": {
+              "description": "Hodômetro no momento da despesa.",
+              "type": "number"
+            },
+            "vendor": {
+              "description": "Empresa/posto onde a despesa ocorreu.",
+              "type": "string"
+            },
+            "payment_method": {
+              "description": "Forma de pagamento.",
+              "type": "string",
+              "enum": [
+                "dinheiro",
+                "pix",
+                "cartao"
+              ]
+            }
+          },
+          "required": [
+            "title",
+            "amount",
+            "category"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_work_sessions",
+        "title": "Listar horas trabalhadas",
+        "description": "Lista as sessões de trabalho (horas trabalhadas) do motorista autenticado em um intervalo de datas.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "since": {
+              "description": "Data inicial ISO. Padrão: últimos 30 dias.",
+              "type": "string"
+            },
+            "until": {
+              "description": "Data final ISO.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Máximo de registros (padrão 50, teto 200).",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_platforms",
+        "title": "Listar plataformas",
+        "description": "Lista as plataformas de entrega cadastradas pelo motorista autenticado.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "only_active": {
+              "description": "Se verdadeiro, retorna apenas plataformas ativas.",
+              "type": "boolean"
+            }
+          }
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
