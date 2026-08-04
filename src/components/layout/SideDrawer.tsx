@@ -138,12 +138,6 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) =>
       path: '/faturas',
       icon: Receipt,
     },
-    {
-      title: 'Configurações',
-      subtitle: 'Preferências do aplicativo',
-      path: '/configuracoes',
-      icon: Settings,
-    },
   ];
 
   return (
