@@ -1,9 +1,24 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL } from '@/lib/format';
-import { Plus, CheckCircle, FileWarning, Wallet, Pencil, X, Save, SlidersHorizontal, Trash2, CalendarCheck } from 'lucide-react';
+import { 
+  Plus, 
+  CheckCircle, 
+  FileWarning, 
+  Wallet, 
+  Pencil, 
+  X, 
+  Save, 
+  SlidersHorizontal, 
+  Trash2, 
+  CalendarCheck,
+  ArrowRight,
+  ArrowLeft,
+  Building2,
+  CheckCircle2
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { startOfWeek, startOfMonth, addDays } from 'date-fns';
 import { Field, Input, Select } from '@/components/forms/Form';
@@ -19,6 +34,12 @@ interface BillingCycle {
   total_amount?: number;
 }
 
+interface PlatformDb {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
 interface EditState {
   period_start: string;
   period_end: string;
@@ -28,33 +49,207 @@ interface EditState {
 
 const STATUS_OPTIONS = ['pending', 'open', 'pago', 'cancelado'];
 const STATUS_LABEL: Record<string, string> = {
-  pending: 'Pendente', open: 'Em Aberto', pago: 'Recebido', cancelado: 'Cancelado',
+  pending: 'Pendente', 
+  open: 'Em Aberto', 
+  pago: 'Recebido', 
+  cancelado: 'Cancelado',
+};
+
+// Componente para Card Deslizável na Seção "Em Aberto" (Direita = Baixar, Esquerda = Editar)
+interface SwipeableCycleCardProps {
+  c: BillingCycle;
+  onPay: (c: BillingCycle) => void;
+  onEdit: (c: BillingCycle) => void;
+  onView: (c: BillingCycle) => void;
+  fmtDate: (iso: string) => string;
+  isOverdue: boolean;
+}
+
+const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
+  c,
+  onPay,
+  onEdit,
+  onView,
+  fmtDate,
+  isOverdue,
+}) => {
+  const [translateX, setTranslateX] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const startXRef = useRef(0);
+  const currentXRef = useRef(0);
+  const hasSwipedRef = useRef(false);
+
+  const handleStart = (clientX: number) => {
+    startXRef.current = clientX;
+    currentXRef.current = clientX;
+    hasSwipedRef.current = false;
+    setIsSwiping(true);
+  };
+
+  const handleMove = (clientX: number) => {
+    if (!isSwiping) return;
+    currentXRef.current = clientX;
+    const diff = clientX - startXRef.current;
+    if (Math.abs(diff) > 10) {
+      hasSwipedRef.current = true;
+    }
+    const clamped = Math.max(-140, Math.min(140, diff));
+    setTranslateX(clamped);
+  };
+
+  const handleEnd = () => {
+    if (!isSwiping) return;
+    setIsSwiping(false);
+    const diff = currentXRef.current - startXRef.current;
+
+    setTranslateX(0);
+
+    if (diff > 45) {
+      // Deslize da Esquerda para a Direita -> BAIXAR (Liquidar Fatura)
+      hasSwipedRef.current = true;
+      onPay(c);
+    } else if (diff < -45) {
+      // Deslize da Direita para a Esquerda -> EDITAR FATURA
+      hasSwipedRef.current = true;
+      onEdit(c);
+    }
+  };
+
+  const handleClick = () => {
+    if (!hasSwipedRef.current) {
+      onView(c);
+    }
+    hasSwipedRef.current = false;
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl group select-none touch-pan-y shadow-md">
+      {/* Fundo Ação Esquerda -> Direita: BAIXAR (Verde) */}
+      <div
+        className="absolute inset-y-0 left-0 w-full bg-emerald-600 text-white font-extrabold flex items-center justify-start pl-6 gap-2 rounded-3xl transition-opacity"
+        style={{ opacity: translateX > 10 ? Math.min(1, translateX / 60) : 0 }}
+      >
+        <CheckCircle className="size-6 stroke-[3]" />
+        <span className="text-sm uppercase tracking-wider">BAIXAR FATURA</span>
+      </div>
+
+      {/* Fundo Ação Direita -> Esquerda: EDITAR (Laranja) */}
+      <div
+        className="absolute inset-y-0 right-0 w-full bg-[#ff5f00] text-black font-extrabold flex items-center justify-end pr-6 gap-2 rounded-3xl transition-opacity"
+        style={{ opacity: translateX < -10 ? Math.min(1, Math.abs(translateX) / 60) : 0 }}
+      >
+        <span className="text-sm uppercase tracking-wider">EDITAR FATURA</span>
+        <Pencil className="size-6 stroke-[3]" />
+      </div>
+
+      {/* Conteúdo Arrastável */}
+      <div
+        onTouchStart={(e) => handleStart(e.touches[0].clientX)}
+        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+        onTouchEnd={handleEnd}
+        onMouseDown={(e) => handleStart(e.clientX)}
+        onMouseMove={(e) => handleMove(e.clientX)}
+        onMouseUp={handleEnd}
+        onMouseLeave={handleEnd}
+        onClick={handleClick}
+        style={{
+          transform: `translateX(${translateX}px)`,
+          transition: isSwiping ? 'none' : 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
+        }}
+        className={`p-5 rounded-3xl border-2 transition-colors space-y-3 relative cursor-grab active:cursor-grabbing z-10 ${
+          isOverdue
+            ? 'bg-[#1c1b1b] border-red-800/80 hover:border-red-600'
+            : 'bg-[#1c1b1b] border-stone-800 hover:border-[#ff5f00]/50'
+        }`}
+      >
+        <div className="flex justify-between items-start gap-3">
+          <div>
+            <h3 className="font-extrabold text-base text-white group-hover:text-[#ff5f00] transition">
+              {c.platform_name}
+            </h3>
+            <p className="text-xs text-[#ab8a7d] font-medium mt-0.5">
+              Período: {fmtDate(c.period_start)} → {fmtDate(c.period_end)}
+            </p>
+          </div>
+
+          <div className="text-right shrink-0">
+            <p className="font-extrabold text-xl text-[#ffb599]">
+              {formatBRL(c.total_amount || 0)}
+            </p>
+            <span
+              className={`inline-block mt-1 text-[10px] uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full border ${
+                isOverdue
+                  ? 'bg-red-950/80 text-red-400 border-red-800/60'
+                  : 'bg-amber-950/80 text-amber-400 border-amber-800/60'
+              }`}
+            >
+              {isOverdue ? 'Atrasado' : 'Em Aberto'}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t border-stone-800 text-xs">
+          <div className="flex items-center gap-2 text-[#ab8a7d]">
+            <Wallet className="size-4 text-[#ff5f00]" />
+            <span className="font-medium">Previsto: <strong className="text-white">{fmtDate(c.expected_payment_date)}</strong></span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onPay(c);
+              }}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase rounded-xl transition shadow"
+              title="Baixar Fatura"
+            >
+              Baixar
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(c);
+              }}
+              className="p-1.5 text-stone-400 hover:text-[#ff5f00] hover:bg-[#ff5f00]/15 rounded-xl transition"
+              title="Editar Fatura"
+            >
+              <Pencil className="size-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const Faturas = () => {
   const navigate = useNavigate();
 
-  /** Formats 'YYYY-MM-DD' or ISO timestamp to 'DD/MM/YYYY' without timezone shift */
   const fmtDate = (iso: string) => {
-    const d = iso.slice(0, 10); // take only YYYY-MM-DD
+    const d = iso.slice(0, 10);
     const [y, m, day] = d.split('-');
     return `${day}/${m}/${y}`;
   };
-  /** Compare date-only string against today for overdue check */
+
   const isBeforeToday = (iso: string) => {
     const d = iso.slice(0, 10);
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
     return d < todayStr;
   };
+
   const [cycles, setCycles] = useState<BillingCycle[]>([]);
+  const [platformsDb, setPlatformsDb] = useState<PlatformDb[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Modais de Edição, Baixa e Visualização
   const [editingCycle, setEditingCycle] = useState<BillingCycle | null>(null);
   const [editState, setEditState] = useState<EditState | null>(null);
+  const [viewingCycle, setViewingCycle] = useState<BillingCycle | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [filterPlatform, setFilterPlatform] = useState<string>('all');
-  // Pay modal state
+
   const [payingCycle, setPayingCycle] = useState<BillingCycle | null>(null);
   const todayISO = () => {
     const d = new Date();
@@ -64,6 +259,17 @@ const Faturas = () => {
 
   const fetchCycles = async () => {
     setLoading(true);
+
+    // Carregar plataformas para checar quais estão ativas/desabilitadas
+    const { data: pData } = await supabase
+      .from('platforms')
+      .select('id, name, active');
+    if (pData) {
+      setPlatformsDb(
+        pData.map((p) => ({ id: p.id, name: p.name, active: p.active ?? true }))
+      );
+    }
+
     const { data: cyclesData, error } = await supabase
       .from('billing_cycles')
       .select(`id, platform_id, period_start, period_end, expected_payment_date, status, platforms ( name )`)
@@ -102,7 +308,7 @@ const Faturas = () => {
   const generateBillingCycles = async () => {
     const { data: platforms } = await supabase
       .from('platforms')
-      .select('id, name, cycle, payment_day, rules');
+      .select('id, name, cycle, payment_day, rules, active');
 
     if (!platforms) return;
 
@@ -111,14 +317,14 @@ const Faturas = () => {
     const { data: u } = await supabase.auth.getUser();
     if (!u?.user) return;
 
-    for (const platform of platforms) {
+    // Gerar ciclos apenas para plataformas ativas
+    for (const platform of platforms.filter((p) => p.active !== false)) {
       const rules = platform.rules as any;
 
-      // ── Variable cycle (misto): uses cycle_entries [{cut, payDelay}] ──
       if (platform.cycle === 'misto') {
         const entries: { cut: number; payDelay: number }[] = Array.isArray(rules?.cycle_entries)
           ? rules.cycle_entries
-          : (Array.isArray(rules?.cycle_days) // legacy migration
+          : (Array.isArray(rules?.cycle_days)
               ? rules.cycle_days.map((d: number) => ({ cut: d, payDelay: rules?.fixed_pay_delay ?? 7 }))
               : []);
 
@@ -127,26 +333,23 @@ const Faturas = () => {
         const dom = today.getDate();
         const sorted = [...entries].sort((a, b) => a.cut - b.cut);
 
-        // Find the entry whose cut day has just passed (or is today)
         const activeEntry = sorted.filter(e => e.cut <= dom).pop() ?? sorted[sorted.length - 1];
         const prevCut = activeEntry.cut;
         const prevCutMonth = prevCut <= dom ? today.getMonth() : today.getMonth() - 1;
         const cycleStart = new Date(today.getFullYear(), prevCutMonth, prevCut);
 
-        // Find next cut entry
         const nextEntryIdx = (sorted.indexOf(activeEntry) + 1) % sorted.length;
         const nextEntry = sorted[nextEntryIdx];
         const nextCutMonth = nextEntry.cut <= prevCut ? today.getMonth() + 1 : today.getMonth();
         const rawEnd = new Date(today.getFullYear(), nextCutMonth, nextEntry.cut - 1);
         const cycleEnd = today < rawEnd ? today : rawEnd;
 
-        // Avoid duplicate: check if any open/pending cycle CONTAINS today for this platform
         const { data: existing } = await supabase.from('billing_cycles')
           .select('id')
           .eq('platform_id', platform.id)
           .in('status', ['open', 'pending'])
-          .lte('period_start', today.toISOString().slice(0, 10))  // started before or on today
-          .gte('period_end', cycleStart.toISOString().slice(0, 10)) // ends after or on cycleStart
+          .lte('period_start', today.toISOString().slice(0, 10))
+          .gte('period_end', cycleStart.toISOString().slice(0, 10))
           .limit(1);
         if (existing && existing.length > 0) continue;
 
@@ -162,9 +365,7 @@ const Faturas = () => {
         continue;
       }
 
-      // ── Fixed cycles: semanal, quinzenal, mensal ──
       const payDelay = Number(rules?.fixed_pay_delay) || 7;
-
       let cycleStart: Date;
       if (platform.cycle === 'semanal') {
         cycleStart = startOfWeek(today, { weekStartsOn: 1 });
@@ -177,19 +378,17 @@ const Faturas = () => {
         continue;
       }
 
-      // Avoid duplicate: check if any open/pending cycle CONTAINS today for this platform
       const todayStr = today.toISOString().slice(0, 10);
       const cycleStartStr = cycleStart.toISOString().slice(0, 10);
       const { data: existing } = await supabase.from('billing_cycles')
         .select('id')
         .eq('platform_id', platform.id)
         .in('status', ['open', 'pending'])
-        .lte('period_start', todayStr)   // cycle started on or before today
-        .gte('period_end', cycleStartStr) // cycle ends on or after this cycle's start
+        .lte('period_start', todayStr)
+        .gte('period_end', cycleStartStr)
         .limit(1);
       if (existing && existing.length > 0) continue;
 
-      const payDate = addDays(today, payDelay);
       await supabase.from('billing_cycles').insert({
         user_id: u.user.id,
         platform_id: platform.id,
@@ -225,7 +424,6 @@ const Faturas = () => {
       status: editState.status,
     }).eq('id', editingCycle.id);
 
-    // Re-associate routes/daily_totals to match the updated date range
     if (!error) {
       await supabase.from('routes')
         .update({ billing_cycle_id: editingCycle.id })
@@ -269,10 +467,9 @@ const Faturas = () => {
 
   const deleteCycle = async () => {
     if (!editingCycle) return;
-    if (!confirm(`Excluir permanentemente a fatura de ${editingCycle.platform_name}?\nAs rotas vinculadas serão desassociadas (não excluídas).`)) return;
+    if (!confirm(`Excluir permanentemente a fatura de ${editingCycle.platform_name}?\nAs rotas vinculadas serão desassociadas.`)) return;
     setDeleting(true);
 
-    // 1. Desvincular rotas e totais antes de excluir
     await supabase.from('routes')
       .update({ billing_cycle_id: null })
       .eq('billing_cycle_id', editingCycle.id);
@@ -283,7 +480,6 @@ const Faturas = () => {
       .update({ billing_cycle_id: null })
       .eq('billing_cycle_id', editingCycle.id);
 
-    // 2. Excluir o ciclo
     const { error } = await supabase.from('billing_cycles').delete().eq('id', editingCycle.id);
     setDeleting(false);
     if (error) return toast.error(error.message);
@@ -293,163 +489,345 @@ const Faturas = () => {
     fetchCycles();
   };
 
-  // Derive unique platforms from fetched cycles for the filter chips
-  const platformOptions = Array.from(
-    new Map(cycles.map(c => [c.platform_id, c.platform_name ?? ''])).entries()
-  ).map(([id, name]) => ({ id, name }));
+  // ── LÓGICA DE FILTROS & PLATAFORMAS DESABILITADAS (Item 1 & 2) ──
+  const activePlatformIds = new Set(
+    platformsDb.filter((p) => p.active !== false).map((p) => p.id)
+  );
+
+  // Extrair todas as plataformas presentes nos ciclos
+  const allPlatformsInCycles = Array.from(
+    new Map(cycles.map((c) => [c.platform_id, c.platform_name ?? ''])).entries()
+  ).map(([id, name]) => {
+    const isPlatformActive = activePlatformIds.has(id);
+    const hasPending = cycles.some(
+      (c) => c.platform_id === id && c.status !== 'pago'
+    );
+    return { id, name, isPlatformActive, hasPending };
+  });
+
+  // Se a plataforma for desabilitada na Aba Apps (active === false),
+  // só aparece nos filtros se TIVER faturas pendentes / em aberto!
+  const visiblePlatforms = allPlatformsInCycles.filter(
+    (p) => p.isPlatformActive || p.hasPending
+  );
+
+  // Filtros com Badge / Contagem (Item 2: Badge Filter)
+  const totalPendingCyclesCount = cycles.filter((c) => c.status !== 'pago').length;
+
+  const platformBadgeOptions = [
+    {
+      id: 'all',
+      name: 'Todas',
+      badgeCount: totalPendingCyclesCount > 0 ? totalPendingCyclesCount : cycles.length,
+    },
+    ...visiblePlatforms.map((p) => {
+      const pCycles = cycles.filter((c) => c.platform_id === p.id);
+      const pPendingCount = pCycles.filter((c) => c.status !== 'pago').length;
+      return {
+        id: p.id,
+        name: p.name,
+        badgeCount: pPendingCount > 0 ? pPendingCount : pCycles.length,
+      };
+    }),
+  ];
 
   const filterFn = (c: BillingCycle) =>
     filterPlatform === 'all' || c.platform_id === filterPlatform;
 
-  const pending = cycles.filter(c => c.status !== 'pago').filter(filterFn);
-  const paid = cycles.filter(c => c.status === 'pago').filter(filterFn);
+  const pending = cycles.filter((c) => c.status !== 'pago').filter(filterFn);
+  const paid = cycles.filter((c) => c.status === 'pago').filter(filterFn);
   const pendingTotal = pending.reduce((acc, c) => acc + (c.total_amount || 0), 0);
   const paidTotal = paid.reduce((acc, c) => acc + (c.total_amount || 0), 0);
 
-  const CycleCard = ({ c }: { c: BillingCycle }) => {
-    const isOverdue = c.status !== 'pago' && isBeforeToday(c.expected_payment_date);
-    return (
-      <div className={`rounded-xl p-4 border ${isOverdue ? 'border-destructive/50 bg-destructive/5' : 'border-border/40 bg-surface'}`}>
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <h3 className="font-bold text-lg">{c.platform_name}</h3>
-            <p className="text-xs text-muted-foreground">
-              {fmtDate(c.period_start)} → {fmtDate(c.period_end)}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className={`font-black text-xl ${c.status === 'pago' ? 'text-success' : 'text-primary'}`}>
-              {formatBRL(c.total_amount || 0)}
-            </p>
-            <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md ${
-              c.status === 'pago' ? 'bg-success/15 text-success' :
-              isOverdue ? 'bg-destructive/15 text-destructive' : 'bg-primary/15 text-primary'
-            }`}>
-              {c.status === 'pago' ? 'Recebido' : isOverdue ? 'Atrasado' : 'A receber'}
-            </span>
-          </div>
-        </div>
-        <div className="flex justify-between items-center mt-4">
-          <div className="flex items-center gap-2">
-            <Wallet className="size-4 text-muted-foreground" />
-            <span className="text-sm font-semibold">
-              {c.status === 'pago' ? 'Recebido em:' : 'Previsto:'} {fmtDate(c.expected_payment_date)}
-            </span>
-          </div>
-          <div className="flex gap-2">
-            {c.status !== 'pago' && (
-              <button
-                onClick={() => openPay(c)}
-                className="h-10 px-4 bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wide rounded-lg active:scale-95 transition-transform flex items-center gap-1.5"
-              >
-                <CheckCircle className="size-3.5" /> Baixar
-              </button>
-            )}
-            <button
-              onClick={() => openEdit(c)}
-              className="h-10 px-3 bg-surface-high border border-border/40 text-foreground font-bold text-xs uppercase tracking-wide rounded-lg active:scale-95 transition-transform flex items-center gap-1.5 hover:border-primary hover:text-primary"
-            >
-              <Pencil className="size-3.5" /> Editar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <AppShell title={'CONTAS A RECEBER\nFATURAS'} back>
-      <div className="space-y-6 pb-24">
+      <div className="space-y-6 pb-24 font-lexend">
 
-        {/* ── Platform filter chips ── */}
-        {platformOptions.length > 1 && (
-          <div className="space-y-2">
+        {/* ── Filtro por Badge / Contagem (Badge Filter) ── */}
+        {platformBadgeOptions.length > 1 && (
+          <div className="space-y-2.5">
             <div className="flex items-center gap-2">
-              <SlidersHorizontal className="size-4 text-primary" />
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Filtrar por plataforma</span>
+              <SlidersHorizontal className="size-4 text-[#ff5f00]" />
+              <span className="text-xs font-extrabold text-[#ab8a7d] uppercase tracking-widest">
+                Filtrar por Plataforma (Contagem)
+              </span>
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={() => setFilterPlatform('all')}
-                className={`h-9 px-4 rounded-full text-xs font-black uppercase tracking-wide transition active:scale-95 ${
-                  filterPlatform === 'all'
-                    ? 'bg-primary text-primary-foreground shadow-fab'
-                    : 'bg-surface border border-border/40 text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Todas
-              </button>
-              {platformOptions.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setFilterPlatform(filterPlatform === p.id ? 'all' : p.id)}
-                  className={`h-9 px-4 rounded-full text-xs font-black uppercase tracking-wide transition active:scale-95 ${
-                    filterPlatform === p.id
-                      ? 'bg-primary text-primary-foreground shadow-fab'
-                      : 'bg-surface border border-border/40 text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {p.name}
-                </button>
-              ))}
+            <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
+              {platformBadgeOptions.map((p) => {
+                const isActive = filterPlatform === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setFilterPlatform(isActive && p.id !== 'all' ? 'all' : p.id)}
+                    className={`h-11 px-4 rounded-2xl text-xs font-extrabold transition-all shrink-0 flex items-center gap-2 border shadow-sm ${
+                      isActive
+                        ? 'bg-[#ff5f00] text-black border-[#ff5f00]'
+                        : 'bg-[#1c1b1b] text-[#e5e2e1] border-stone-800 hover:border-[#ff5f00]/40'
+                    }`}
+                  >
+                    <span>{p.name}</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                        isActive
+                          ? 'bg-black/30 text-black'
+                          : 'bg-[#201f1f] text-[#ffb599] border border-stone-800'
+                      }`}
+                    >
+                      {p.badgeCount}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-
-            {filterPlatform !== 'all' && (
-              <div className="flex gap-3 mt-1">
-                <div className="flex-1 rounded-xl bg-primary/5 border border-primary/20 p-3">
-                  <p className="text-[10px] font-bold text-primary uppercase tracking-wide">A receber</p>
-                  <p className="display text-xl text-primary">{formatBRL(pendingTotal)}</p>
-                </div>
-                <div className="flex-1 rounded-xl bg-success/5 border border-success/20 p-3">
-                  <p className="text-[10px] font-bold text-success uppercase tracking-wide">Recebido</p>
-                  <p className="display text-xl text-success">{formatBRL(paidTotal)}</p>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Em Aberto</h2>
-            <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-md">
-              {formatBRL(pendingTotal)}
-            </span>
+        {/* ── Seção "Em Aberto" com Destaque Visual (Item 3) ── */}
+        <section className="space-y-4">
+          <div className="bg-[#1c1b1b] p-4.5 rounded-3xl border-2 border-amber-500/40 flex items-center justify-between shadow-xl">
+            <div className="flex items-center gap-3.5">
+              <div className="p-3 bg-amber-500/15 text-amber-400 rounded-2xl shrink-0 font-extrabold border border-amber-500/30">
+                <Wallet className="size-6" />
+              </div>
+              <div>
+                <h2 className="font-extrabold text-base text-white uppercase tracking-wide flex items-center gap-2">
+                  EM ABERTO
+                </h2>
+                <p className="text-xs text-[#ab8a7d] font-medium">
+                  Faturas pendentes e valores a receber
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-xs font-extrabold text-amber-400 bg-amber-950/80 px-3.5 py-1.5 rounded-full border border-amber-800/60 shadow">
+                {pending.length} {pending.length === 1 ? 'fatura' : 'faturas'} • {formatBRL(pendingTotal)}
+              </span>
+            </div>
           </div>
+
+          {/* Dica de Uso com Deslize (Slide Gesture) na seção Em Aberto */}
+          {pending.length > 0 && (
+            <div className="flex flex-col items-center justify-center text-center text-xs py-1 space-y-1 font-bold">
+              <span className="text-emerald-400 flex items-center justify-center gap-1.5">
+                <ArrowRight className="size-4 stroke-[2.5]" />
+                <span>Direita: Baixar</span>
+              </span>
+              <span className="text-[#ffb599] flex items-center justify-center gap-1.5">
+                <ArrowLeft className="size-4 stroke-[2.5]" />
+                <span>Esquerda: Editar</span>
+              </span>
+            </div>
+          )}
+
           {loading ? (
-            <p className="text-sm text-center text-muted-foreground py-8">Carregando...</p>
+            <p className="text-sm text-center text-[#ab8a7d] py-8 font-medium">Carregando faturas...</p>
           ) : pending.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/40 p-6 text-center bg-surface">
-              <p className="text-sm text-muted-foreground">
-                {filterPlatform === 'all' ? 'Nenhuma fatura em aberto.' : 'Nenhuma fatura em aberto para esta plataforma.'}
+            <div className="rounded-3xl border-2 border-dashed border-stone-800 p-8 text-center bg-[#1c1b1b]">
+              <p className="text-sm font-semibold text-[#ab8a7d]">
+                {filterPlatform === 'all'
+                  ? 'Nenhuma fatura em aberto no momento.'
+                  : 'Nenhuma fatura em aberto para esta plataforma.'}
               </p>
             </div>
           ) : (
-            <div className="space-y-3">{pending.map(c => <CycleCard key={c.id} c={c} />)}</div>
+            <div className="space-y-3">
+              {pending.map((c) => (
+                <SwipeableCycleCard
+                  key={c.id}
+                  c={c}
+                  onPay={openPay}
+                  onEdit={openEdit}
+                  onView={setViewingCycle}
+                  fmtDate={fmtDate}
+                  isOverdue={isBeforeToday(c.expected_payment_date)}
+                />
+              ))}
+            </div>
           )}
         </section>
 
-        {paid.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Histórico Pago</h2>
-            <div className="space-y-3 opacity-80">{paid.map(c => <CycleCard key={c.id} c={c} />)}</div>
-          </section>
-        )}
+        {/* ── Seção "Histórico Pago" com Destaque Visual (Item 3 & 4) ── */}
+        <section className="space-y-4 pt-4 border-t border-stone-800/80">
+          <div className="bg-[#1c1b1b] p-4.5 rounded-3xl border-2 border-emerald-500/40 flex items-center justify-between shadow-xl">
+            <div className="flex items-center gap-3.5">
+              <div className="p-3 bg-emerald-500/15 text-emerald-400 rounded-2xl shrink-0 font-extrabold border border-emerald-500/30">
+                <CalendarCheck className="size-6" />
+              </div>
+              <div>
+                <h2 className="font-extrabold text-base text-white uppercase tracking-wide flex items-center gap-2">
+                  HISTÓRICO PAGO
+                </h2>
+                <p className="text-xs text-[#ab8a7d] font-medium">
+                  Faturas liquidadas e recebidas
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-xs font-extrabold text-emerald-400 bg-emerald-950/80 px-3.5 py-1.5 rounded-full border border-emerald-800/60 shadow">
+                {paid.length} {paid.length === 1 ? 'recebida' : 'recebidas'} • {formatBRL(paidTotal)}
+              </span>
+            </div>
+          </div>
+
+          {paid.length === 0 ? (
+            <div className="rounded-3xl border-2 border-dashed border-stone-800 p-6 text-center bg-[#1c1b1b]">
+              <p className="text-xs font-semibold text-[#ab8a7d]">Nenhuma fatura paga no histórico.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {paid.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => setViewingCycle(c)}
+                  className="bg-[#1c1b1b] p-5 rounded-3xl border-2 border-stone-800 hover:border-emerald-500/40 transition-all space-y-3 cursor-pointer group shadow"
+                >
+                  <div className="flex justify-between items-start gap-3">
+                    <div>
+                      <h3 className="font-extrabold text-base text-white group-hover:text-emerald-400 transition">
+                        {c.platform_name}
+                      </h3>
+                      <p className="text-xs text-[#ab8a7d] font-medium mt-0.5">
+                        Período: {fmtDate(c.period_start)} → {fmtDate(c.period_end)}
+                      </p>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <p className="font-extrabold text-xl text-emerald-400">
+                        {formatBRL(c.total_amount || 0)}
+                      </p>
+                      <span className="inline-block mt-1 text-[10px] uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+                        Recebido
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-stone-800 text-xs text-[#ab8a7d]">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="size-4 text-emerald-400" />
+                      <span>Recebido em: <strong className="text-white">{fmtDate(c.expected_payment_date)}</strong></span>
+                    </div>
+                    <span className="text-[11px] text-stone-400 group-hover:text-white font-extrabold underline">
+                      Clique para Visualizar ➔
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
 
-      {/* Edit Modal */}
-      {editingCycle && editState && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={() => setEditingCycle(null)}>
+      {/* ── Modal de Visualização (Item 4: Apenas Leitura com Fechar e Editar) ── */}
+      {viewingCycle && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setViewingCycle(null)}
+        >
           <div
-            className="w-full max-w-lg bg-surface-container rounded-t-3xl p-6 space-y-5 border-t border-border/40 shadow-2xl"
+            className="w-full max-w-md bg-[#1c1b1b] border-2 border-stone-800 rounded-3xl p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#ab8a7d]">
+                  VISUALIZAR FATURA
+                </span>
+                <h2 className="font-extrabold text-xl text-white mt-0.5 flex items-center gap-2">
+                  <Building2 className="size-5 text-[#ff5f00]" />
+                  {viewingCycle.platform_name}
+                </h2>
+              </div>
+              <button
+                onClick={() => setViewingCycle(null)}
+                className="p-2 rounded-xl bg-[#201f1f] text-stone-400 hover:text-white transition"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
+                <span className="text-[#ab8a7d] font-semibold">Valor Total:</span>
+                <span className="font-extrabold text-xl text-[#ffb599]">
+                  {formatBRL(viewingCycle.total_amount || 0)}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
+                <span className="text-[#ab8a7d] font-semibold">Período de Apuração:</span>
+                <span className="font-bold text-white">
+                  {fmtDate(viewingCycle.period_start)} → {fmtDate(viewingCycle.period_end)}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
+                <span className="text-[#ab8a7d] font-semibold">
+                  {viewingCycle.status === 'pago' ? 'Data do Recebimento:' : 'Data Prevista:'}
+                </span>
+                <span className="font-bold text-white">
+                  {fmtDate(viewingCycle.expected_payment_date)}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
+                <span className="text-[#ab8a7d] font-semibold">Status do Ciclo:</span>
+                <span
+                  className={`px-3 py-1 rounded-full font-extrabold text-xs uppercase ${
+                    viewingCycle.status === 'pago'
+                      ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/40'
+                      : 'bg-amber-950/80 text-amber-400 border border-amber-800/40'
+                  }`}
+                >
+                  {STATUS_LABEL[viewingCycle.status] || viewingCycle.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Dois botões exigidos: Fechar e Editar */}
+            <div className="flex items-center gap-3 pt-3">
+              <button
+                type="button"
+                onClick={() => setViewingCycle(null)}
+                className="flex-1 h-12 rounded-xl bg-[#201f1f] font-extrabold text-stone-300 hover:bg-[#2a2a2a] transition uppercase text-sm"
+              >
+                FECHAR
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = viewingCycle;
+                  setViewingCycle(null);
+                  openEdit(target);
+                }}
+                className="flex-1 h-12 rounded-xl bg-[#ff5f00] text-black font-extrabold flex items-center justify-center gap-2 hover:bg-[#ffb599] transition shadow-lg uppercase text-sm"
+              >
+                <Pencil className="size-4 stroke-[3]" />
+                EDITAR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Edição da Fatura ── */}
+      {editingCycle && editState && (
+        <div 
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4" 
+          onClick={() => setEditingCycle(null)}
+        >
+          <div
+            className="w-full max-w-lg bg-[#1c1b1b] border-2 border-stone-800 rounded-t-3xl sm:rounded-3xl p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
               <div>
-                <h2 className="display text-xl">EDITAR FATURA</h2>
-                <p className="text-sm text-primary font-bold">{editingCycle.platform_name}</p>
+                <h2 className="font-extrabold text-xl text-white flex items-center gap-2">
+                  <Pencil className="size-5 text-[#ff5f00]" />
+                  EDITAR FATURA
+                </h2>
+                <p className="text-sm text-[#ffb599] font-bold">{editingCycle.platform_name}</p>
               </div>
-              <button onClick={() => setEditingCycle(null)} className="size-10 grid place-items-center rounded-xl bg-surface-high text-muted-foreground hover:text-foreground">
+              <button onClick={() => setEditingCycle(null)} className="p-2 text-stone-400 hover:text-white rounded-xl bg-[#201f1f]">
                 <X className="size-5" />
               </button>
             </div>
@@ -475,56 +853,64 @@ const Faturas = () => {
               </Select>
             </Field>
 
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs text-muted-foreground">
-              <span className="font-bold text-primary">ⓘ</span> Ao salvar, o sistema associará automaticamente as rotas e totais da plataforma que estejam dentro do período informado.
+            <div className="bg-[#201f1f] border border-stone-800 rounded-2xl p-3.5 text-xs text-[#ab8a7d]">
+              <span className="font-bold text-[#ffb599]">ⓘ Aviso:</span> Ao salvar, o sistema reassociará automaticamente as rotas e totais diários dentro do período informado.
             </div>
 
-            <button
-              onClick={saveEdit}
-              disabled={saving || deleting}
-              className="w-full h-14 bg-primary text-primary-foreground font-black text-sm uppercase rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition disabled:opacity-60"
-            >
-              <Save className="size-5" />
-              {saving ? 'SALVANDO...' : 'SALVAR ALTERAÇÕES'}
-            </button>
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={saveEdit}
+                disabled={saving || deleting}
+                className="w-full h-12 bg-[#ff5f00] text-black font-extrabold text-sm uppercase rounded-xl flex items-center justify-center gap-2 hover:bg-[#ffb599] transition disabled:opacity-60 shadow-lg"
+              >
+                <Save className="size-5 stroke-[3]" />
+                {saving ? 'SALVANDO...' : 'SALVAR ALTERAÇÕES'}
+              </button>
 
-            <button
-              onClick={deleteCycle}
-              disabled={saving || deleting}
-              className="w-full h-12 border border-destructive/40 text-destructive font-black text-sm uppercase rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition hover:bg-destructive/10 disabled:opacity-40"
-            >
-              <Trash2 className="size-4" />
-              {deleting ? 'EXCLUINDO...' : 'EXCLUIR FATURA PERMANENTEMENTE'}
-            </button>
+              <button
+                onClick={deleteCycle}
+                disabled={saving || deleting}
+                className="w-full h-12 bg-red-950/40 border border-red-800/60 text-red-400 font-extrabold text-sm uppercase rounded-xl flex items-center justify-center gap-2 hover:bg-red-900/40 transition disabled:opacity-40"
+              >
+                <Trash2 className="size-4" />
+                {deleting ? 'EXCLUINDO...' : 'EXCLUIR FATURA PERMANENTEMENTE'}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Pay Modal */}
+      {/* ── Modal de Baixar / Confirmar Recebimento Fatura ── */}
       {payingCycle && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={() => setPayingCycle(null)}>
+        <div 
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4" 
+          onClick={() => setPayingCycle(null)}
+        >
           <div
-            className="w-full max-w-lg bg-surface-container rounded-t-3xl p-6 space-y-5 border-t border-border/40 shadow-2xl"
+            className="w-full max-w-lg bg-[#1c1b1b] border-2 border-stone-800 rounded-t-3xl sm:rounded-3xl p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
               <div>
-                <h2 className="display text-xl">BAIXAR FATURA</h2>
-                <p className="text-sm text-primary font-bold">{payingCycle.platform_name}</p>
+                <h2 className="font-extrabold text-xl text-white flex items-center gap-2">
+                  <CheckCircle className="size-5 text-emerald-400" />
+                  BAIXAR FATURA (LIQUIDAR)
+                </h2>
+                <p className="text-sm text-[#ffb599] font-bold">{payingCycle.platform_name}</p>
               </div>
-              <button onClick={() => setPayingCycle(null)} className="size-10 grid place-items-center rounded-xl bg-surface-high text-muted-foreground hover:text-foreground">
+              <button onClick={() => setPayingCycle(null)} className="p-2 text-stone-400 hover:text-white rounded-xl bg-[#201f1f]">
                 <X className="size-5" />
               </button>
             </div>
 
-            <Field label="Data de Recebimento">
+            <Field label="Data de Recebimento do Pagamento">
               <Input type="date" value={paidDate} onChange={e => setPaidDate(e.target.value)} />
             </Field>
 
             <button
               onClick={confirmPay}
               disabled={saving}
-              className="w-full h-14 bg-success text-success-foreground font-black text-sm uppercase rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition disabled:opacity-60"
+              className="w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm uppercase rounded-xl flex items-center justify-center gap-2 transition disabled:opacity-60 shadow-lg"
             >
               <CalendarCheck className="size-5" />
               {saving ? 'PROCESSANDO...' : 'CONFIRMAR RECEBIMENTO'}
@@ -533,20 +919,23 @@ const Faturas = () => {
         </div>
       )}
 
-      <div className="fixed bottom-[80px] right-4 flex flex-col gap-3">
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-[80px] right-4 flex flex-col gap-3 z-40">
         <button
           onClick={() => navigate('/ajuste-financeiro')}
-          className="size-12 rounded-full bg-secondary text-secondary-foreground shadow-fab grid place-items-center active:scale-95 transition-transform"
+          className="size-12 rounded-2xl bg-[#201f1f] text-[#ffb599] border border-stone-800 shadow-xl grid place-items-center active:scale-95 hover:border-[#ff5f00] transition-all"
           aria-label="Lançar Desconto ou Bônus"
+          title="Lançar Desconto ou Bônus"
         >
           <FileWarning className="size-5" />
         </button>
         <button
           onClick={() => navigate('/fatura/nova')}
-          className="size-14 rounded-full bg-primary text-primary-foreground shadow-fab grid place-items-center active:scale-95 transition-transform"
+          className="size-14 rounded-2xl bg-[#ff5f00] text-black shadow-xl grid place-items-center active:scale-95 hover:bg-[#ffb599] transition-all"
           aria-label="Fechar Novo Ciclo"
+          title="Fechar Novo Ciclo"
         >
-          <Plus className="size-6" strokeWidth={3} />
+          <Plus className="size-7 stroke-[3]" />
         </button>
       </div>
     </AppShell>
