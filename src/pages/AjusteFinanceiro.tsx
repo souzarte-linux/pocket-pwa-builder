@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import { FormShell, Field, Select, Input, SubmitButton, SegButton } from '@/components/forms/Form';
+import { FormShell, Field, Select, Input, MaskedInput, SubmitButton } from '@/components/forms/Form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { parseCurrencyToNumber } from '@/lib/format';
+
+const DISCOUNT_TYPES = ['previdenciario', 'extravio', 'multa'];
 
 const AjusteFinanceiro = () => {
   const navigate = useNavigate();
   const [platforms, setPlatforms] = useState<{ id: string; name: string }[]>([]);
   const [platformId, setPlatformId] = useState('');
   
-  const [type, setType] = useState<'bonus' | 'pnr'>('pnr');
+  const [type, setType] = useState<string>('previdenciario');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [occurredAt, setOccurredAt] = useState(new Date().toISOString().slice(0, 10));
@@ -24,11 +27,13 @@ const AjusteFinanceiro = () => {
     });
   }, []);
 
+  const isDiscount = DISCOUNT_TYPES.includes(type);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!platformId) return toast.error('Selecione a plataforma');
     
-    const amt = Number(amount.replace(',', '.'));
+    const amt = parseCurrencyToNumber(amount);
     if (!amt || amt <= 0) return toast.error('Valor inválido');
 
     setLoading(true);
@@ -39,7 +44,7 @@ const AjusteFinanceiro = () => {
       user_id: u.user.id,
       platform_id: platformId,
       type,
-      amount: type === 'pnr' ? -amt : amt, // PNR is negative, Bonus is positive
+      amount: isDiscount ? -amt : amt,
       description,
       occurred_at: occurredAt
     });
@@ -51,19 +56,24 @@ const AjusteFinanceiro = () => {
   };
 
   return (
-    <AppShell back title={'AJUSTE FINANCEIRO\nPNR / BÔNUS'}>
+    <AppShell back title={'AJUSTE FINANCEIRO\nDESCONTOS / ACRÉSCIMOS'}>
       <form onSubmit={submit}>
         <FormShell footer={<SubmitButton loading={loading}>REGISTRAR AJUSTE ›</SubmitButton>}>
           
           <Field label="Tipo de Ajuste">
-            <div className="grid grid-cols-2 gap-2">
-              <SegButton active={type === 'pnr'} onClick={() => setType('pnr')} className="text-destructive font-black">
-                DESCONTO (PNR)
-              </SegButton>
-              <SegButton active={type === 'bonus'} onClick={() => setType('bonus')} className="text-success font-black">
-                BÔNUS / GRATIFICAÇÃO
-              </SegButton>
-            </div>
+            <Select value={type} onChange={(e) => setType(e.target.value)} required>
+              <optgroup label="Descontos (Abatimentos)">
+                <option value="previdenciario">Previdenciário</option>
+                <option value="extravio">Extravios</option>
+                <option value="multa">Multas</option>
+              </optgroup>
+              <optgroup label="Acréscimos (Ganhos)">
+                <option value="bonus_fatura">Bônus</option>
+                <option value="gratificacao">Gratificação</option>
+                <option value="incentivo">Incentivo</option>
+                <option value="premiacao">Premiação</option>
+              </optgroup>
+            </Select>
           </Field>
 
           <Field label="Plataforma">
@@ -73,13 +83,14 @@ const AjusteFinanceiro = () => {
           </Field>
 
           <Field label="Valor do Ajuste (R$)">
-            <Input 
+            <MaskedInput 
+              maskType="currency"
               inputMode="decimal" 
               value={amount} 
               onChange={e => setAmount(e.target.value)} 
               placeholder="0,00" 
               required
-              className={type === 'pnr' ? 'text-destructive font-black' : 'text-success font-black'}
+              className={isDiscount ? 'text-destructive font-black' : 'text-success font-black'}
             />
           </Field>
 
