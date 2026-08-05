@@ -200,14 +200,24 @@ export const parseDistanceToNumber = (val: string | number | null | undefined): 
   return isNaN(num) ? 0 : num;
 };
 
-/** Visual Package Mask (40 Pacotinho) */
+/** Visual Package Mask (1 Pacotinho / 5 Pacotinhos) */
 export const formatPackageMask = (val: string | number | null | undefined): string => {
   if (val === null || val === undefined || val === '') return '';
   const str = String(val).replace(/Pacotinho(s)?/gi, '').trim();
   if (!str) return '';
   const num = parseInt(str, 10);
   if (isNaN(num)) return str;
-  return `${num} Pacotinho`;
+  return num === 1 ? `${num} Pacotinho` : `${num} Pacotinhos`;
+};
+
+/** Visual Volume Mask (1 Volume / 2 Volumes) */
+export const formatVolumeMask = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined || val === '') return '';
+  const str = String(val).replace(/Volume(s)?/gi, '').trim();
+  if (!str) return '';
+  const num = parseInt(str, 10);
+  if (isNaN(num)) return str;
+  return num === 1 ? `${num} Volume` : `${num} Volumes`;
 };
 
 /** Convert package count string or number to pure JS number for database */
@@ -222,7 +232,7 @@ export const parsePackageToNumber = (val: string | number | null | undefined): n
 /** Extract clean unmasked value string when user focuses field */
 export const getCleanUnmaskedValue = (
   val: string | number | null | undefined,
-  maskType: 'currency' | 'distance' | 'package'
+  maskType: 'currency' | 'distance' | 'package' | 'volume'
 ): string => {
   if (val === null || val === undefined || val === '') return '';
   const str = String(val);
@@ -234,6 +244,9 @@ export const getCleanUnmaskedValue = (
   }
   if (maskType === 'package') {
     return str.replace(/Pacotinho(s)?/gi, '').trim();
+  }
+  if (maskType === 'volume') {
+    return str.replace(/Volume(s)?/gi, '').trim();
   }
   return str;
 };

@@ -362,7 +362,7 @@ const NovaRota = () => {
                 <Field label="Volumosos">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
                     <MaskedInput
-                      maskType="package"
+                      maskType="volume"
                       inputMode="numeric"
                       value={largePackageCount}
                       onChange={(e) => handleLargePackageCountChange(e.target.value)}
@@ -446,7 +446,9 @@ const NovaRota = () => {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="display text-xl">VALORES DOS VOLUMOSOS</h2>
-                <p className="text-sm text-primary font-bold">{largePackageCount} pacote(s) volumoso(s)</p>
+                <p className="text-sm text-primary font-bold">
+                  {parsePackageToNumber(largePackageCount) === 1 ? '1 volume' : `${largePackageCount} volumes`}
+                </p>
               </div>
               <button type="button" onClick={() => setShowLargePackageModal(false)} className="size-10 grid place-items-center rounded-xl bg-surface-high text-muted-foreground hover:text-foreground">
                 <Package className="size-5" />
