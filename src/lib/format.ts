@@ -160,11 +160,7 @@ export const validateCNPJ = (cnpjStr: string): boolean => {
 /** Visual Currency Mask (R$ 5,00) */
 export const formatCurrencyMask = (val: string | number | null | undefined): string => {
   if (val === null || val === undefined || val === '') return '';
-  const str = String(val).replace('R$', '').trim();
-  if (!str) return '';
-  const cleanStr = str.replace(/\./g, '').replace(',', '.');
-  const num = parseFloat(cleanStr);
-  if (isNaN(num)) return str;
+  const num = parseCurrencyToNumber(val);
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
@@ -172,20 +168,21 @@ export const formatCurrencyMask = (val: string | number | null | undefined): str
 export const parseCurrencyToNumber = (val: string | number | null | undefined): number => {
   if (typeof val === 'number') return isNaN(val) ? 0 : val;
   if (!val) return 0;
-  const str = String(val).replace('R$', '').trim();
-  const cleanStr = str.replace(/\./g, '').replace(',', '.');
-  const num = parseFloat(cleanStr);
+  let str = String(val).replace('R$', '').trim();
+  if (!str) return 0;
+  if (str.includes(',') && str.includes('.')) {
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else if (str.includes(',')) {
+    str = str.replace(',', '.');
+  }
+  const num = parseFloat(str);
   return isNaN(num) ? 0 : num;
 };
 
 /** Visual Distance Mask (5,0 KM) */
 export const formatDistanceMask = (val: string | number | null | undefined): string => {
   if (val === null || val === undefined || val === '') return '';
-  const str = String(val).replace(/KM/gi, '').trim();
-  if (!str) return '';
-  const cleanStr = str.replace(/\./g, '').replace(',', '.');
-  const num = parseFloat(cleanStr);
-  if (isNaN(num)) return str;
+  const num = parseDistanceToNumber(val);
   const formatted = num.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
   return `${formatted} KM`;
 };
@@ -194,9 +191,14 @@ export const formatDistanceMask = (val: string | number | null | undefined): str
 export const parseDistanceToNumber = (val: string | number | null | undefined): number => {
   if (typeof val === 'number') return isNaN(val) ? 0 : val;
   if (!val) return 0;
-  const str = String(val).replace(/KM/gi, '').trim();
-  const cleanStr = str.replace(/\./g, '').replace(',', '.');
-  const num = parseFloat(cleanStr);
+  let str = String(val).replace(/KM/gi, '').trim();
+  if (!str) return 0;
+  if (str.includes(',') && str.includes('.')) {
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else if (str.includes(',')) {
+    str = str.replace(',', '.');
+  }
+  const num = parseFloat(str);
   return isNaN(num) ? 0 : num;
 };
 

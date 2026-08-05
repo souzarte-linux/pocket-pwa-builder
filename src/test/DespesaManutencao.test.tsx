@@ -22,6 +22,26 @@ vi.mock('sonner', () => ({
   },
 }));
 
+function createQueryMock(data: any = []) {
+  const promise = Promise.resolve({ data, error: null });
+  const mockObj: any = {
+    then: (resolve: any, reject: any) => promise.then(resolve, reject),
+    catch: (reject: any) => promise.catch(reject),
+    eq: vi.fn().mockImplementation(() => mockObj),
+    neq: vi.fn().mockImplementation(() => mockObj),
+    in: vi.fn().mockImplementation(() => mockObj),
+    isNull: vi.fn().mockImplementation(() => mockObj),
+    gte: vi.fn().mockImplementation(() => mockObj),
+    lte: vi.fn().mockImplementation(() => mockObj),
+    or: vi.fn().mockImplementation(() => mockObj),
+    order: vi.fn().mockImplementation(() => mockObj),
+    limit: vi.fn().mockImplementation(() => mockObj),
+    ilike: vi.fn().mockImplementation(() => mockObj),
+    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ data: data?.[0] ?? null, error: null })),
+  };
+  return mockObj;
+}
+
 describe('Despesa Page - Manutenção', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -37,40 +57,24 @@ describe('Despesa Page - Manutenção', () => {
     (supabase.from as any).mockImplementation((table: string) => {
       if (table === 'companies') {
         return {
-          select: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({ data: [{ name: 'OFICINA VELOCITY' }] }),
-          }),
+          select: vi.fn().mockReturnValue(createQueryMock([{ name: 'OFICINA VELOCITY' }])),
         };
       }
       if (table === 'expenses') {
         return {
           insert: insertMock,
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              ilike: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue({ data: [] }),
-                }),
-              }),
-            }),
-          }),
+          select: vi.fn().mockReturnValue(createQueryMock([])),
         };
       }
       if (table === 'part_maintenance') {
         return {
           upsert: upsertMock,
+          select: vi.fn().mockReturnValue(createQueryMock([])),
         };
       }
-      if (table === 'profiles') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              maybeSingle: vi.fn().mockResolvedValue({ data: null }),
-            }),
-          }),
-        };
-      }
-      return {};
+      return {
+        select: vi.fn().mockReturnValue(createQueryMock([])),
+      };
     });
 
     render(

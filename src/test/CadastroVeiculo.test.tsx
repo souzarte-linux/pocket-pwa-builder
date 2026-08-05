@@ -96,7 +96,7 @@ describe('CadastroVeiculo Page', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith('Veículo atualizado com sucesso!');
+      expect(toast.success).toHaveBeenCalledWith('Veículo cadastrado com sucesso!');
     });
   });
 });

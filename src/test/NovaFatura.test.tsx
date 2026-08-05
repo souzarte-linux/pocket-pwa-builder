@@ -1,9 +1,9 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TrocasOleo } from '@/pages/TrocasOleo';
+import NovaFatura from '@/pages/NovaFatura';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { BrowserRouter } from 'react-router-dom';
+import * as billingModule from '@/lib/billing';
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -12,13 +12,6 @@ vi.mock('@/integrations/supabase/client', () => ({
       onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
     },
     from: vi.fn(),
-  },
-}));
-
-vi.mock('sonner', () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
   },
 }));
 
@@ -41,7 +34,7 @@ function createQueryMock(data: any = []) {
   return mockObj;
 }
 
-describe('TrocasOleo Page (Maintenance)', () => {
+describe('NovaFatura.tsx - Manual Invoice Creation Overlap Validation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (supabase.auth.getUser as any).mockResolvedValue({
@@ -49,8 +42,31 @@ describe('TrocasOleo Page (Maintenance)', () => {
     });
   });
 
-  it('renders title and form correctly', async () => {
+  it('blocks creation of manual invoice when checkOverlap returns conflict', async () => {
+    vi.spyOn(billingModule, 'checkOverlap').mockResolvedValue({
+      hasOverlap: true,
+      conflictingCycle: {
+        id: 'c-exist',
+        platform_id: 'p-1',
+        period_start: '2026-08-01T00:00:00',
+        period_end: '2026-08-07T23:59:59',
+        expected_payment_date: '2026-08-09',
+        status: 'open',
+        platform_name: 'Loggi',
+      },
+    });
+
+    const insertCycleSpy = vi.fn();
+
     (supabase.from as any).mockImplementation((table: string) => {
+      if (table === 'platforms') {
+        return {
+          select: vi.fn().mockReturnValue(createQueryMock([{ id: 'p-1', name: 'Loggi', active: true }])),
+        };
+      }
+      if (table === 'billing_cycles') {
+        return { insert: insertCycleSpy };
+      }
       return {
         select: vi.fn().mockReturnValue(createQueryMock([])),
       };
@@ -58,12 +74,17 @@ describe('TrocasOleo Page (Maintenance)', () => {
 
     render(
       <BrowserRouter>
-        <TrocasOleo />
+        <NovaFatura />
       </BrowserRouter>
     );
 
+    await waitFor(() => screen.getByText('GERAR FATURA E VINCULAR CORRIDAS ›'));
+
+    const submitBtn = screen.getByText('GERAR FATURA E VINCULAR CORRIDAS ›');
+    fireEvent.click(submitBtn);
+
     await waitFor(() => {
-      expect(screen.getByText('MONITORAMENTO DE PEÇAS')).toBeInTheDocument();
+      expect(insertCycleSpy).not.toHaveBeenCalled();
     });
   });
 });
