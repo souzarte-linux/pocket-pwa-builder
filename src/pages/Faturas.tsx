@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { supabase } from '@/integrations/supabase/client';
-import { formatBRL } from '@/lib/format';
+import { formatBRL, parseCurrencyToNumber } from '@/lib/format';
 import { 
   Plus, 
   CheckCircle, 
@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { startOfWeek, startOfMonth, addDays } from 'date-fns';
-import { Field, Input, Select } from '@/components/forms/Form';
+import { Field, Input, MaskedInput, Select } from '@/components/forms/Form';
 import { checkOverlap, getPlatformCycleIntervals } from '@/lib/billing';
 import { ConfirmCycleModal } from '@/components/faturas/ConfirmCycleModal';
 
@@ -47,7 +47,24 @@ interface EditState {
   period_end: string;
   expected_payment_date: string;
   status: string;
+  previdenciario: string;
+  extravio: string;
+  multa: string;
+  bonus_fatura: string;
+  gratificacao: string;
+  incentivo: string;
+  premiacao: string;
 }
+
+const ADJUSTMENT_TYPES = [
+  'previdenciario',
+  'extravio',
+  'multa',
+  'bonus_fatura',
+  'gratificacao',
+  'incentivo',
+  'premiacao',
+] as const;
 
 const STATUS_OPTIONS = ['pending', 'open', 'pendente_confirmacao', 'pago', 'cancelado'];
 const STATUS_LABEL: Record<string, string> = {
@@ -456,14 +473,39 @@ const Faturas = () => {
 
   useEffect(() => { fetchCycles(); generateBillingCycles(); }, []);
 
-  const openEdit = (c: BillingCycle) => {
+  const openEdit = async (c: BillingCycle) => {
     setEditingCycle(c);
-    setEditState({
+    const initialState: EditState = {
       period_start: c.period_start.slice(0, 10),
       period_end: c.period_end.slice(0, 10),
       expected_payment_date: c.expected_payment_date.slice(0, 10),
       status: c.status,
-    });
+      previdenciario: '',
+      extravio: '',
+      multa: '',
+      bonus_fatura: '',
+      gratificacao: '',
+      incentivo: '',
+      premiacao: '',
+    };
+    setEditState(initialState);
+
+    const { data: adjList } = await supabase
+      .from('financial_adjustments')
+      .select('type, amount')
+      .eq('billing_cycle_id', c.id)
+      .in('type', ADJUSTMENT_TYPES as any);
+
+    if (adjList && adjList.length > 0) {
+      const loadedState = { ...initialState };
+      adjList.forEach((adj: any) => {
+        const positiveVal = Math.abs(Number(adj.amount || 0));
+        if (positiveVal > 0 && adj.type in loadedState) {
+          (loadedState as any)[adj.type] = String(positiveVal);
+        }
+      });
+      setEditState(loadedState);
+    }
   };
 
   const saveEdit = async () => {
@@ -515,6 +557,45 @@ const Faturas = () => {
         .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${editingCycle.id}`)
         .gte('occurred_at', editState.period_start)
         .lte('occurred_at', editState.period_end);
+
+      // --- Salvar Descontos e Acréscimos (financial_adjustments) ---
+      const { data: u } = await supabase.auth.getUser();
+      if (u?.user) {
+        // 1. Apagar apenas os 7 tipos específicos desta fatura para evitar duplicação em reedições
+        await supabase
+          .from('financial_adjustments')
+          .delete()
+          .eq('billing_cycle_id', editingCycle.id)
+          .in('type', ADJUSTMENT_TYPES as any);
+
+        // 2. Inserir registros para cada campo preenchido (> 0)
+        const discountTypes = ['previdenciario', 'extravio', 'multa'];
+        const newAdjustments: any[] = [];
+        const occurredIso = editState.expected_payment_date
+          ? `${editState.expected_payment_date}T12:00:00.000Z`
+          : new Date().toISOString();
+
+        for (const adjType of ADJUSTMENT_TYPES) {
+          const valStr = editState[adjType as keyof EditState];
+          const numVal = parseCurrencyToNumber(valStr);
+          if (numVal > 0) {
+            const isDiscount = discountTypes.includes(adjType);
+            newAdjustments.push({
+              user_id: u.user.id,
+              platform_id: editingCycle.platform_id,
+              billing_cycle_id: editingCycle.id,
+              type: adjType,
+              amount: isDiscount ? -Math.abs(numVal) : Math.abs(numVal),
+              occurred_at: occurredIso,
+              description: `Ajuste da fatura: ${adjType}`,
+            });
+          }
+        }
+
+        if (newAdjustments.length > 0) {
+          await supabase.from('financial_adjustments').insert(newAdjustments);
+        }
+      }
     }
 
     setSaving(false);
@@ -896,7 +977,7 @@ const Faturas = () => {
           onClick={() => setEditingCycle(null)}
         >
           <div
-            className="w-full max-w-lg bg-[#1c1b1b] border-2 border-stone-800 rounded-t-3xl sm:rounded-3xl p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95"
+            className="w-full max-w-lg bg-[#1c1b1b] border-2 border-stone-800 rounded-t-3xl sm:rounded-3xl p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto custom-scrollbar"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-stone-800 pb-3">
@@ -932,6 +1013,111 @@ const Faturas = () => {
                 ))}
               </Select>
             </Field>
+
+            {/* ── Seção Descontos e Acréscimos ── */}
+            <div className="pt-2 border-t border-stone-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-extrabold text-sm text-white uppercase tracking-wider">
+                  Descontos e Acréscimos
+                </h3>
+                <span className="text-[10px] text-[#ab8a7d]">Opcional</span>
+              </div>
+
+              {/* Descontos (Rótulos Vermelhos) */}
+              <div className="space-y-2.5 p-3.5 bg-[#201f1f] border border-red-900/40 rounded-2xl">
+                <span className="text-xs font-extrabold text-red-400 uppercase tracking-wide block border-b border-red-900/30 pb-1.5">
+                  Descontos (Abatimentos)
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-red-400 mb-1">Previdenciário</label>
+                    <MaskedInput
+                      maskType="currency"
+                      inputMode="decimal"
+                      value={editState.previdenciario}
+                      onChange={e => setEditState(s => s ? { ...s, previdenciario: e.target.value } : s)}
+                      placeholder="0,00"
+                      className="h-11 text-xs border-red-900/40 focus:border-red-500 bg-[#1c1b1b] text-red-400 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-red-400 mb-1">Extravios</label>
+                    <MaskedInput
+                      maskType="currency"
+                      inputMode="decimal"
+                      value={editState.extravio}
+                      onChange={e => setEditState(s => s ? { ...s, extravio: e.target.value } : s)}
+                      placeholder="0,00"
+                      className="h-11 text-xs border-red-900/40 focus:border-red-500 bg-[#1c1b1b] text-red-400 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-red-400 mb-1">Multas</label>
+                    <MaskedInput
+                      maskType="currency"
+                      inputMode="decimal"
+                      value={editState.multa}
+                      onChange={e => setEditState(s => s ? { ...s, multa: e.target.value } : s)}
+                      placeholder="0,00"
+                      className="h-11 text-xs border-red-900/40 focus:border-red-500 bg-[#1c1b1b] text-red-400 font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Acréscimos (Rótulos Verdes) */}
+              <div className="space-y-2.5 p-3.5 bg-[#201f1f] border border-emerald-900/40 rounded-2xl">
+                <span className="text-xs font-extrabold text-emerald-400 uppercase tracking-wide block border-b border-emerald-900/30 pb-1.5">
+                  Acréscimos (Ganhos)
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-emerald-400 mb-1">Bônus</label>
+                    <MaskedInput
+                      maskType="currency"
+                      inputMode="decimal"
+                      value={editState.bonus_fatura}
+                      onChange={e => setEditState(s => s ? { ...s, bonus_fatura: e.target.value } : s)}
+                      placeholder="0,00"
+                      className="h-11 text-xs border-emerald-900/40 focus:border-emerald-500 bg-[#1c1b1b] text-emerald-400 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-emerald-400 mb-1">Gratificação</label>
+                    <MaskedInput
+                      maskType="currency"
+                      inputMode="decimal"
+                      value={editState.gratificacao}
+                      onChange={e => setEditState(s => s ? { ...s, gratificacao: e.target.value } : s)}
+                      placeholder="0,00"
+                      className="h-11 text-xs border-emerald-900/40 focus:border-emerald-500 bg-[#1c1b1b] text-emerald-400 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-emerald-400 mb-1">Incentivo</label>
+                    <MaskedInput
+                      maskType="currency"
+                      inputMode="decimal"
+                      value={editState.incentivo}
+                      onChange={e => setEditState(s => s ? { ...s, incentivo: e.target.value } : s)}
+                      placeholder="0,00"
+                      className="h-11 text-xs border-emerald-900/40 focus:border-emerald-500 bg-[#1c1b1b] text-emerald-400 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-emerald-400 mb-1">Premiação</label>
+                    <MaskedInput
+                      maskType="currency"
+                      inputMode="decimal"
+                      value={editState.premiacao}
+                      onChange={e => setEditState(s => s ? { ...s, premiacao: e.target.value } : s)}
+                      placeholder="0,00"
+                      className="h-11 text-xs border-emerald-900/40 focus:border-emerald-500 bg-[#1c1b1b] text-emerald-400 font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div className="bg-[#201f1f] border border-stone-800 rounded-2xl p-3.5 text-xs text-[#ab8a7d]">
               <span className="font-bold text-[#ffb599]">ⓘ Aviso:</span> Ao salvar, o sistema reassociará automaticamente as rotas e totais diários dentro do período informado.
