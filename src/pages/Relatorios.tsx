@@ -159,6 +159,24 @@ interface MaintProfile {
   oil_change_km: number | null;
   last_oil_change_at: string | null;
 }
+interface Adjustment {
+  amount: number;
+  type: string;
+  platform_id: string;
+  occurred_at: string;
+}
+
+const ADJUSTMENT_LABELS: Record<string, string> = {
+  previdenciario: 'Previdenciário',
+  extravio: 'Extravios',
+  multa: 'Multas',
+  pnr: 'Outros descontos (legado)',
+  bonus_fatura: 'Bônus',
+  gratificacao: 'Gratificação',
+  incentivo: 'Incentivo',
+  premiacao: 'Premiação',
+  bonus: 'Outros acréscimos (legado)',
+};
 
 const COLORS = [
   'hsl(19 100% 50%)',
@@ -179,6 +197,7 @@ const Relatorios = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [billingCycles, setBillingCycles] = useState<BillingCycle[]>([]);
+  const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [oilChanges, setOilChanges] = useState<OilChange[]>([]);
   const [allMaintExpenses, setAllMaintExpenses] = useState<Expense[]>([]);
   const [allFuelExpenses, setAllFuelExpenses] = useState<Expense[]>([]);
@@ -226,7 +245,7 @@ const Relatorios = () => {
       setLoading(true);
       const sinceISO = range.since.toISOString();
       const untilISO = range.until.toISOString();
-      const [r, d, e, p, b] = await Promise.all([
+      const [r, d, e, p, b, adj] = await Promise.all([
         supabase
           .from('routes')
           .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price, started_at, ended_at, break_minutes, small_packages_count, large_packages_count, large_packages_prices')
@@ -241,11 +260,13 @@ const Relatorios = () => {
           .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
         supabase.from('platforms').select('id, name, active'),
         supabase.from('billing_cycles').select('id, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
+        supabase.from('financial_adjustments').select('amount, type, platform_id, occurred_at').gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
       ]);
       setRoutes((r.data ?? []) as Route[]);
       setDailies((d.data ?? []) as DailyTotal[]);
       setExpenses((e.data ?? []) as Expense[]);
       setPlatforms((p.data ?? []) as Platform[]);
+      setAdjustments((adj.data ?? []) as Adjustment[]);
       const cycles = (b.data ?? []) as { id: string; expected_payment_date: string }[];
       const cycleIds = cycles.map((c) => c.id);
       let totalsByCycle: Record<string, number> = {};
@@ -575,6 +596,86 @@ const Relatorios = () => {
       }))
       .sort((a, b) => b.receita - a.receita);
   }, [routes, dailies, platforms, selectedPlatform, range.since, range.until, platformName]);
+
+  // Bonificações e Descontos por plataforma (ativas)
+  const bonificacoesByPlatform = useMemo(() => {
+    const activePlatformIds = new Set(
+      platforms.filter((p) => p.active !== false).map((p) => p.id)
+    );
+
+    const filteredAdjustments = adjustments.filter((a) => {
+      if (!a.platform_id || !activePlatformIds.has(a.platform_id)) return false;
+      if (selectedPlatform !== 'all' && a.platform_id !== selectedPlatform) return false;
+      return true;
+    });
+
+    const map = new Map<
+      string,
+      {
+        name: string;
+        descontosTotal: number;
+        acrescimosTotal: number;
+        typeSums: Record<string, number>;
+      }
+    >();
+
+    const discountTypes = ['previdenciario', 'extravio', 'multa', 'pnr'];
+
+    filteredAdjustments.forEach((a) => {
+      const pId = a.platform_id;
+      const cur = map.get(pId) ?? {
+        name: platformName(pId),
+        descontosTotal: 0,
+        acrescimosTotal: 0,
+        typeSums: {},
+      };
+
+      const amt = Number(a.amount || 0);
+      const isDiscount = discountTypes.includes(a.type) || amt < 0;
+
+      if (isDiscount) {
+        cur.descontosTotal += Math.abs(amt);
+      } else {
+        cur.acrescimosTotal += Math.abs(amt);
+      }
+
+      cur.typeSums[a.type] = (cur.typeSums[a.type] || 0) + Math.abs(amt);
+      map.set(pId, cur);
+    });
+
+    const result: {
+      platformId: string;
+      name: string;
+      descontosTotal: number;
+      acrescimosTotal: number;
+      details: { type: string; label: string; amount: number; isDiscount: boolean }[];
+    }[] = [];
+
+    map.forEach((val, platformId) => {
+      if (val.descontosTotal === 0 && val.acrescimosTotal === 0) return;
+
+      const details = Object.entries(val.typeSums)
+        .filter(([, sum]) => sum > 0)
+        .map(([typeKey, sum]) => ({
+          type: typeKey,
+          label: ADJUSTMENT_LABELS[typeKey] ?? typeKey,
+          amount: sum,
+          isDiscount: discountTypes.includes(typeKey),
+        }));
+
+      result.push({
+        platformId,
+        name: val.name,
+        descontosTotal: val.descontosTotal,
+        acrescimosTotal: val.acrescimosTotal,
+        details,
+      });
+    });
+
+    return result.sort(
+      (a, b) => b.acrescimosTotal + b.descontosTotal - (a.acrescimosTotal + a.descontosTotal)
+    );
+  }, [adjustments, platforms, selectedPlatform, platformName]);
 
   // Categories (product type)
   const byCategory = useMemo(() => {
@@ -1203,6 +1304,65 @@ const Relatorios = () => {
                 ))}
               </ul>
             </>
+          )}
+        </Section>
+
+        {/* Bonificações e Descontos por plataforma */}
+        <Section title="BONIFICAÇÕES E DESCONTOS">
+          {bonificacoesByPlatform.length === 0 ? (
+            <Empty hint="Nenhum desconto ou acréscimo neste período." />
+          ) : (
+            <div className="space-y-3">
+              {bonificacoesByPlatform.map((item, idx) => (
+                <div
+                  key={item.platformId}
+                  className="rounded-2xl bg-surface border border-border/40 p-4 space-y-3 shadow-sm"
+                >
+                  <div className="flex items-center justify-between border-b border-border/30 pb-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="size-3 rounded-full shrink-0"
+                        style={{ background: COLORS[idx % COLORS.length] }}
+                      />
+                      <h4 className="font-extrabold text-sm text-foreground">{item.name}</h4>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-xs font-bold">
+                      {item.descontosTotal > 0 && (
+                        <span className="text-destructive flex items-center gap-1">
+                          <TrendingDown className="size-3.5" />
+                          -{formatBRL(item.descontosTotal)}
+                        </span>
+                      )}
+                      {item.acrescimosTotal > 0 && (
+                        <span className="text-success flex items-center gap-1">
+                          <TrendingUp className="size-3.5" />
+                          +{formatBRL(item.acrescimosTotal)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    {item.details.map((det) => (
+                      <div
+                        key={det.type}
+                        className="flex items-center justify-between text-xs py-1 px-2.5 rounded-lg bg-surface-high/50"
+                      >
+                        <span className="text-muted-foreground font-medium">{det.label}</span>
+                        <span
+                          className={`font-bold ${
+                            det.isDiscount ? 'text-destructive' : 'text-success'
+                          }`}
+                        >
+                          {det.isDiscount ? '-' : '+'}{formatBRL(det.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </Section>
 
