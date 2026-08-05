@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import { Field, Input, TextArea, Select, SegButton, SubmitButton, FormShell } from '@/components/forms/Form';
+import { Field, Input, MaskedInput, TextArea, Select, SegButton, SubmitButton, FormShell } from '@/components/forms/Form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { UtensilsCrossed, Package, FileText, Plus, Trash2 } from 'lucide-react';
-import { getRouteInitialKmValue, toLocalInput } from '@/lib/format';
+import {
+  getRouteInitialKmValue,
+  toLocalInput,
+  parseCurrencyToNumber,
+  parseDistanceToNumber,
+  parsePackageToNumber,
+} from '@/lib/format';
 
 const NovaRota = () => {
   const navigate = useNavigate();
@@ -30,21 +36,23 @@ const NovaRota = () => {
   const isDelivery = selectedP?.segment === 'delivery';
   const isDiaria = selectedP?.payment_model === 'diaria';
 
-  const smallPkgCount = Number(smallPackageCount) || 0;
-  const smallPkgPrice = Number(packageUnitPrice.replace(',', '.')) || 0;
-  const largePkgSum = largePackagePrices.reduce((a, b) => a + (Number(b) || 0), 0);
+  const smallPkgCount = parsePackageToNumber(smallPackageCount);
+  const smallPkgPrice = parseCurrencyToNumber(packageUnitPrice);
+  const largePkgSum = largePackagePrices.reduce((a, b) => a + (parseCurrencyToNumber(b) || 0), 0);
   const amountNum = (isDelivery || isDiaria)
-    ? (Number(fixedAmount.replace(',', '.')) || 0)
+    ? parseCurrencyToNumber(fixedAmount)
     : (smallPkgCount * smallPkgPrice) + largePkgSum;
 
   const openLargePackageModal = (countOverride?: number) => {
-    const count = Math.max(0, (countOverride ?? Number(largePackageCount)) || 0);
+    const count = Math.max(0, (countOverride ?? parsePackageToNumber(largePackageCount)) || 0);
     if (count <= 0) {
       setShowLargePackageModal(false);
       return;
     }
 
-    const newTemp = Array.from({ length: count }, (_, i) => String(largePackagePrices[i] ?? ''));
+    const newTemp = Array.from({ length: count }, (_, i) => 
+      largePackagePrices[i] !== undefined ? String(largePackagePrices[i]) : ''
+    );
     setTempLargePackagePrices(newTemp);
     setShowLargePackageModal(true);
   };
@@ -56,7 +64,7 @@ const NovaRota = () => {
       setShowLargePackageModal(false);
       return;
     }
-    const count = Math.max(0, parseInt(val) || 0);
+    const count = Math.max(0, parsePackageToNumber(val));
     setLargePackageCount(String(count));
     if (count > 0) {
       openLargePackageModal(count);
@@ -72,7 +80,7 @@ const NovaRota = () => {
   };
 
   const saveLargePackagePrices = () => {
-    const prices = tempLargePackagePrices.map(p => Number(p.replace(',', '.')) || 0);
+    const prices = tempLargePackagePrices.map(p => parseCurrencyToNumber(p));
     setLargePackagePrices(prices);
     setShowLargePackageModal(false);
   };
@@ -161,17 +169,17 @@ const NovaRota = () => {
       setLoading(false);
       return;
     }
-    const totalCount = isDelivery ? 1 : (Number(smallPackageCount) + Number(largePackageCount));
+    const totalCount = isDelivery ? 1 : (parsePackageToNumber(smallPackageCount) + parsePackageToNumber(largePackageCount));
     const payload = {
       user_id: u.user.id,
       platform_id: platformId || null,
       origin: origin || null,
       destination: destination || null,
-      distance_km: Number(distance.replace(',', '.')) || 0,
+      distance_km: parseDistanceToNumber(distance),
       amount: amountNum,
       package_count: totalCount,
-      package_unit_price: (isDelivery || isDiaria) ? 0 : (Number(packageUnitPrice.replace(',', '.')) || 0),
-      tip: Number(tip.replace(',', '.')) || 0,
+      package_unit_price: (isDelivery || isDiaria) ? 0 : parseCurrencyToNumber(packageUnitPrice),
+      tip: parseCurrencyToNumber(tip),
       product_type: type,
       occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
       started_at: startedISO,
@@ -179,9 +187,9 @@ const NovaRota = () => {
       break_minutes: Number(breakMin) || 0,
       start_km: sKm,
       end_km: eKm,
-      small_packages_count: isDelivery ? 0 : Number(smallPackageCount),
-      large_packages_count: isDelivery ? 0 : Number(largePackageCount),
-      large_packages_prices: isDelivery ? [] : largePackagePrices,
+      small_packages_count: isDelivery ? 0 : parsePackageToNumber(smallPackageCount),
+      large_packages_count: isDelivery ? 0 : parsePackageToNumber(largePackageCount),
+      large_packages_prices: isDelivery ? [] : largePackagePrices.map(p => parseCurrencyToNumber(p)),
     };
 
     let error;
@@ -210,7 +218,7 @@ const NovaRota = () => {
   };
 
   return (
-    <AppShell back title="COURIER PRO" subtitle={isEdit ? "Editar entrega" : "Nova entrega — Registrar rota"}>
+    <AppShell back title={isEdit ? "Editar entrega" : "COURIER PRO"} subtitle={isEdit ? undefined : "Nova entrega — Registrar rota"}>
       <form onSubmit={submit}>
         <FormShell footer={
           <div className="flex flex-col gap-2 w-full">
@@ -331,10 +339,10 @@ const NovaRota = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Distância (km)">
-              <Input inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="Ex: 10,5" />
+              <MaskedInput maskType="distance" inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="Ex: 10,5" />
             </Field>
             <Field label="Gorjeta (R$)">
-              <Input inputMode="decimal" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="Ex: 5,00" />
+              <MaskedInput maskType="currency" inputMode="decimal" value={tip} onChange={(e) => setTip(e.target.value)} placeholder="Ex: 5,00" />
             </Field>
           </div>
 
@@ -342,30 +350,31 @@ const NovaRota = () => {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="flex flex-col justify-between h-full">
                 <Field label="Pacotinhos">
-                  <Input inputMode="numeric" value={smallPackageCount} onChange={(e) => setSmallPackageCount(e.target.value)} placeholder="Ex: 10" />
+                  <MaskedInput maskType="package" inputMode="numeric" value={smallPackageCount} onChange={(e) => setSmallPackageCount(e.target.value)} placeholder="Ex: 10" />
                 </Field>
               </div>
               <div className="flex flex-col justify-between h-full">
                 <Field label="Valor do Pacotinho (R$)">
-                  <Input inputMode="decimal" value={packageUnitPrice} onChange={(e) => setPackageUnitPrice(e.target.value)} placeholder="Ex: 1,50" />
+                  <MaskedInput maskType="currency" inputMode="decimal" value={packageUnitPrice} onChange={(e) => setPackageUnitPrice(e.target.value)} placeholder="Ex: 1,50" />
                 </Field>
               </div>
               <div className="flex flex-col justify-between h-full">
                 <Field label="Volumosos">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                    <Input
+                    <MaskedInput
+                      maskType="package"
                       inputMode="numeric"
                       value={largePackageCount}
                       onChange={(e) => handleLargePackageCountChange(e.target.value)}
                       onClick={() => {
-                        if (Number(largePackageCount) > 0) openLargePackageModal(Number(largePackageCount));
+                        if (parsePackageToNumber(largePackageCount) > 0) openLargePackageModal(parsePackageToNumber(largePackageCount));
                       }}
                       placeholder="Ex: 2"
                     />
-                    {Number(largePackageCount) > 0 && (
+                    {parsePackageToNumber(largePackageCount) > 0 && (
                       <button
                         type="button"
-                        onClick={() => openLargePackageModal(Number(largePackageCount))}
+                        onClick={() => openLargePackageModal(parsePackageToNumber(largePackageCount))}
                         className="w-full sm:w-auto px-3 h-14 rounded-xl bg-surface-bright text-xs text-primary font-bold hover:bg-surface-bright/80 transition shrink-0"
                       >
                         Valores
@@ -379,7 +388,7 @@ const NovaRota = () => {
                   <Input 
                     readOnly 
                     disabled 
-                    value={smallPackageCount || largePackageCount ? String(smallPkgCount + (Number(largePackageCount) || 0)) : ''} 
+                    value={smallPackageCount || largePackageCount ? String(smallPkgCount + parsePackageToNumber(largePackageCount)) : ''} 
                     placeholder="Total automático"
                   />
                 </Field>
@@ -391,11 +400,11 @@ const NovaRota = () => {
             <div className="grid grid-cols-1 gap-3">
               {isDiaria ? (
                 <Field label="Valor da Diária (R$)">
-                  <Input inputMode="decimal" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0,00" />
+                  <MaskedInput maskType="currency" inputMode="decimal" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0,00" />
                 </Field>
               ) : (
                 <Field label="Valor da Corrida (R$)">
-                  <Input inputMode="decimal" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0,00" />
+                  <MaskedInput maskType="currency" inputMode="decimal" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0,00" />
                 </Field>
               )}
             </div>
@@ -458,7 +467,8 @@ const NovaRota = () => {
               {tempLargePackagePrices.map((price, idx) => (
                 <div key={idx} className="w-full">
                   <Field label={`Valor do Volume #${idx + 1} (R$)`}>
-                    <Input
+                    <MaskedInput
+                      maskType="currency"
                       inputMode="decimal"
                       value={price}
                       onChange={(e) => {

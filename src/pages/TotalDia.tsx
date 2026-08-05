@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import { Field, Input, TextArea, Select, SegButton, SubmitButton, FormShell } from '@/components/forms/Form';
+import { Field, Input, MaskedInput, TextArea, Select, SegButton, SubmitButton, FormShell } from '@/components/forms/Form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { UtensilsCrossed, Package, FileText } from 'lucide-react';
+import { parseCurrencyToNumber, parseDistanceToNumber } from '@/lib/format';
 
 const TotalDia = () => {
   const navigate = useNavigate();
@@ -35,8 +36,8 @@ const TotalDia = () => {
     const { error } = await supabase.from('daily_totals').insert({
       user_id: u.user.id,
       platform_id: platformId || null,
-      amount: Number(amount.replace(',', '.')) || 0,
-      distance_km: Number(distance.replace(',', '.')) || 0,
+      amount: parseCurrencyToNumber(amount),
+      distance_km: parseDistanceToNumber(distance),
       product_type: type,
       subtract_routes: subtract,
       notes: notes || null,
@@ -73,8 +74,8 @@ const TotalDia = () => {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Distância (km)"><Input inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="Ex: 10,5" /></Field>
-            <Field label="Valor (R$)"><Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Ex: 150,00" /></Field>
+            <Field label="Distância (km)"><MaskedInput maskType="distance" inputMode="decimal" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="Ex: 10,5" /></Field>
+            <Field label="Valor (R$)"><MaskedInput maskType="currency" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Ex: 150,00" /></Field>
           </div>
 
           <Field label="Tipo de produto">

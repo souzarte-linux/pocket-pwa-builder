@@ -1,4 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState, useMemo, forwardRef } from 'react';
+import {
+  formatCurrencyMask,
+  formatDistanceMask,
+  formatPackageMask,
+  getCleanUnmaskedValue,
+} from '@/lib/format';
 
 export const FormShell = ({ children, footer }: { children: ReactNode; footer: ReactNode }) => (
   <div className="space-y-5 pb-2">
@@ -23,6 +29,62 @@ export const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
     }
   />
 );
+
+export interface MaskedInputProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+  maskType: 'currency' | 'distance' | 'package';
+  value: string | number;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+export const MaskedInput = forwardRef<HTMLInputElement, MaskedInputProps>(
+  ({ maskType, value, onChange, onFocus, onBlur, className, ...props }, ref) => {
+    const [isFocused, setIsFocused] = useState(false);
+    const [editingText, setEditingText] = useState<string>('');
+
+    const formattedDisplay = useMemo(() => {
+      if (maskType === 'currency') return formatCurrencyMask(value);
+      if (maskType === 'distance') return formatDistanceMask(value);
+      if (maskType === 'package') return formatPackageMask(value);
+      return String(value ?? '');
+    }, [maskType, value]);
+
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      setIsFocused(true);
+      setEditingText(getCleanUnmaskedValue(value, maskType));
+      if (onFocus) onFocus(e);
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      setIsFocused(false);
+      if (onBlur) onBlur(e);
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setEditingText(e.target.value);
+      if (onChange) onChange(e);
+    };
+
+    const displayValue = isFocused ? editingText : formattedDisplay;
+
+    return (
+      <input
+        {...props}
+        ref={ref}
+        value={displayValue}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onChange={handleChange}
+        className={
+          'w-full h-14 px-4 rounded-lg bg-surface-high border-2 border-transparent focus:border-primary outline-none text-foreground placeholder:text-muted-foreground/70 transition ' +
+          (className ?? '')
+        }
+      />
+    );
+  }
+);
+MaskedInput.displayName = 'MaskedInput';
+
 
 export const TextArea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
   <textarea

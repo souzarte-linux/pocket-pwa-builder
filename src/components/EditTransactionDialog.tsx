@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Field, Input, SubmitButton } from '@/components/forms/Form';
+import { Field, Input, MaskedInput, SubmitButton } from '@/components/forms/Form';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
-import { toLocalInput } from '@/lib/format';
+import { toLocalInput, parseCurrencyToNumber, parseDistanceToNumber } from '@/lib/format';
 
 import { DeleteInstallmentDialog } from '@/components/forms/DeleteInstallmentDialog';
 
@@ -54,17 +54,17 @@ export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
     if (!data) return;
     setLoading(true);
     const payload: any = {
-      amount: Number(data.amount),
+      amount: parseCurrencyToNumber(data.amount),
       occurred_at: data.occurred_at,
     };
     if (target.table === 'routes') {
-      payload.tip = Number(data.tip ?? 0);
-      payload.distance_km = Number(data.distance_km ?? 0);
+      payload.tip = parseCurrencyToNumber(data.tip ?? 0);
+      payload.distance_km = parseDistanceToNumber(data.distance_km ?? 0);
       payload.origin = data.origin ?? null;
       payload.destination = data.destination ?? null;
     }
     if (target.table === 'daily_totals') {
-      payload.distance_km = Number(data.distance_km ?? 0);
+      payload.distance_km = parseDistanceToNumber(data.distance_km ?? 0);
       payload.notes = data.notes ?? null;
     }
     if (target.table === 'expenses') {
@@ -125,9 +125,9 @@ export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
         ) : (
           <form onSubmit={handleSave} className="space-y-4">
             <Field label="Valor (R$)">
-              <Input
-                type="number"
-                step="0.01"
+              <MaskedInput
+                maskType="currency"
+                inputMode="decimal"
                 value={data.amount ?? ''}
                 onChange={(e) => setData({ ...data, amount: e.target.value })}
                 required
@@ -149,18 +149,18 @@ export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
             {target.table === 'routes' && (
               <>
                 <Field label="Gorjeta (R$)">
-                  <Input
-                    type="number"
-                    step="0.01"
+                  <MaskedInput
+                    maskType="currency"
+                    inputMode="decimal"
                     value={data.tip || ''}
                     onChange={(e) => setData({ ...data, tip: e.target.value })}
                     placeholder="Ex: 5,00"
                   />
                 </Field>
                 <Field label="Distância (km)">
-                  <Input
-                    type="number"
-                    step="0.1"
+                  <MaskedInput
+                    maskType="distance"
+                    inputMode="decimal"
                     value={data.distance_km || ''}
                     onChange={(e) => setData({ ...data, distance_km: e.target.value })}
                     placeholder="Ex: 10,5"
@@ -186,9 +186,9 @@ export const EditTransactionDialog = ({ target, onClose, onSaved }: Props) => {
             {target.table === 'daily_totals' && (
               <>
                 <Field label="Distância (km)">
-                  <Input
-                    type="number"
-                    step="0.1"
+                  <MaskedInput
+                    maskType="distance"
+                    inputMode="decimal"
                     value={data.distance_km ?? 0}
                     onChange={(e) => setData({ ...data, distance_km: e.target.value })}
                     placeholder="Ex: 10,5"

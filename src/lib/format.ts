@@ -157,6 +157,88 @@ export const validateCNPJ = (cnpjStr: string): boolean => {
   return true;
 };
 
+/** Visual Currency Mask (R$ 5,00) */
+export const formatCurrencyMask = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined || val === '') return '';
+  const str = String(val).replace('R$', '').trim();
+  if (!str) return '';
+  const cleanStr = str.replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(cleanStr);
+  if (isNaN(num)) return str;
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+/** Convert currency string or number to pure JS number for database */
+export const parseCurrencyToNumber = (val: string | number | null | undefined): number => {
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  if (!val) return 0;
+  const str = String(val).replace('R$', '').trim();
+  const cleanStr = str.replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(cleanStr);
+  return isNaN(num) ? 0 : num;
+};
+
+/** Visual Distance Mask (5,0 KM) */
+export const formatDistanceMask = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined || val === '') return '';
+  const str = String(val).replace(/KM/gi, '').trim();
+  if (!str) return '';
+  const cleanStr = str.replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(cleanStr);
+  if (isNaN(num)) return str;
+  const formatted = num.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+  return `${formatted} KM`;
+};
+
+/** Convert distance string or number to pure JS number for database */
+export const parseDistanceToNumber = (val: string | number | null | undefined): number => {
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  if (!val) return 0;
+  const str = String(val).replace(/KM/gi, '').trim();
+  const cleanStr = str.replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(cleanStr);
+  return isNaN(num) ? 0 : num;
+};
+
+/** Visual Package Mask (40 Pacotinho) */
+export const formatPackageMask = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined || val === '') return '';
+  const str = String(val).replace(/Pacotinho(s)?/gi, '').trim();
+  if (!str) return '';
+  const num = parseInt(str, 10);
+  if (isNaN(num)) return str;
+  return `${num} Pacotinho`;
+};
+
+/** Convert package count string or number to pure JS number for database */
+export const parsePackageToNumber = (val: string | number | null | undefined): number => {
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  if (!val) return 0;
+  const str = String(val).replace(/\D/g, '').trim();
+  const num = parseInt(str, 10);
+  return isNaN(num) ? 0 : num;
+};
+
+/** Extract clean unmasked value string when user focuses field */
+export const getCleanUnmaskedValue = (
+  val: string | number | null | undefined,
+  maskType: 'currency' | 'distance' | 'package'
+): string => {
+  if (val === null || val === undefined || val === '') return '';
+  const str = String(val);
+  if (maskType === 'currency') {
+    return str.replace('R$', '').trim();
+  }
+  if (maskType === 'distance') {
+    return str.replace(/KM/gi, '').trim();
+  }
+  if (maskType === 'package') {
+    return str.replace(/Pacotinho(s)?/gi, '').trim();
+  }
+  return str;
+};
+
+
 
 
 
