@@ -8,7 +8,7 @@ import { EditTransactionDialog, EditTarget } from '@/components/EditTransactionD
 import { ViewTransactionDialog } from '@/components/forms/ViewTransactionDialog';
 import { DeleteInstallmentDialog } from '@/components/forms/DeleteInstallmentDialog';
 import { toast } from 'sonner';
-import { startOfWeek, endOfWeek, isSameWeek, isSameMonth, format } from 'date-fns';
+import { startOfWeek, endOfWeek, isSameWeek, isSameMonth, format, startOfMonth, endOfMonth, max, min } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 type Tab = 'todos' | 'ganhos' | 'despesas';
@@ -550,7 +550,15 @@ const Historico = () => {
         });
         
         const balance = outDays.reduce((s, d) => s + d.balance, 0);
-        let label = `Semana de ${format(wStartDate, 'dd/MM')} a ${format(wEndDate, 'dd/MM')}`;
+        
+        const monthStart = startOfMonth(monthDate);
+        const monthEnd = endOfMonth(monthDate);
+        const displayStart = max([wStartDate, monthStart]);
+        const displayEnd = min([wEndDate, monthEnd]);
+
+        let label = displayStart.getTime() === displayEnd.getTime()
+          ? `Semana de ${format(displayStart, 'dd/MM')}`
+          : `Semana de ${format(displayStart, 'dd/MM')} a ${format(displayEnd, 'dd/MM')}`;
         if (isCurrentWeek) label = 'Esta Semana';
         
         outWeeks.push({ label, start: wStartDate, end: wEndDate, days: outDays, balance, isCurrentWeek });
