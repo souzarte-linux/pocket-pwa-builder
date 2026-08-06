@@ -34,6 +34,10 @@ interface BillingCycle {
   status: string;
   platform_name?: string;
   total_amount?: number;
+  route_amount?: number;
+  tip_total?: number;
+  daily_amount?: number;
+  adjustments_total?: number;
 }
 
 interface PlatformDb {
@@ -127,7 +131,6 @@ const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
     setTranslateX(0);
 
     if (diff > 45) {
-      // Deslize da Esquerda para a Direita -> BAIXAR (Liquidar Fatura) ou CONFIRMAR
       hasSwipedRef.current = true;
       if (c.status === 'pendente_confirmacao' && onConfirm) {
         onConfirm(c);
@@ -135,7 +138,6 @@ const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
         onPay(c);
       }
     } else if (diff < -45) {
-      // Deslize da Direita para a Esquerda -> EDITAR FATURA
       hasSwipedRef.current = true;
       onEdit(c);
     }
@@ -153,31 +155,25 @@ const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-3xl group select-none touch-pan-y shadow-md">
-      {/* Fundo Ação Esquerda -> Direita: BAIXAR ou CONFIRMAR */}
-      <div
-        className={`absolute inset-y-0 left-0 w-full text-white font-extrabold flex items-center justify-start pl-6 gap-2 rounded-3xl transition-opacity ${
-          c.status === 'pendente_confirmacao' ? 'bg-[#ff5f00] text-black' : 'bg-emerald-600'
-        }`}
-        style={{ opacity: translateX > 10 ? Math.min(1, translateX / 60) : 0 }}
-      >
-        <CheckCircle className="size-6 stroke-[3]" />
-        <span className="text-sm uppercase tracking-wider">
-          {c.status === 'pendente_confirmacao' ? 'CONFIRMAR VALORES' : 'BAIXAR FATURA'}
-        </span>
+    <div className="relative overflow-hidden rounded-2xl touch-pan-y">
+      {/* Ações de Fundo */}
+      <div className="absolute inset-0 flex items-center justify-between px-4 rounded-2xl bg-[#131313] border border-stone-800">
+        <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-xs uppercase">
+          <CheckCircle2 className="size-5" />
+          <span>{c.status === 'pendente_confirmacao' ? 'Confirmar' : 'Liquidar'}</span>
+        </div>
+        <div className="flex items-center gap-2 text-[#ff5f00] font-extrabold text-xs uppercase">
+          <span>Editar</span>
+          <Pencil className="size-5" />
+        </div>
       </div>
 
-      {/* Fundo Ação Direita -> Esquerda: EDITAR (Laranja) */}
+      {/* Card Principal Arrastável */}
       <div
-        className="absolute inset-y-0 right-0 w-full bg-[#ff5f00] text-black font-extrabold flex items-center justify-end pr-6 gap-2 rounded-3xl transition-opacity"
-        style={{ opacity: translateX < -10 ? Math.min(1, Math.abs(translateX) / 60) : 0 }}
-      >
-        <span className="text-sm uppercase tracking-wider">EDITAR FATURA</span>
-        <Pencil className="size-6 stroke-[3]" />
-      </div>
-
-      {/* Conteúdo Arrastável */}
-      <div
+        style={{ transform: `translateX(${translateX}px)` }}
+        className={`relative z-10 transition-transform duration-150 ease-out bg-[#201f1f] p-4 rounded-2xl border ${
+          isOverdue ? 'border-red-800/80 bg-red-950/20' : 'border-stone-800'
+        } cursor-pointer`}
         onTouchStart={(e) => handleStart(e.touches[0].clientX)}
         onTouchMove={(e) => handleMove(e.touches[0].clientX)}
         onTouchEnd={handleEnd}
@@ -186,117 +182,43 @@ const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
         onMouseUp={handleEnd}
         onMouseLeave={handleEnd}
         onClick={handleClick}
-        style={{
-          transform: `translateX(${translateX}px)`,
-          transition: isSwiping ? 'none' : 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
-        }}
-        className={`p-5 rounded-3xl border-2 transition-colors space-y-3 relative cursor-grab active:cursor-grabbing z-10 ${
-          c.status === 'pendente_confirmacao'
-            ? 'bg-[#1c1b1b] border-amber-500/60 hover:border-amber-400'
-            : isOverdue
-            ? 'bg-[#1c1b1b] border-red-800/80 hover:border-red-600'
-            : 'bg-[#1c1b1b] border-stone-800 hover:border-[#ff5f00]/50'
-        }`}
       >
-        <div className="flex justify-between items-start gap-3">
+        <div className="flex items-start justify-between">
           <div>
-            <h3 className="font-extrabold text-base text-white group-hover:text-[#ff5f00] transition">
-              {c.platform_name}
-            </h3>
-            <p className="text-xs text-[#ab8a7d] font-medium mt-0.5">
-              Período: {fmtDate(c.period_start)} → {fmtDate(c.period_end)}
+            <h4 className="font-extrabold text-base text-white">{c.platform_name}</h4>
+            <p className="text-xs text-[#ab8a7d] mt-0.5 font-semibold">
+              Período: {fmtDate(c.period_start)} a {fmtDate(c.period_end)}
             </p>
           </div>
-
-          <div className="text-right shrink-0">
-            <p className="font-extrabold text-xl text-[#ffb599]">
-              {formatBRL(c.total_amount || 0)}
-            </p>
-            <span
-              className={`inline-block mt-1 text-[10px] uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full border ${
-                c.status === 'pendente_confirmacao'
-                  ? 'bg-amber-950/90 text-amber-300 border-amber-600/80 animate-pulse'
-                  : isOverdue
-                  ? 'bg-red-950/80 text-red-400 border-red-800/60'
-                  : 'bg-amber-950/80 text-amber-400 border-amber-800/60'
-              }`}
-            >
-              {c.status === 'pendente_confirmacao'
-                ? 'Pendente Confirmação'
-                : isOverdue
-                ? 'Atrasado'
-                : 'A receber'}
-            </span>
-          </div>
+          <span className="font-extrabold text-lg text-[#ff5f00]">
+            {formatBRL(c.total_amount || 0)}
+          </span>
         </div>
 
-        <div className="flex items-center justify-between pt-2 border-t border-stone-800 text-xs">
-          <div className="flex items-center gap-2 text-[#ab8a7d]">
-            <Wallet className="size-4 text-[#ff5f00]" />
-            <span className="font-medium">Previsto: <strong className="text-white">{fmtDate(c.expected_payment_date)}</strong></span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {c.status === 'pendente_confirmacao' ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onConfirm) onConfirm(c);
-                }}
-                className="px-3 py-1.5 bg-[#ff5f00] hover:bg-[#ff5f00]/80 text-black font-extrabold text-xs uppercase rounded-xl transition shadow"
-                title="Confirmar Valores"
-              >
-                Confirmar
-              </button>
-            ) : (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPay(c);
-                }}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase rounded-xl transition shadow"
-                title="Baixar Fatura"
-              >
-                Baixar
-              </button>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(c);
-              }}
-              className="p-1.5 text-stone-400 hover:text-[#ff5f00] hover:bg-[#ff5f00]/15 rounded-xl transition"
-              title="Editar Fatura"
-            >
-              <Pencil className="size-4" />
-            </button>
-          </div>
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-stone-800/60 text-xs">
+          <span className={`font-bold ${isOverdue ? 'text-red-400 font-extrabold' : 'text-[#ab8a7d]'}`}>
+            Vencimento: {fmtDate(c.expected_payment_date)}
+          </span>
+          <span className={`px-2.5 py-0.5 rounded-full font-bold text-[11px] uppercase ${
+            c.status === 'pendente_confirmacao'
+              ? 'bg-amber-950/80 text-amber-400 border border-amber-800/40'
+              : c.status === 'open'
+              ? 'bg-blue-950/80 text-blue-400 border border-blue-800/40'
+              : 'bg-stone-800 text-stone-300'
+          }`}>
+            {STATUS_LABEL[c.status] || c.status}
+          </span>
         </div>
       </div>
     </div>
   );
 };
 
-const Faturas = () => {
+export const Faturas = () => {
   const navigate = useNavigate();
-
-  const fmtDate = (iso: string) => {
-    const d = iso.slice(0, 10);
-    const [y, m, day] = d.split('-');
-    return `${day}/${m}/${y}`;
-  };
-
-  const isBeforeToday = (iso: string) => {
-    const d = iso.slice(0, 10);
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-    return d < todayStr;
-  };
-
+  const [loading, setLoading] = useState(true);
   const [cycles, setCycles] = useState<BillingCycle[]>([]);
   const [platformsDb, setPlatformsDb] = useState<PlatformDb[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const [editingCycle, setEditingCycle] = useState<BillingCycle | null>(null);
   const [editState, setEditState] = useState<EditState | null>(null);
   const [viewingCycle, setViewingCycle] = useState<BillingCycle | null>(null);
@@ -304,7 +226,6 @@ const Faturas = () => {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [filterPlatform, setFilterPlatform] = useState<string>('all');
-
   const [payingCycle, setPayingCycle] = useState<BillingCycle | null>(null);
   const todayISO = () => {
     const d = new Date();
@@ -312,10 +233,24 @@ const Faturas = () => {
   };
   const [paidDate, setPaidDate] = useState(todayISO());
 
+  const fmtDate = (iso: string) => {
+    if (!iso) return '';
+    const d = iso.slice(0, 10);
+    const [y, m, day] = d.split('-');
+    return `${day}/${m}/${y}`;
+  };
+
+  const isBeforeToday = (iso: string) => {
+    if (!iso) return false;
+    const d = iso.slice(0, 10);
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    return d < todayStr;
+  };
+
   const fetchCycles = async () => {
     setLoading(true);
 
-    // Carregar plataformas para checar quais estão ativas/desabilitadas
     const { data: pData } = await supabase
       .from('platforms')
       .select('id, name, active');
@@ -339,8 +274,12 @@ const Faturas = () => {
       supabase.from('financial_adjustments').select('amount, billing_cycle_id').in('billing_cycle_id', cycleIds),
     ]);
 
-    const routeMap = (routesRes.data || []).reduce((acc: any, r: any) => {
-      acc[r.billing_cycle_id] = (acc[r.billing_cycle_id] || 0) + Number(r.amount) + Number(r.tip);
+    const routeAmountMap = (routesRes.data || []).reduce((acc: any, r: any) => {
+      acc[r.billing_cycle_id] = (acc[r.billing_cycle_id] || 0) + Number(r.amount);
+      return acc;
+    }, {});
+    const tipMap = (routesRes.data || []).reduce((acc: any, r: any) => {
+      acc[r.billing_cycle_id] = (acc[r.billing_cycle_id] || 0) + Number(r.tip);
       return acc;
     }, {});
     const dailyMap = (dailiesRes.data || []).reduce((acc: any, d: any) => {
@@ -352,11 +291,21 @@ const Faturas = () => {
       return acc;
     }, {});
 
-    setCycles(cyclesData.map(c => ({
-      ...c,
-      platform_name: (c.platforms as any)?.name || 'Desconhecida',
-      total_amount: (routeMap[c.id] || 0) + (dailyMap[c.id] || 0) + (adjMap[c.id] || 0),
-    })));
+    setCycles(cyclesData.map(c => {
+      const routeAmt = routeAmountMap[c.id] || 0;
+      const tipAmt = tipMap[c.id] || 0;
+      const dailyAmt = dailyMap[c.id] || 0;
+      const adjAmt = adjMap[c.id] || 0;
+      return {
+        ...c,
+        platform_name: (c.platforms as any)?.name || 'Desconhecida',
+        route_amount: routeAmt,
+        tip_total: tipAmt,
+        daily_amount: dailyAmt,
+        adjustments_total: adjAmt,
+        total_amount: routeAmt + tipAmt + dailyAmt + adjAmt,
+      };
+    }));
     setLoading(false);
   };
 
@@ -907,11 +856,44 @@ const Faturas = () => {
             </div>
 
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between items-center bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
-                <span className="text-[#ab8a7d] font-semibold">Valor Total:</span>
-                <span className="font-extrabold text-xl text-[#ffb599]">
-                  {formatBRL(viewingCycle.total_amount || 0)}
-                </span>
+              <div className="bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800 space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-[#ab8a7d] font-semibold">Valor Total:</span>
+                  <span className="font-extrabold text-xl text-[#ffb599]">
+                    {formatBRL(viewingCycle.total_amount || 0)}
+                  </span>
+                </div>
+
+                {/* Detalhamento dos Componentes do Valor Total */}
+                <div className="pt-2 border-t border-stone-800/80 space-y-1.5 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#ab8a7d]">Rotas/Diárias (Valor Bruto):</span>
+                    <span className="font-bold text-white">
+                      {formatBRL((viewingCycle.route_amount || 0) + (viewingCycle.daily_amount || 0))}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#ab8a7d]">Gorjetas:</span>
+                    <span className="font-bold text-white">
+                      {formatBRL(viewingCycle.tip_total || 0)}
+                    </span>
+                  </div>
+
+                  {!!viewingCycle.adjustments_total && viewingCycle.adjustments_total !== 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#ab8a7d]">Ajustes da Plataforma (Descontos/Acréscimos):</span>
+                      <span className={`font-bold ${viewingCycle.adjustments_total > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {viewingCycle.adjustments_total > 0 ? `+${formatBRL(viewingCycle.adjustments_total)}` : formatBRL(viewingCycle.adjustments_total)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Nota de Conferência */}
+                <p className="text-xs text-[#ab8a7d] pt-2 border-t border-stone-800/40 leading-relaxed">
+                  Confira este valor com o relatório oficial da plataforma. Gorjetas geralmente não aparecem no repasse informado pela empresa — leve isso em conta ao comparar.
+                </p>
               </div>
 
               <div className="flex justify-between items-center bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
