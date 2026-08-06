@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Route, Calendar, Clock, Fuel, Wrench, UtensilsCrossed, Package, FileText, LogOut, Wallet } from 'lucide-react';
+import { Route, Calendar, Clock, Fuel, Wrench, UtensilsCrossed, Package, FileText, Wallet } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { QuickActionsFab } from '@/components/QuickActionsFab';
 import { OilChangeAlert } from '@/components/OilChangeAlert';
@@ -79,24 +79,8 @@ const Home = () => {
   const pct = goal > 0 ? Math.max(0, Math.min(100, (todayNet / goal) * 100)) : 0;
   const remaining = Math.max(0, goal - todayNet);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    toast('Sessão encerrada');
-    navigate('/auth');
-  };
-
   return (
-    <AppShell
-      headerRight={
-        <button
-          onClick={signOut}
-          className="size-10 grid place-items-center rounded-xl bg-surface-high text-foreground hover:bg-surface-highest transition"
-          aria-label="Sair"
-        >
-          <LogOut className="size-5" />
-        </button>
-      }
-    >
+    <AppShell>
       <div className="space-y-5">
         {/* Lucro líquido card */}
         <motion.section

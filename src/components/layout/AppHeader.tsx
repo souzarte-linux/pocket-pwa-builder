@@ -184,7 +184,8 @@ export const AppHeader = ({ title = 'CENTRAL DO\nMOTORISTA', subtitle, back, rig
             </div>
           </div>
 
-          {right ?? (
+          <div className="flex items-center gap-2 shrink-0">
+            {right}
             <div className="relative">
               <button
                 onClick={() => {
@@ -258,7 +259,7 @@ export const AppHeader = ({ title = 'CENTRAL DO\nMOTORISTA', subtitle, back, rig
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
       </header>
 
