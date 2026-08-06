@@ -112,6 +112,11 @@ export const TrocasOleo = () => {
 
       if (partData && partData.length > 0) {
         setParts(partData as any);
+        const firstPart = partData[0] as any;
+        if (firstPart?.part_name) {
+          setSelectedPart(firstPart.part_name);
+          setLifeKm(String(firstPart.life_km || 3000));
+        }
       } else {
         // Mock peças default com base no odômetro atual
         const defaultList: PartMaintenanceItem[] = DEFAULT_PARTS.map((p, index) => ({
@@ -122,6 +127,10 @@ export const TrocasOleo = () => {
           last_change_date: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
         }));
         setParts(defaultList);
+        if (defaultList.length > 0) {
+          setSelectedPart(defaultList[0].part_name);
+          setLifeKm(String(defaultList[0].life_km));
+        }
       }
     } catch (err) {
       console.error('Erro ao carregar dados de manutenção:', err);
@@ -132,10 +141,16 @@ export const TrocasOleo = () => {
     loadData();
   }, []);
 
-  // Quando o usuário seleciona uma peça do dropdown, preenche a vida útil padrão
+  // Quando o usuário seleciona uma peça do dropdown, preenche a vida útil padrão ou cadastrada
   const handlePartSelect = (partName: string) => {
     setSelectedPart(partName);
-    const found = DEFAULT_PARTS.find((p) => p.part_name === partName);
+    if (partName === 'Outra Peça') {
+      setLifeKm('3000');
+      return;
+    }
+    const foundInParts = parts.find((p) => p.part_name === partName);
+    const foundInDefault = DEFAULT_PARTS.find((p) => p.part_name === partName);
+    const found = foundInParts || foundInDefault;
     if (found) {
       setLifeKm(String(found.life_km));
     }
@@ -311,7 +326,21 @@ export const TrocasOleo = () => {
 
   return (
     <div className="bg-[#131313] text-[#e5e2e1] min-h-screen font-lexend pb-32">
-      <AppHeader title="MONITORAMENTO DE PEÇAS" subtitle="Manutenção Preventiva do Veículo" back />
+      <AppHeader 
+        title="MONITORAMENTO DE PEÇAS" 
+        subtitle="Manutenção Preventiva do Veículo" 
+        back 
+        right={
+          <button
+            type="button"
+            onClick={() => setShowAddPartModal(true)}
+            className="size-10 grid place-items-center rounded-xl bg-[#ff5f00] text-black font-extrabold shadow-md hover:bg-[#ffb599] active:scale-95 transition"
+            title="Criar Nova Peça com Vida Útil (+)"
+          >
+            <Plus className="size-5 stroke-[3]" />
+          </button>
+        }
+      />
 
       <main className="px-5 pt-6 max-w-3xl mx-auto space-y-6">
         {/* Banner de Apresentação */}
@@ -331,16 +360,27 @@ export const TrocasOleo = () => {
            SEÇÃO 1: PAINEL DE VIDA ÚTIL DAS PEÇAS (MONITORAMENTO)
            ======================================================== */}
         <section className="bg-[#1c1b1b] p-6 rounded-3xl border border-[#2a2a2a] space-y-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-[#ff5f00]">
               <Gauge className="size-5" />
               <h2 className="text-lg font-extrabold text-white uppercase tracking-tight">
                 Vida Útil das Peças
               </h2>
             </div>
-            <div className="flex items-center gap-2 bg-[#201f1f] px-3 py-1.5 rounded-full border border-stone-800 text-xs font-bold text-[#ffb599]">
-              <Clock className="size-4 text-[#ff5f00]" />
-              <span>Odômetro: {currentOdometer.toLocaleString('pt-BR')} KM</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 bg-[#201f1f] px-3 py-1.5 rounded-full border border-stone-800 text-xs font-bold text-[#ffb599]">
+                <Clock className="size-4 text-[#ff5f00]" />
+                <span>Odômetro: {currentOdometer.toLocaleString('pt-BR')} KM</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddPartModal(true)}
+                className="px-3.5 py-1.5 bg-[#ff5f00] text-black font-extrabold text-xs uppercase rounded-xl flex items-center gap-1 hover:bg-[#ffb599] active:scale-95 transition shadow-md"
+                title="Criar nova peça para monitoramento preventivo (+)"
+              >
+                <Plus className="size-4 stroke-[3]" />
+                <span>+ Peça</span>
+              </button>
             </div>
           </div>
 
