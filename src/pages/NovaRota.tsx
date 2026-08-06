@@ -385,11 +385,13 @@ const NovaRota = () => {
               </div>
               <div className="flex flex-col justify-between h-full">
                 <Field label="Quantidade Pacotes Total">
-                  <Input 
+                  <MaskedInput 
+                    maskType="package_total"
                     readOnly 
                     disabled 
                     value={smallPackageCount || largePackageCount ? String(smallPkgCount + parsePackageToNumber(largePackageCount)) : ''} 
                     placeholder="Total automático"
+                    className="opacity-90 bg-surface-high/80 font-bold"
                   />
                 </Field>
               </div>

@@ -207,6 +207,7 @@ const Relatorios = () => {
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [showPlatformDropdown, setShowPlatformDropdown] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
+  const [categoryMetric, setCategoryMetric] = useState<'amount' | 'count'>('amount');
   
   const timeDropdownRef = useRef<HTMLDivElement>(null);
   const platformDropdownRef = useRef<HTMLDivElement>(null);
@@ -677,7 +678,7 @@ const Relatorios = () => {
     );
   }, [adjustments, platforms, selectedPlatform, platformName]);
 
-  // Categories (product type)
+  // Categories (product type) - monetary value & quantity delivered
   const byCategory = useMemo(() => {
     const filteredRoutes = selectedPlatform === 'all' 
       ? routes 
@@ -687,21 +688,41 @@ const Relatorios = () => {
       ? dailies 
       : dailies.filter(d => d.platform_id === selectedPlatform);
 
-    const map = new Map<string, number>();
-    [...filteredRoutes, ...filteredDailies].forEach((route) => {
-      const productType = (route as Route | DailyTotal).product_type || 'alimento';
-      map.set(productType, (map.get(productType) ?? 0) + 1);
+    const map = new Map<string, { count: number; amount: number }>();
+
+    filteredRoutes.forEach((r) => {
+      const productType = r.product_type || 'alimento';
+      const routePkg = (r.package_count ?? 0) || ((r.small_packages_count ?? 0) + (r.large_packages_count ?? 0)) || 1;
+      const rev = Number(r.amount ?? 0) + Number(r.tip ?? 0);
+      const cur = map.get(productType) ?? { count: 0, amount: 0 };
+      cur.count += routePkg;
+      cur.amount += rev;
+      map.set(productType, cur);
     });
+
+    filteredDailies.forEach((d) => {
+      const productType = d.product_type || 'alimento';
+      const rev = Number(d.amount ?? 0);
+      const cur = map.get(productType) ?? { count: 0, amount: 0 };
+      cur.count += 1;
+      cur.amount += rev;
+      map.set(productType, cur);
+    });
+
     const labels: Record<string, string> = {
       alimento: 'Alimento',
       pacote: 'Pacotes',
       documento: 'Documentos',
+      outro: 'Outro',
     };
+
     return Array.from(map.entries()).map(([k, v]) => ({
       name: labels[k] ?? k,
-      value: v,
+      count: v.count,
+      amount: v.amount,
+      value: categoryMetric === 'amount' ? Number(v.amount.toFixed(2)) : v.count,
     }));
-  }, [routes, dailies, selectedPlatform, platformName]);
+  }, [routes, dailies, selectedPlatform, categoryMetric]);
 
   // Top origins / destinations
   const topOrigins = useMemo(() => {
@@ -1367,12 +1388,32 @@ const Relatorios = () => {
         </Section>
 
         {/* Categories */}
-        <Section title="CATEGORIAS ENTREGUES">
+        <Section 
+          title="CATEGORIAS ENTREGUES"
+          action={
+            <div className="flex bg-surface-high p-0.5 rounded-lg border border-border/40 text-[11px] font-bold">
+              <button
+                type="button"
+                onClick={() => setCategoryMetric('amount')}
+                className={`px-2 py-1 rounded-md transition ${categoryMetric === 'amount' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                R$ Valor
+              </button>
+              <button
+                type="button"
+                onClick={() => setCategoryMetric('count')}
+                className={`px-2 py-1 rounded-md transition ${categoryMetric === 'count' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Qtd Entregue
+              </button>
+            </div>
+          }
+        >
           {byCategory.length === 0 ? (
             <Empty />
           ) : (
-            <div className="grid grid-cols-2 gap-3 items-center">
-              <div className="h-44">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1388,28 +1429,37 @@ const Relatorios = () => {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#f3f4f6',
-                        border: '1px solid #d1d5db',
-                        borderRadius: 12,
-                        fontSize: 12,
-                        color: '#111827',
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-surface-container border border-border/60 p-2.5 rounded-xl shadow-xl text-xs space-y-1">
+                              <p className="font-bold text-foreground">{data.name}</p>
+                              <p className="text-primary font-semibold">Valor: {formatBRL(data.amount)}</p>
+                              <p className="text-muted-foreground font-medium">Quantidade: {data.count} {data.count === 1 ? 'entregue' : 'entregues'}</p>
+                            </div>
+                          );
+                        }
+                        return null;
                       }}
-                      labelStyle={{ color: '#111827' }}
-                      itemStyle={{ color: '#111827' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {byCategory.map((c, i) => (
-                  <li key={c.name} className="flex items-center gap-2">
-                    <span
-                      className="size-2.5 rounded-full"
-                      style={{ background: COLORS[i % COLORS.length] }}
-                    />
-                    <span className="text-sm font-semibold flex-1">{c.name}</span>
-                    <span className="text-xs text-muted-foreground">{c.value}</span>
+                  <li key={c.name} className="flex items-center justify-between gap-2 p-2 rounded-xl bg-surface-high/40 border border-border/30">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="size-3 rounded-full shrink-0"
+                        style={{ background: COLORS[i % COLORS.length] }}
+                      />
+                      <span className="text-sm font-semibold truncate">{c.name}</span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-bold text-primary">{formatBRL(c.amount)}</div>
+                      <div className="text-[10px] font-medium text-muted-foreground">{c.count} {c.count === 1 ? 'entregue' : 'entregues'}</div>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -1482,9 +1532,12 @@ const Kpi = ({
 };
 
 
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+const Section = ({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) => (
   <section className="rounded-xl bg-surface border border-border/40 p-4 shadow-card">
-    <h3 className="display text-base mb-3">{title}</h3>
+    <div className="flex items-center justify-between gap-2 mb-3">
+      <h3 className="display text-base">{title}</h3>
+      {action}
+    </div>
     {children}
   </section>
 );

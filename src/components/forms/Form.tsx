@@ -4,6 +4,7 @@ import {
   formatDistanceMask,
   formatPackageMask,
   formatVolumeMask,
+  formatPackageTotalMask,
   getCleanUnmaskedValue,
 } from '@/lib/format';
 
@@ -33,7 +34,7 @@ export const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
 
 export interface MaskedInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
-  maskType: 'currency' | 'distance' | 'package' | 'volume';
+  maskType: 'currency' | 'distance' | 'package' | 'volume' | 'package_total';
   value: string | number;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
@@ -48,6 +49,7 @@ export const MaskedInput = forwardRef<HTMLInputElement, MaskedInputProps>(
       if (maskType === 'distance') return formatDistanceMask(value);
       if (maskType === 'package') return formatPackageMask(value);
       if (maskType === 'volume') return formatVolumeMask(value);
+      if (maskType === 'package_total') return formatPackageTotalMask(value);
       return String(value ?? '');
     }, [maskType, value]);
 

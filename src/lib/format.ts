@@ -222,6 +222,17 @@ export const formatVolumeMask = (val: string | number | null | undefined): strin
   return num === 1 ? `${num} Volume` : `${num} Volumes`;
 };
 
+/** Visual Package Total Mask (1 Pacote / 5 Pacotes) */
+export const formatPackageTotalMask = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined || val === '') return '';
+  const str = String(val).replace(/Pacote(s)?/gi, '').trim();
+  if (!str) return '';
+  const num = parseInt(str, 10);
+  if (isNaN(num)) return str;
+  if (num === 0) return '';
+  return num === 1 ? `${num} Pacote` : `${num} Pacotes`;
+};
+
 /** Convert package count string or number to pure JS number for database */
 export const parsePackageToNumber = (val: string | number | null | undefined): number => {
   if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -234,7 +245,7 @@ export const parsePackageToNumber = (val: string | number | null | undefined): n
 /** Extract clean unmasked value string when user focuses field */
 export const getCleanUnmaskedValue = (
   val: string | number | null | undefined,
-  maskType: 'currency' | 'distance' | 'package' | 'volume'
+  maskType: 'currency' | 'distance' | 'package' | 'volume' | 'package_total'
 ): string => {
   if (val === null || val === undefined || val === '') return '';
   const str = String(val);
@@ -249,6 +260,9 @@ export const getCleanUnmaskedValue = (
   }
   if (maskType === 'volume') {
     return str.replace(/Volume(s)?/gi, '').trim();
+  }
+  if (maskType === 'package_total') {
+    return str.replace(/Pacote(s)?/gi, '').trim();
   }
   return str;
 };
