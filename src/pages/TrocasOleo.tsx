@@ -330,16 +330,6 @@ export const TrocasOleo = () => {
         title="MONITORAMENTO DE PEÇAS" 
         subtitle="Manutenção Preventiva do Veículo" 
         back 
-        right={
-          <button
-            type="button"
-            onClick={() => setShowAddPartModal(true)}
-            className="size-10 grid place-items-center rounded-xl bg-[#ff5f00] text-black font-extrabold shadow-md hover:bg-[#ffb599] active:scale-95 transition"
-            title="Criar Nova Peça com Vida Útil (+)"
-          >
-            <Plus className="size-5 stroke-[3]" />
-          </button>
-        }
       />
 
       <main className="px-5 pt-6 max-w-3xl mx-auto space-y-6">
@@ -367,20 +357,9 @@ export const TrocasOleo = () => {
                 Vida Útil das Peças
               </h2>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 bg-[#201f1f] px-3 py-1.5 rounded-full border border-stone-800 text-xs font-bold text-[#ffb599]">
-                <Clock className="size-4 text-[#ff5f00]" />
-                <span>Odômetro: {currentOdometer.toLocaleString('pt-BR')} KM</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddPartModal(true)}
-                className="px-3.5 py-1.5 bg-[#ff5f00] text-black font-extrabold text-xs uppercase rounded-xl flex items-center gap-1 hover:bg-[#ffb599] active:scale-95 transition shadow-md"
-                title="Criar nova peça para monitoramento preventivo (+)"
-              >
-                <Plus className="size-4 stroke-[3]" />
-                <span>+ Peça</span>
-              </button>
+            <div className="flex items-center gap-2 bg-[#201f1f] px-3 py-1.5 rounded-full border border-stone-800 text-xs font-bold text-[#ffb599]">
+              <Clock className="size-4 text-[#ff5f00]" />
+              <span>Odômetro: {currentOdometer.toLocaleString('pt-BR')} KM</span>
             </div>
           </div>
 
@@ -478,7 +457,7 @@ export const TrocasOleo = () => {
                   <select
                     value={selectedPart}
                     onChange={(e) => handlePartSelect(e.target.value)}
-                    className="flex-grow h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                    className="flex-grow min-w-0 h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition truncate"
                   >
                     {parts.map((p) => (
                       <option key={p.id || p.part_name} value={p.part_name}>
