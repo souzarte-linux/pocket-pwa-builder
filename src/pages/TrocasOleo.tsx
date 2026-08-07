@@ -18,7 +18,8 @@ import {
   X,
   Eye,
   Save,
-  FolderPlus
+  FolderPlus,
+  ChevronRight
 } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { QuickCombobox } from '@/components/QuickCombobox';
@@ -354,9 +355,19 @@ export const TrocasOleo = () => {
                 Vida Útil das Peças
               </h2>
             </div>
-            <div className="flex items-center gap-2 bg-[#201f1f] px-3 py-1.5 rounded-full border border-stone-800 text-xs font-bold text-[#ffb599]">
-              <Clock className="size-4 text-[#ff5f00]" />
-              <span>Odômetro: {currentOdometer.toLocaleString('pt-BR')} KM</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 bg-[#201f1f] px-3 py-1.5 rounded-full border border-stone-800 text-xs font-bold text-[#ffb599]">
+                <Clock className="size-4 text-[#ff5f00]" />
+                <span>Odômetro: {currentOdometer.toLocaleString('pt-BR')} KM</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/vida-util-pecas')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-high hover:bg-surface-highest border border-border/40 text-xs font-bold text-primary transition active:scale-95"
+              >
+                <span>Ver tudo</span>
+                <ChevronRight className="size-3.5" />
+              </button>
             </div>
           </div>
 

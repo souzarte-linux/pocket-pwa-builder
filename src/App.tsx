@@ -20,6 +20,7 @@ import MetasFinanceiras from "./pages/MetasFinanceiras";
 import CadastroVeiculo from "./pages/CadastroVeiculo";
 import Configuracoes from "./pages/Configuracoes";
 import TrocasOleo from "./pages/TrocasOleo";
+import VidaUtilPecas from "./pages/VidaUtilPecas";
 import Faturas from "./pages/Faturas";
 import NovaFatura from "./pages/NovaFatura";
 import AjusteFinanceiro from "./pages/AjusteFinanceiro";
@@ -55,6 +56,7 @@ const App = () => (
           <Route path="/metas-financeiras" element={<RequireAuth><MetasFinanceiras /></RequireAuth>} />
           <Route path="/configuracoes" element={<Configuracoes />} />
           <Route path="/trocas-oleo" element={<RequireAuth><TrocasOleo /></RequireAuth>} />
+          <Route path="/vida-util-pecas" element={<RequireAuth><VidaUtilPecas /></RequireAuth>} />
           <Route path="/faturas" element={<RequireAuth><Faturas /></RequireAuth>} />
           <Route path="/fatura/nova" element={<RequireAuth><NovaFatura /></RequireAuth>} />
           <Route path="/ajuste-financeiro" element={<RequireAuth><AjusteFinanceiro /></RequireAuth>} />

@@ -202,6 +202,7 @@ const Relatorios = () => {
   const [allMaintExpenses, setAllMaintExpenses] = useState<Expense[]>([]);
   const [allFuelExpenses, setAllFuelExpenses] = useState<Expense[]>([]);
   const [maintProfile, setMaintProfile] = useState<MaintProfile | null>(null);
+  const [partMaintenanceList, setPartMaintenanceList] = useState<{ id: string; part_name: string; life_km: number; last_change_km: number; last_change_at: string }[]>([]);
   const [maxRouteKm, setMaxRouteKm] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
@@ -287,12 +288,13 @@ const Relatorios = () => {
   // Load maintenance-related historical data (once on mount)
   useEffect(() => {
     const loadMaint = async () => {
-      const [profRes, oilRes, expAllRes, routesAllRes] = await Promise.all([
+      const [profRes, oilRes, expAllRes, routesAllRes, partMaintRes] = await Promise.all([
         supabase.from('profiles').select('oil_change_km, last_oil_change_at').maybeSingle(),
         supabase.from('oil_changes').select('changed_at, km_at_change').order('changed_at', { ascending: false }),
         supabase.from('expenses').select('id, amount, category, occurred_at, title, liters, odometer_km, is_full_tank')
           .in('category', ['combustivel', 'manutencao']),
         supabase.from('routes').select('end_km, start_km'),
+        supabase.from('part_maintenance' as any).select('*'),
       ]);
       if (profRes.data) setMaintProfile(profRes.data as MaintProfile);
       const oc = (oilRes.data ?? []) as OilChange[];
@@ -300,6 +302,9 @@ const Relatorios = () => {
       const allExp = (expAllRes.data ?? []) as Expense[];
       setAllFuelExpenses(allExp.filter((e) => e.category === 'combustivel'));
       setAllMaintExpenses(allExp.filter((e) => e.category === 'manutencao'));
+      if (partMaintRes.data) {
+        setPartMaintenanceList(partMaintRes.data as any[]);
+      }
       let maxKm = 0;
       (routesAllRes.data ?? []).forEach((r: { end_km: number | null; start_km: number | null }) => {
         const v = Math.max(Number(r.end_km ?? 0), Number(r.start_km ?? 0));
