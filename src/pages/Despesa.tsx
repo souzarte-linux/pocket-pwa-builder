@@ -498,11 +498,21 @@ const Despesa = () => {
 
           {cat !== 'combustivel' && (
             <Field label={cat === 'manutencao' ? 'Peça/Serviço' : 'O que foi comprado'}>
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={cat === 'manutencao' ? 'Ex: Troca de óleo, pastilha de freio' : 'Ex: Almoço, lanche…'}
-              />
+              {cat === 'manutencao' ? (
+                <QuickCombobox
+                  table="parts_catalog"
+                  value={title}
+                  onChange={setTitle}
+                  placeholder="Selecione ou cadastre uma peça/serviço"
+                  rememberKey="lastPartName"
+                />
+              ) : (
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ex: Almoço, lanche…"
+                />
+              )}
             </Field>
           )}
 

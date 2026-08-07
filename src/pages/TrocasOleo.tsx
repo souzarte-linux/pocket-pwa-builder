@@ -21,6 +21,7 @@ import {
   FolderPlus
 } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
+import { QuickCombobox } from '@/components/QuickCombobox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -141,15 +142,11 @@ export const TrocasOleo = () => {
     loadData();
   }, []);
 
-  // Quando o usuário seleciona uma peça do dropdown, preenche a vida útil padrão ou cadastrada
+  // Quando o usuário seleciona uma peça do combobox, preenche a vida útil padrão ou cadastrada
   const handlePartSelect = (partName: string) => {
     setSelectedPart(partName);
-    if (partName === 'Outra Peça') {
-      setLifeKm('3000');
-      return;
-    }
-    const foundInParts = parts.find((p) => p.part_name === partName);
-    const foundInDefault = DEFAULT_PARTS.find((p) => p.part_name === partName);
+    const foundInParts = parts.find((p) => p.part_name.toLowerCase() === partName.toLowerCase());
+    const foundInDefault = DEFAULT_PARTS.find((p) => p.part_name.toLowerCase() === partName.toLowerCase());
     const found = foundInParts || foundInDefault;
     if (found) {
       setLifeKm(String(found.life_km));
@@ -194,7 +191,7 @@ export const TrocasOleo = () => {
         return;
       }
 
-      const partName = selectedPart === 'Outra Peça' ? customPartName : selectedPart;
+      const partName = selectedPart;
       const kmNum = Number(changeKm) || currentOdometer;
       const lifeNum = Number(lifeKm) || 3000;
       const costNum = Number(cost) || 0;
@@ -448,52 +445,19 @@ export const TrocasOleo = () => {
 
           <form onSubmit={handleRegisterService} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Campo Peça / Serviço com Botão "+" ao lado */}
+              {/* Campo Peça / Serviço com QuickCombobox */}
               <div>
                 <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">
                   Peça / Serviço
                 </label>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={selectedPart}
-                    onChange={(e) => handlePartSelect(e.target.value)}
-                    className="flex-grow min-w-0 h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition truncate"
-                  >
-                    {parts.map((p) => (
-                      <option key={p.id || p.part_name} value={p.part_name}>
-                        {p.part_name} (Vida: {p.life_km.toLocaleString('pt-BR')} KM)
-                      </option>
-                    ))}
-                    <option value="Outra Peça">Outra Peça / Serviço Personalizado</option>
-                  </select>
-
-                  {/* Botão "+" ao lado da lista Peça / Serviço */}
-                  <button
-                    type="button"
-                    onClick={() => setShowAddPartModal(true)}
-                    className="size-14 shrink-0 bg-[#ff5f00] text-black font-extrabold rounded-2xl grid place-items-center hover:bg-[#ffb599] active:scale-95 transition shadow-lg"
-                    title="Criar nova peça com vida útil personalizada (+)"
-                  >
-                    <Plus className="size-6 stroke-[3]" />
-                  </button>
-                </div>
+                <QuickCombobox
+                  table="parts_catalog"
+                  value={selectedPart}
+                  onChange={handlePartSelect}
+                  placeholder="Selecione ou cadastre uma peça/serviço"
+                  rememberKey="lastPartName"
+                />
               </div>
-
-              {selectedPart === 'Outra Peça' && (
-                <div>
-                  <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">
-                    Nome da Peça / Serviço
-                  </label>
-                  <input
-                    type="text"
-                    value={customPartName}
-                    onChange={(e) => setCustomPartName(e.target.value)}
-                    placeholder="Ex: Correia Dentada"
-                    className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
-                    required
-                  />
-                </div>
-              )}
 
               <div>
                 <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">

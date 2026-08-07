@@ -73,6 +73,7 @@ describe('Despesa Page - Manutenção', () => {
         };
       }
       return {
+        insert: insertMock,
         select: vi.fn().mockReturnValue(createQueryMock([])),
       };
     });
@@ -88,8 +89,15 @@ describe('Despesa Page - Manutenção', () => {
     expect(screen.getByText('LANÇAR MANUTENÇÃO')).toBeInTheDocument();
     expect(screen.getByText('Empresa')).toBeInTheDocument();
 
-    const titleInput = screen.getByPlaceholderText('Ex: Troca de óleo, pastilha de freio');
-    fireEvent.change(titleInput, { target: { value: 'Troca de óleo' } });
+    const partBtn = screen.getByText('Selecione ou cadastre uma peça/serviço');
+    expect(partBtn).toBeInTheDocument();
+    fireEvent.click(partBtn);
+
+    const searchInput = screen.getByPlaceholderText('Buscar...');
+    fireEvent.change(searchInput, { target: { value: 'Troca de óleo' } });
+
+    const createItem = await screen.findByText('Cadastrar "Troca de óleo"');
+    fireEvent.click(createItem);
 
     const amountInput = screen.getByPlaceholderText('R$ 0,00');
     fireEvent.change(amountInput, { target: { value: '15000' } }); // R$ 150,00

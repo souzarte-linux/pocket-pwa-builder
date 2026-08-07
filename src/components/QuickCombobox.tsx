@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type SupportedTable = 'card_operators' | 'companies';
+type SupportedTable = 'card_operators' | 'companies' | 'parts_catalog';
 
 interface Props {
   /** Supabase table holding the options (must have `name` + `user_id`) */
@@ -49,7 +49,27 @@ export const QuickCombobox = ({
   const load = async () => {
     if (!table) return;
     const { data } = await supabase.from(table).select('name').order('name');
-    setOptions((data ?? []).map((d: any) => d.name));
+    const fetchedNames = (data ?? []).map((d: any) => d.name);
+
+    if (table === 'parts_catalog') {
+      const { data: pmData } = await supabase.from('part_maintenance' as any).select('part_name');
+      const pmNames = (pmData ?? []).map((d: any) => d.part_name).filter(Boolean);
+      const defaultPartNames = [
+        'Óleo do Motor',
+        'Filtro de Óleo',
+        'Pastilhas de Freio',
+        'Pneu Traseiro',
+        'Pneu Dianteiro',
+        'Kit Transmissão / Corrente',
+        'Vela de Ignição',
+        'Filtro de Ar',
+      ];
+      const merged = Array.from(new Set([...fetchedNames, ...pmNames, ...defaultPartNames]));
+      setOptions(merged);
+      return;
+    }
+
+    setOptions(fetchedNames);
   };
 
   useEffect(() => {
