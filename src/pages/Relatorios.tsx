@@ -201,8 +201,9 @@ const Relatorios = () => {
   const [oilChanges, setOilChanges] = useState<OilChange[]>([]);
   const [allMaintExpenses, setAllMaintExpenses] = useState<Expense[]>([]);
   const [allFuelExpenses, setAllFuelExpenses] = useState<Expense[]>([]);
-  const [maintProfile, setMaintProfile] = useState<MaintProfile | null>(null);
-  const [partMaintenanceList, setPartMaintenanceList] = useState<{ id: string; part_name: string; life_km: number; last_change_km: number; last_change_at: string }[]>([]);
+  const [partMaintenanceData, setPartMaintenanceData] = useState<
+    { id?: string; part_name: string; life_km: number; last_change_km: number; last_change_at?: string }[]
+  >([]);
   const [maxRouteKm, setMaxRouteKm] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
@@ -247,7 +248,10 @@ const Relatorios = () => {
       setLoading(true);
       const sinceISO = range.since.toISOString();
       const untilISO = range.until.toISOString();
-      const [r, d, e, p, b, adj] = await Promise.all([
+      const { data: u } = await supabase.auth.getUser();
+      const userId = u.user?.id;
+
+      const [r, d, e, p, b, adj, partMaintRes] = await Promise.all([
         supabase
           .from('routes')
           .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price, started_at, ended_at, break_minutes, small_packages_count, large_packages_count, large_packages_prices')
@@ -263,12 +267,18 @@ const Relatorios = () => {
         supabase.from('platforms').select('id, name, active'),
         supabase.from('billing_cycles').select('id, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
         supabase.from('financial_adjustments').select('amount, type, platform_id, occurred_at').gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
+        userId
+          ? supabase.from('part_maintenance' as any).select('*').eq('user_id', userId)
+          : supabase.from('part_maintenance' as any).select('*'),
       ]);
       setRoutes((r.data ?? []) as Route[]);
       setDailies((d.data ?? []) as DailyTotal[]);
       setExpenses((e.data ?? []) as Expense[]);
       setPlatforms((p.data ?? []) as Platform[]);
       setAdjustments((adj.data ?? []) as Adjustment[]);
+      if (partMaintRes?.data) {
+        setPartMaintenanceData(partMaintRes.data as any[]);
+      }
       const cycles = (b.data ?? []) as { id: string; expected_payment_date: string }[];
       const cycleIds = cycles.map((c) => c.id);
       let totalsByCycle: Record<string, number> = {};
@@ -288,22 +298,25 @@ const Relatorios = () => {
   // Load maintenance-related historical data (once on mount)
   useEffect(() => {
     const loadMaint = async () => {
-      const [profRes, oilRes, expAllRes, routesAllRes, partMaintRes] = await Promise.all([
-        supabase.from('profiles').select('oil_change_km, last_oil_change_at').maybeSingle(),
+      const { data: u } = await supabase.auth.getUser();
+      const userId = u.user?.id;
+
+      const [oilRes, expAllRes, routesAllRes, partMaintRes] = await Promise.all([
         supabase.from('oil_changes').select('changed_at, km_at_change').order('changed_at', { ascending: false }),
         supabase.from('expenses').select('id, amount, category, occurred_at, title, liters, odometer_km, is_full_tank')
           .in('category', ['combustivel', 'manutencao']),
         supabase.from('routes').select('end_km, start_km'),
-        supabase.from('part_maintenance' as any).select('*'),
+        userId
+          ? supabase.from('part_maintenance' as any).select('*').eq('user_id', userId)
+          : supabase.from('part_maintenance' as any).select('*'),
       ]);
-      if (profRes.data) setMaintProfile(profRes.data as MaintProfile);
       const oc = (oilRes.data ?? []) as OilChange[];
       setOilChanges(oc);
       const allExp = (expAllRes.data ?? []) as Expense[];
       setAllFuelExpenses(allExp.filter((e) => e.category === 'combustivel'));
       setAllMaintExpenses(allExp.filter((e) => e.category === 'manutencao'));
-      if (partMaintRes.data) {
-        setPartMaintenanceList(partMaintRes.data as any[]);
+      if (partMaintRes?.data) {
+        setPartMaintenanceData(partMaintRes.data as any[]);
       }
       let maxKm = 0;
       (routesAllRes.data ?? []).forEach((r: { end_km: number | null; start_km: number | null }) => {
@@ -493,50 +506,38 @@ const Relatorios = () => {
 
   // Preventive maintenance schedule
   const maintSchedule = useMemo(() => {
-    const findLast = (regex: RegExp): { km: number; date: string; id: string } | null => {
-      let best: { km: number; date: string; id: string } | null = null;
-      allMaintExpenses.forEach((e) => {
-        if (!e.title || !regex.test(e.title)) return;
-        const km = Number(e.odometer_km ?? 0);
-        if (!best || new Date(e.occurred_at) > new Date(best.date)) {
-          best = { km, date: e.occurred_at, id: e.id };
-        }
-      });
-      return best;
-    };
+    const sortedMaintExpenses = [...allMaintExpenses]
+      .filter((e) => e.category === 'manutencao' && e.title)
+      .sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
 
-    // Last oil change: prefer oil_changes table, fall back to expenses
-    let lastOilKm: number | null = null;
-    if (oilChanges.length > 0) lastOilKm = Number(oilChanges[0].km_at_change ?? 0);
-    const lastOilExpense = findLast(/\b(oleo|óleo)\b/i);
-    if (lastOilKm == null) lastOilKm = lastOilExpense?.km ?? null;
-
-    const oilLife = Number(maintProfile?.oil_change_km ?? 3000) || 3000;
-
-    const kitRelacao = findLast(/relaç|relac|corrent|coroa|pinhão|pinhao/i);
-    const pneuDianteiro = findLast(/pneu.*diant|diant.*pneu/i);
-    const pneuTraseiro = findLast(/pneu.*tras|tras.*pneu/i);
-    const pastilhasFreio = findLast(/pastilh|freio/i);
-    const velaIgniçao = findLast(/vela|igniç|ignic/i);
-
-    const items: { name: string; lifeKm: number; lastKm: number | null; expenseId?: string }[] = [
-      { name: 'Troca de Óleo', lifeKm: oilLife, lastKm: lastOilKm, expenseId: lastOilExpense?.id },
-      { name: 'Kit Relação', lifeKm: 15000, lastKm: kitRelacao?.km ?? null, expenseId: kitRelacao?.id },
-      { name: 'Pneu Dianteiro', lifeKm: 15000, lastKm: pneuDianteiro?.km ?? null, expenseId: pneuDianteiro?.id },
-      { name: 'Pneu Traseiro', lifeKm: 10000, lastKm: pneuTraseiro?.km ?? null, expenseId: pneuTraseiro?.id },
-      { name: 'Pastilhas de Freio', lifeKm: 5000, lastKm: pastilhasFreio?.km ?? null, expenseId: pastilhasFreio?.id },
-      { name: 'Vela de Ignição', lifeKm: 10000, lastKm: velaIgniçao?.km ?? null, expenseId: velaIgniçao?.id },
-    ];
-
-    return items.map((it) => {
-      const nextKm = (it.lastKm ?? 0) + it.lifeKm;
+    return partMaintenanceData.map((p) => {
+      const nextKm = Number(p.last_change_km ?? 0) + Number(p.life_km ?? 0);
       const remaining = nextKm - currentOdometer;
       let status: 'ok' | 'warn' | 'critical' = 'ok';
       if (remaining <= 0) status = 'critical';
       else if (remaining <= 500) status = 'warn';
-      return { ...it, nextKm, remaining, status };
+
+      const pNameNorm = (p.part_name || '').toLowerCase().trim();
+      const matchedExpense = sortedMaintExpenses.find((e) => {
+        const titleNorm = (e.title || '').toLowerCase().trim();
+        return (
+          titleNorm === pNameNorm ||
+          titleNorm.includes(pNameNorm) ||
+          pNameNorm.includes(titleNorm)
+        );
+      });
+
+      return {
+        name: p.part_name,
+        lifeKm: p.life_km,
+        lastKm: p.last_change_km,
+        nextKm,
+        remaining,
+        status,
+        expenseId: matchedExpense?.id,
+      };
     });
-  }, [allMaintExpenses, oilChanges, maintProfile, currentOdometer]);
+  }, [partMaintenanceData, currentOdometer, allMaintExpenses]);
 
 
 
