@@ -6,6 +6,7 @@ import { QuickCombobox } from '@/components/QuickCombobox';
 import { CardPaymentDialog, CardDetails } from '@/components/CardPaymentDialog';
 import { DeleteInstallmentDialog } from '@/components/forms/DeleteInstallmentDialog';
 import { supabase } from '@/integrations/supabase/client';
+import { Tables } from '@/integrations/supabase/types';
 import { formatBRL, parseCurrencyInput, toLocalInput } from '@/lib/format';
 import { toast } from 'sonner';
 import { CreditCard, QrCode, Banknote, Plus, Trash2, History } from 'lucide-react';
@@ -33,21 +34,23 @@ const LIFE_REFERENCE: { match: string[]; km: number }[] = [
 const suggestLife = (title: string) => {
   const t = title.toLowerCase();
   const hit = LIFE_REFERENCE.find((r) => r.match.some((m) => t.includes(m)));
-  return hit ? String(hit.km) : '';
+  return hit ? String(hit.km) : '5000';
 };
 
-/** Helper to calculate valid YYYY-MM-DD due date for a specific year, month, and due day */
-const calculateCardDueDate = (year: number, monthIndex0: number, dueDay: number): string => {
-  // Max days in the target month
-  const maxDays = new Date(year, monthIndex0 + 1, 0).getDate();
-  const safeDay = Math.min(dueDay, maxDays);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${year}-${pad(monthIndex0 + 1)}-${pad(safeDay)}`;
-};
+/** Helper para calcular a data de vencimento da fatura com base no dia informado */
+function calculateCardDueDate(year: number, monthIndex: number, dueDay: number): string {
+  const lastDayOfMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const validDay = Math.min(dueDay, lastDayOfMonth);
+  const mm = String(monthIndex + 1).padStart(2, '0');
+  const dd = String(validDay).padStart(2, '0');
+  return `${year}-${mm}-${dd}`;
+}
 
 const Despesa = () => {
-  const { categoria } = useParams<{ categoria: string }>();
-  const rawCat = (categoria ?? 'combustivel').toLowerCase();
+  const { categoria, id: editId } = useParams<{ categoria?: string; id?: string }>();
+  const [params] = useSearchParams();
+  const isEdit = Boolean(editId);
+  const rawCat = (categoria || params.get('cat') || 'combustivel').toLowerCase();
   const cat: Cat =
     rawCat === 'combustivel'
       ? 'combustivel'
@@ -57,40 +60,43 @@ const Despesa = () => {
 
   const currentTitleObj = titles[cat] ?? titles.manutencao;
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const editId = searchParams.get('id');
-  const isEdit = !!editId;
 
-  const [vendor, setVendor] = useState('');
   const [title, setTitle] = useState('');
+  const [vendor, setVendor] = useState('');
+  const [amountDisplay, setAmountDisplay] = useState('');
+  const [amountNum, setAmountNum] = useState(0);
+  const [when, setWhen] = useState(() => toLocalInput(new Date().toISOString()));
+  const [paymentMethod, setPaymentMethod] = useState<'dinheiro' | 'pix' | 'cartao'>('pix');
+  const [description, setDescription] = useState('');
 
-  // Amount states: raw float for calculations vs formatted display string (R$ 0,00)
-  const [amountNum, setAmountNum] = useState<number>(0);
-  const [amountDisplay, setAmountDisplay] = useState<string>('');
+  // Cartão de crédito / débito
+  const [cardDialogOpen, setCardDialogOpen] = useState(false);
+  const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
 
+  // Parcelamento & Exclusão de parcelas
+  const [installmentGroupId, setInstallmentGroupId] = useState<string | null>(null);
+  const [deleteInstallmentOpen, setDeleteInstallmentOpen] = useState(false);
+
+  // Combustível
   const [liters, setLiters] = useState('');
-  const [pricePerLiter, setPricePerLiter] = useState('');
   const [fuelType, setFuelType] = useState('Gasolina Comum');
+  const [pricePerLiter, setPricePerLiter] = useState('');
   const [odometer, setOdometer] = useState('');
-  const [lifeKm, setLifeKm] = useState('');
-  const [lifeTouched, setLifeTouched] = useState(false);
+  const [isFullTank, setIsFullTank] = useState(true);
+  const [receiptNumber, setReceiptNumber] = useState('');
+
+  // Manutenção
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [partBrand, setPartBrand] = useState('');
   const [partModel, setPartModel] = useState('');
-  const [when, setWhen] = useState(toLocalInput(new Date().toISOString()));
-  const [description, setDescription] = useState('');
-  const [receiptNumber, setReceiptNumber] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao' | 'dinheiro'>('pix');
-  const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
-  const [cardDialogOpen, setCardDialogOpen] = useState(false);
-  const [installmentGroupId, setInstallmentGroupId] = useState<string | null>(null);
-  const [deleteInstallmentOpen, setDeleteInstallmentOpen] = useState(false);
-  const [isFullTank, setIsFullTank] = useState(true);
+  const [lifeKm, setLifeKm] = useState('5000');
+  const [lifeTouched, setLifeTouched] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const [gasStations, setGasStations] = useState<any[]>([]);
-  const [partHistory, setPartHistory] = useState<any[]>([]);
+  const [gasStations, setGasStations] = useState<Tables<'gas_stations'>[]>([]);
+  const [partHistory, setPartHistory] = useState<Pick<Tables<'expenses'>, 'id' | 'title' | 'amount' | 'odometer_km' | 'occurred_at'>[]>([]);
 
   useEffect(() => {
     if (cat === 'combustivel') {
@@ -108,9 +114,8 @@ const Despesa = () => {
     }
 
     if (editId) {
-      supabase.from('expenses').select('*').eq('id', editId).maybeSingle().then(({ data: e }) => {
-        if (e) {
-          const ex = e as any;
+      supabase.from('expenses').select('*').eq('id', editId).maybeSingle().then(({ data: ex }) => {
+        if (ex) {
           setVendor(ex.vendor ?? '');
           setTitle(ex.title ?? '');
           setInstallmentGroupId(ex.installment_group_id ?? null);
@@ -166,7 +171,7 @@ const Despesa = () => {
         .ilike('title', title.trim())
         .order('occurred_at', { ascending: false })
         .limit(6);
-      setPartHistory((data ?? []).filter((d: any) => d.id !== editId));
+      setPartHistory((data ?? []).filter((d) => d.id !== editId));
     }, 350);
     return () => clearTimeout(t);
   }, [title, cat, editId]);
@@ -230,10 +235,10 @@ const Despesa = () => {
   };
 
   const selectedStation = gasStations.find((g) => g.name === vendor);
-  const availableFuels =
-    selectedStation?.fuel_types && selectedStation.fuel_types.length > 0
-      ? selectedStation.fuel_types
-      : allFuelTypes;
+  const stationFuels = Array.isArray(selectedStation?.fuel_types)
+    ? (selectedStation.fuel_types as string[])
+    : null;
+  const availableFuels: string[] = stationFuels && stationFuels.length > 0 ? stationFuels : allFuelTypes;
 
   const selectPayment = (m: 'pix' | 'cartao' | 'dinheiro') => {
     setPaymentMethod(m);
@@ -374,14 +379,14 @@ const Despesa = () => {
       // registra/atualiza controle de vida útil da peça se manutenção
       if (!error && cat === 'manutencao' && Number(lifeKm) > 0 && title.trim()) {
         try {
-          await supabase.from('part_maintenance' as any).upsert(
+          await supabase.from('part_maintenance').upsert(
             {
               user_id: u.user.id,
               part_name: title.trim(),
               life_km: Number(lifeKm),
               last_change_km: odo ?? 0,
               last_change_at: occurred.toISOString(),
-            } as any,
+            },
             { onConflict: 'user_id,part_name' },
           );
         } catch (e) {
@@ -454,8 +459,9 @@ const Despesa = () => {
                   onChange={(e) => {
                     setVendor(e.target.value);
                     const st = gasStations.find((x) => x.name === e.target.value);
-                    if (st && st.fuel_types && st.fuel_types.length > 0) {
-                      if (!st.fuel_types.includes(fuelType)) setFuelType(st.fuel_types[0]);
+                    const fuels = Array.isArray(st?.fuel_types) ? (st.fuel_types as string[]) : null;
+                    if (fuels && fuels.length > 0) {
+                      if (!fuels.includes(fuelType)) setFuelType(fuels[0]);
                     }
                   }}
                 >

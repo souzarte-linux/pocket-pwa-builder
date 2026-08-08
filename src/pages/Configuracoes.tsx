@@ -44,21 +44,21 @@ const Configuracoes = () => {
       if (data) {
         setForm({
           full_name: data.full_name ?? '',
-          gender: (data as any).gender ?? '',
+          gender: data.gender ?? '',
           daily_goal: data.daily_goal?.toString() ?? '',
-          weekly_goal: (data as any).weekly_goal?.toString() ?? '',
+          weekly_goal: data.weekly_goal?.toString() ?? '',
           monthly_goal: data.monthly_goal?.toString() ?? '',
           vehicle: data.vehicle ?? 'moto',
-          vehicle_brand: (data as any).vehicle_brand ?? '',
-          vehicle_model: (data as any).vehicle_model ?? '',
-          vehicle_year: (data as any).vehicle_year?.toString() ?? '',
+          vehicle_brand: data.vehicle_brand ?? '',
+          vehicle_model: data.vehicle_model ?? '',
+          vehicle_year: data.vehicle_year?.toString() ?? '',
           plate: data.plate ?? '',
-          tank_size_l: (data as any).tank_size_l?.toString() ?? '',
-          avg_consumption_kml: (data as any).avg_consumption_kml?.toString() ?? '',
-          oil_change_km: (data as any).oil_change_km?.toString() ?? '',
-          tire_size_front: (data as any).tire_size_front ?? '',
-          tire_size_rear: (data as any).tire_size_rear ?? '',
-          has_bag: (data as any).has_bag ? 'true' : 'false',
+          tank_size_l: data.tank_size_l?.toString() ?? '',
+          avg_consumption_kml: data.avg_consumption_kml?.toString() ?? '',
+          oil_change_km: data.oil_change_km?.toString() ?? '',
+          tire_size_front: data.tire_size_front ?? '',
+          tire_size_rear: data.tire_size_rear ?? '',
+          has_bag: data.has_bag ? 'true' : 'false',
         });
       }
     })();
@@ -77,7 +77,7 @@ const Configuracoes = () => {
       daily_goal: num(form.daily_goal),
       weekly_goal: num(form.weekly_goal),
       monthly_goal: num(form.monthly_goal),
-      vehicle: form.vehicle as any,
+      vehicle: (form.vehicle as 'moto' | 'carro' | 'bike' | 'patinete') || 'moto',
       vehicle_brand: form.vehicle_brand || null,
       vehicle_model: form.vehicle_model || null,
       vehicle_year: form.vehicle_year ? Number(form.vehicle_year) : null,
@@ -88,7 +88,7 @@ const Configuracoes = () => {
       tire_size_front: form.tire_size_front || null,
       tire_size_rear: form.tire_size_rear || null,
       has_bag: form.has_bag === 'true',
-    } as any).eq('id', userId);
+    }).eq('id', userId);
     setLoading(false);
     if (error) { toast.error(error.message); return; }
     toast.success('Configurações salvas');

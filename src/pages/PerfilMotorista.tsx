@@ -65,13 +65,11 @@ export const PerfilMotorista = () => {
         .maybeSingle()
         .then(({ data: p }) => {
           if (p) {
-            const profileData = p as any;
-            if (profileData.full_name) setNome(profileData.full_name);
-            if (profileData.avatar_url) setAvatar(profileData.avatar_url);
-            if (profileData.phone) setCelular(formatDisplayPhone(profileData.phone));
-            if (profileData.birth_date) setDataNasc(formatDisplayDate(profileData.birth_date));
-            if (profileData.vehicle_model) setModeloVeiculo(profileData.vehicle_model);
-            if (profileData.plate) setPlacaVeiculo(profileData.plate);
+            if (p.full_name) setNome(p.full_name);
+            if (p.avatar_url) setAvatar(p.avatar_url);
+            if (p.phone) setCelular(formatDisplayPhone(p.phone));
+            if (p.vehicle_model) setModeloVeiculo(p.vehicle_model);
+            if (p.plate) setPlacaVeiculo(p.plate);
           }
         });
     });
@@ -104,22 +102,21 @@ export const PerfilMotorista = () => {
       const u = (await supabase.auth.getUser()).data.user;
       if (u) {
         const rawPhone = unmaskDigits(celular);
-        const rawDate = unmaskDigits(dataNasc);
 
         await supabase.from('profiles').upsert({
           id: u.id,
           full_name: nome,
           phone: rawPhone,
-          birth_date: rawDate,
           vehicle_model: modeloVeiculo,
           plate: placaVeiculo,
           updated_at: new Date().toISOString(),
-        } as any);
+        });
       }
       toast.success('Perfil atualizado com sucesso!');
       setIsEditing(false);
-    } catch (err: any) {
-      toast.error('Erro ao salvar perfil: ' + (err.message || 'Falha de conexão'));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha de conexão';
+      toast.error('Erro ao salvar perfil: ' + msg);
     } finally {
       setLoading(false);
     }

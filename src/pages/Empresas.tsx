@@ -292,14 +292,14 @@ export const Empresas = () => {
         if (!u.user) return;
 
         const { data: oilData } = await supabase
-          .from('oil_changes' as any)
+          .from('oil_changes')
           .select('notes, changed_at')
           .eq('user_id', u.user.id);
 
         if (oilData && oilData.length > 0) {
           // Extrai nomes de empresas/oficinas de observações
           const extracted: EmpresaItem[] = [...DEFAULT_EMPRESAS];
-          oilData.forEach((row: any, idx: number) => {
+          oilData.forEach((row, idx: number) => {
             if (row.notes && row.notes.includes('(') && row.notes.includes(')')) {
               const matches = row.notes.match(/\(([^)]+)\)/);
               if (matches && matches[1]) {
@@ -605,15 +605,15 @@ export const Empresas = () => {
                 <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-2">Organizar Por</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { id: 'name-asc', label: 'Nome (A - Z)' },
-                    { id: 'name-desc', label: 'Nome (Z - A)' },
-                    { id: 'services-desc', label: 'Mais Serviços' },
-                    { id: 'recent', label: 'Mais Recentes' },
+                    { id: 'name-asc' as const, label: 'Nome (A - Z)' },
+                    { id: 'name-desc' as const, label: 'Nome (Z - A)' },
+                    { id: 'services-desc' as const, label: 'Mais Serviços' },
+                    { id: 'recent' as const, label: 'Mais Recentes' },
                   ].map((option) => (
                     <button
                       key={option.id}
                       type="button"
-                      onClick={() => setSortBy(option.id as any)}
+                      onClick={() => setSortBy(option.id)}
                       className={`p-3 rounded-2xl text-xs font-extrabold text-left transition border flex items-center justify-between ${
                         sortBy === option.id
                           ? 'bg-[#ff5f00] text-black border-[#ff5f00]'

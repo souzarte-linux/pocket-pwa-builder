@@ -51,8 +51,8 @@ export const CardPaymentDialog = ({
         .eq('name', issuer)
         .maybeSingle();
 
-      if (data && (data as any).card_due_day) {
-        setCardDueDay(String((data as any).card_due_day));
+      if (data && data.card_due_day) {
+        setCardDueDay(String(data.card_due_day));
       }
     })();
   }, [issuer]);

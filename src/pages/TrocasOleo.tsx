@@ -24,6 +24,7 @@ import {
 import { AppHeader } from '@/components/layout/AppHeader';
 import { QuickCombobox } from '@/components/QuickCombobox';
 import { supabase } from '@/integrations/supabase/client';
+import { Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
 interface PartMaintenanceItem {
@@ -31,22 +32,24 @@ interface PartMaintenanceItem {
   part_name: string;
   life_km: number;
   last_change_km: number;
-  last_change_date: string;
+  last_change_date?: string;
   cost?: number;
   workshop?: string;
   notes?: string;
 }
 
-// Peças padrão pré-configuradas para monitoramento preventivo
-const DEFAULT_PARTS: Omit<PartMaintenanceItem, 'id'>[] = [
-  { part_name: 'Óleo do Motor', life_km: 3000, last_change_km: 0, last_change_date: new Date().toISOString() },
-  { part_name: 'Filtro de Óleo', life_km: 6000, last_change_km: 0, last_change_date: new Date().toISOString() },
-  { part_name: 'Pastilhas de Freio', life_km: 8000, last_change_km: 0, last_change_date: new Date().toISOString() },
-  { part_name: 'Pneu Traseiro', life_km: 12000, last_change_km: 0, last_change_date: new Date().toISOString() },
-  { part_name: 'Pneu Dianteiro', life_km: 15000, last_change_km: 0, last_change_date: new Date().toISOString() },
-  { part_name: 'Kit Transmissão / Corrente', life_km: 15000, last_change_km: 0, last_change_date: new Date().toISOString() },
-  { part_name: 'Vela de Ignição', life_km: 10000, last_change_km: 0, last_change_date: new Date().toISOString() },
-  { part_name: 'Filtro de Ar', life_km: 10000, last_change_km: 0, last_change_date: new Date().toISOString() },
+const DEFAULT_PARTS: { part_name: string; life_km: number }[] = [
+  { part_name: 'Óleo do Motor', life_km: 3000 },
+  { part_name: 'Filtro de Óleo', life_km: 6000 },
+  { part_name: 'Pastilhas de Freio (Dianteira)', life_km: 10000 },
+  { part_name: 'Pastilhas / Lonas de Freio (Traseira)', life_km: 12000 },
+  { part_name: 'Kit Transmissão / Relação (Corrente, Coroa, Pinhão)', life_km: 20000 },
+  { part_name: 'Vela de Ignição', life_km: 10000 },
+  { part_name: 'Filtro de Ar', life_km: 10000 },
+  { part_name: 'Pneu Dianteiro', life_km: 25000 },
+  { part_name: 'Pneu Traseiro', life_km: 20000 },
+  { part_name: 'Líquido de Arrefecimento', life_km: 30000 },
+  { part_name: 'Fluido de Freio (DOT 4)', life_km: 15000 },
 ];
 
 export const TrocasOleo = () => {
@@ -54,7 +57,7 @@ export const TrocasOleo = () => {
   const [loading, setLoading] = useState(false);
   const [currentOdometer, setCurrentOdometer] = useState<number>(45000);
   const [parts, setParts] = useState<PartMaintenanceItem[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<Tables<'oil_changes'>[]>([]);
 
   // Form para registrar nova troca/manutenção
   const [selectedPart, setSelectedPart] = useState('Óleo do Motor');
@@ -72,7 +75,7 @@ export const TrocasOleo = () => {
   const [newPartLifeInput, setNewPartLifeInput] = useState('10000');
 
   // Modal de Detalhes do Histórico (Exibição) + Edição
-  const [viewHistoryItem, setViewHistoryItem] = useState<any | null>(null);
+  const [viewHistoryItem, setViewHistoryItem] = useState<Tables<'oil_changes'> | null>(null);
   const [isEditingHistoryModal, setIsEditingHistoryModal] = useState(false);
   const [editHistoryKm, setEditHistoryKm] = useState('');
   const [editHistoryDate, setEditHistoryDate] = useState('');
@@ -86,18 +89,18 @@ export const TrocasOleo = () => {
       // Buscar odômetro atual baseado em despesas/trocas
       const [expRes, oilRes] = await Promise.all([
         supabase.from('expenses').select('odometer_km').order('odometer_km', { ascending: false }).limit(1),
-        supabase.from('oil_changes' as any).select('km_at_change').order('km_at_change', { ascending: false }).limit(1),
+        supabase.from('oil_changes').select('km_at_change').order('km_at_change', { ascending: false }).limit(1),
       ]);
 
-      const odoExp = Number((expRes.data?.[0] as any)?.odometer_km ?? 0);
-      const odoOil = Number((oilRes.data?.[0] as any)?.km_at_change ?? 0);
+      const odoExp = Number(expRes.data?.[0]?.odometer_km ?? 0);
+      const odoOil = Number(oilRes.data?.[0]?.km_at_change ?? 0);
       const latestOdo = Math.max(45000, odoExp, odoOil);
       setCurrentOdometer(latestOdo);
       setChangeKm(String(latestOdo));
 
       // Buscar histórico de trocas de óleo e serviços
       const { data: oilData } = await supabase
-        .from('oil_changes' as any)
+        .from('oil_changes')
         .select('*')
         .eq('user_id', u.user.id)
         .order('changed_at', { ascending: false });
@@ -108,13 +111,19 @@ export const TrocasOleo = () => {
 
       // Buscar peças cadastradas na tabela part_maintenance
       const { data: partData } = await supabase
-        .from('part_maintenance' as any)
+        .from('part_maintenance')
         .select('*')
         .eq('user_id', u.user.id);
 
       if (partData && partData.length > 0) {
-        setParts(partData as any);
-        const firstPart = partData[0] as any;
+        setParts(partData.map((pd) => ({
+          id: pd.id,
+          part_name: pd.part_name,
+          life_km: Number(pd.life_km),
+          last_change_km: Number(pd.last_change_km),
+          last_change_date: pd.last_change_at,
+        })));
+        const firstPart = partData[0];
         if (firstPart?.part_name) {
           setSelectedPart(firstPart.part_name);
           setLifeKm(String(firstPart.life_km || 3000));
@@ -129,10 +138,6 @@ export const TrocasOleo = () => {
           last_change_date: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
         }));
         setParts(defaultList);
-        if (defaultList.length > 0) {
-          setSelectedPart(defaultList[0].part_name);
-          setLifeKm(String(defaultList[0].life_km));
-        }
       }
     } catch (err) {
       console.error('Erro ao carregar dados de manutenção:', err);
@@ -198,12 +203,12 @@ export const TrocasOleo = () => {
       const costNum = Number(cost) || 0;
 
       // 1. Salva no histórico de trocas de óleo / serviços
-      const { error: oilErr } = await supabase.from('oil_changes' as any).insert({
+      const { error: oilErr } = await supabase.from('oil_changes').insert({
         user_id: u.user.id,
         changed_at: new Date(changeDate).toISOString(),
         km_at_change: kmNum,
         notes: `${partName} ${costNum ? `- R$ ${costNum}` : ''} ${workshop ? `(${workshop})` : ''} ${notes ? `- ${notes}` : ''}`,
-      } as any);
+      });
 
       if (oilErr) {
         console.error('Erro ao salvar historico:', oilErr);
@@ -239,13 +244,13 @@ export const TrocasOleo = () => {
       setParts(updatedParts);
 
       // Tenta atualizar no Supabase
-      await supabase.from('part_maintenance' as any).upsert({
+      await supabase.from('part_maintenance').upsert({
         user_id: u.user.id,
         part_name: partName,
         life_km: lifeNum,
         last_change_km: kmNum,
-        last_change_date: new Date(changeDate).toISOString(),
-      } as any);
+        last_change_at: new Date(changeDate).toISOString(),
+      });
 
       toast.success(`Manutenção de "${partName}" registrada com sucesso!`);
       setCost('');
@@ -253,28 +258,29 @@ export const TrocasOleo = () => {
       setNotes('');
       setCustomPartName('');
       loadData();
-    } catch (err: any) {
-      toast.error('Erro ao registrar manutenção: ' + err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro';
+      toast.error('Erro ao registrar manutenção: ' + msg);
     } finally {
       setLoading(false);
     }
   };
 
   // Exibir Modal de Detalhes Completo
-  const handleOpenViewHistory = (it: any) => {
+  const handleOpenViewHistory = (it: Tables<'oil_changes'>) => {
     setViewHistoryItem(it);
     setIsEditingHistoryModal(false);
-    setEditHistoryKm(String(it.km_at_change));
+    setEditHistoryKm(String(it.km_at_change ?? 0));
     setEditHistoryDate(new Date(it.changed_at).toISOString().slice(0, 16));
     setEditHistoryNotes(it.notes ?? '');
   };
 
   // Abrir direto modo Edição
-  const handleOpenEditHistory = (e: React.MouseEvent, it: any) => {
+  const handleOpenEditHistory = (e: React.MouseEvent, it: Tables<'oil_changes'>) => {
     e.stopPropagation();
     setViewHistoryItem(it);
     setIsEditingHistoryModal(true);
-    setEditHistoryKm(String(it.km_at_change));
+    setEditHistoryKm(String(it.km_at_change ?? 0));
     setEditHistoryDate(new Date(it.changed_at).toISOString().slice(0, 16));
     setEditHistoryNotes(it.notes ?? '');
   };
@@ -286,12 +292,12 @@ export const TrocasOleo = () => {
 
     try {
       const { error } = await supabase
-        .from('oil_changes' as any)
+        .from('oil_changes')
         .update({
           changed_at: new Date(editHistoryDate).toISOString(),
           km_at_change: Number(editHistoryKm) || 0,
           notes: editHistoryNotes || null,
-        } as any)
+        })
         .eq('id', viewHistoryItem.id);
 
       if (error) {
@@ -302,7 +308,7 @@ export const TrocasOleo = () => {
         setIsEditingHistoryModal(false);
         loadData();
       }
-    } catch (err: any) {
+    } catch {
       toast.error('Erro ao atualizar registro.');
     } finally {
       setLoading(false);
@@ -313,11 +319,11 @@ export const TrocasOleo = () => {
     e.stopPropagation();
     if (!confirm('Deseja remover este registro do histórico?')) return;
     try {
-      await supabase.from('oil_changes' as any).delete().eq('id', id);
+      await supabase.from('oil_changes').delete().eq('id', id);
       toast.success('Registro removido com sucesso!');
       if (viewHistoryItem?.id === id) setViewHistoryItem(null);
       loadData();
-    } catch (err: any) {
+    } catch {
       toast.error('Erro ao remover registro.');
     }
   };

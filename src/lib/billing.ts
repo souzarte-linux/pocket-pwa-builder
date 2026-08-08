@@ -218,7 +218,7 @@ export const checkOverlap = async (
     hasOverlap: true,
     conflictingCycle: {
       ...conflict,
-      platform_name: (conflict.platforms as any)?.name,
+      platform_name: (conflict.platforms as { name?: string } | null)?.name,
     },
   };
 };

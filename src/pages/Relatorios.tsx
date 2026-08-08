@@ -268,8 +268,8 @@ const Relatorios = () => {
         supabase.from('billing_cycles').select('id, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
         supabase.from('financial_adjustments').select('amount, type, platform_id, occurred_at').gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
         userId
-          ? supabase.from('part_maintenance' as any).select('*').eq('user_id', userId)
-          : supabase.from('part_maintenance' as any).select('*'),
+          ? supabase.from('part_maintenance').select('*').eq('user_id', userId)
+          : supabase.from('part_maintenance').select('*'),
       ]);
       setRoutes((r.data ?? []) as Route[]);
       setDailies((d.data ?? []) as DailyTotal[]);
@@ -277,11 +277,17 @@ const Relatorios = () => {
       setPlatforms((p.data ?? []) as Platform[]);
       setAdjustments((adj.data ?? []) as Adjustment[]);
       if (partMaintRes?.data) {
-        setPartMaintenanceData(partMaintRes.data as any[]);
+        setPartMaintenanceData(partMaintRes.data.map((pm) => ({
+          id: pm.id,
+          part_name: pm.part_name,
+          life_km: Number(pm.life_km),
+          last_change_km: Number(pm.last_change_km),
+          last_change_at: pm.last_change_at,
+        })));
       }
       const cycles = (b.data ?? []) as { id: string; expected_payment_date: string }[];
       const cycleIds = cycles.map((c) => c.id);
-      let totalsByCycle: Record<string, number> = {};
+      const totalsByCycle: Record<string, number> = {};
       if (cycleIds.length > 0) {
         const rRes = await supabase.from('routes').select('amount, tip, billing_cycle_id').in('billing_cycle_id', cycleIds);
         (rRes.data ?? []).forEach((row: { amount: number; tip: number | null; billing_cycle_id: string | null }) => {
@@ -307,8 +313,8 @@ const Relatorios = () => {
           .in('category', ['combustivel', 'manutencao']),
         supabase.from('routes').select('end_km, start_km'),
         userId
-          ? supabase.from('part_maintenance' as any).select('*').eq('user_id', userId)
-          : supabase.from('part_maintenance' as any).select('*'),
+          ? supabase.from('part_maintenance').select('*').eq('user_id', userId)
+          : supabase.from('part_maintenance').select('*'),
       ]);
       const oc = (oilRes.data ?? []) as OilChange[];
       setOilChanges(oc);
@@ -316,7 +322,13 @@ const Relatorios = () => {
       setAllFuelExpenses(allExp.filter((e) => e.category === 'combustivel'));
       setAllMaintExpenses(allExp.filter((e) => e.category === 'manutencao'));
       if (partMaintRes?.data) {
-        setPartMaintenanceData(partMaintRes.data as any[]);
+        setPartMaintenanceData(partMaintRes.data.map((pm) => ({
+          id: pm.id,
+          part_name: pm.part_name,
+          life_km: Number(pm.life_km),
+          last_change_km: Number(pm.last_change_km),
+          last_change_at: pm.last_change_at,
+        })));
       }
       let maxKm = 0;
       (routesAllRes.data ?? []).forEach((r: { end_km: number | null; start_km: number | null }) => {
@@ -376,7 +388,7 @@ const Relatorios = () => {
 
     const largePackagesValue = filteredRoutes.reduce((s, r) => {
       if (r.product_type !== 'pacote') return s;
-      const prices = (r as any).large_packages_prices as number[] ?? [];
+      const prices = (r.large_packages_prices as number[]) ?? [];
       return s + prices.reduce((sum, p) => sum + Number(p), 0);
     }, 0);
 
@@ -1510,14 +1522,9 @@ const Kpi = ({
     info: 'text-info',
     foreground: 'text-foreground',
   };
-  const Tag: any = onClick ? 'button' : 'div';
-  return (
-    <Tag
-      type={onClick ? 'button' : undefined}
-      onClick={onClick}
-      className={`text-left w-full rounded-xl bg-surface border border-border/40 p-3 shadow-card ${onClick ? 'transition hover:border-primary/40 hover:bg-surface-high active:scale-[0.98] cursor-pointer' : ''}`}
-      title={hint}
-    >
+
+  const content = (
+    <>
       <div className="flex items-center gap-2 mb-1">
         <Icon className={`size-4 ${toneCls[tone]}`} />
         <span className="label-up text-[10px] text-muted-foreground flex items-center gap-1">
@@ -1533,7 +1540,29 @@ const Kpi = ({
         </span>
       </div>
       <p className={`display text-xl ${toneCls[tone]}`}>{value}</p>
-    </Tag>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="text-left w-full rounded-xl bg-surface border border-border/40 p-3 shadow-card transition hover:border-primary/40 hover:bg-surface-high active:scale-[0.98] cursor-pointer"
+        title={hint}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="text-left w-full rounded-xl bg-surface border border-border/40 p-3 shadow-card"
+      title={hint}
+    >
+      {content}
+    </div>
   );
 };
 

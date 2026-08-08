@@ -298,7 +298,7 @@ export const Faturas = () => {
       const adjAmt = adjMap[c.id] || 0;
       return {
         ...c,
-        platform_name: (c.platforms as any)?.name || 'Desconhecida',
+        platform_name: (c.platforms as { name?: string } | null)?.name || 'Desconhecida',
         route_amount: routeAmt,
         tip_total: tipAmt,
         daily_amount: dailyAmt,
@@ -443,14 +443,14 @@ export const Faturas = () => {
       .from('financial_adjustments')
       .select('type, amount')
       .eq('billing_cycle_id', c.id)
-      .in('type', ADJUSTMENT_TYPES as any);
+      .in('type', [...ADJUSTMENT_TYPES]);
 
     if (adjList && adjList.length > 0) {
       const loadedState = { ...initialState };
-      adjList.forEach((adj: any) => {
+      adjList.forEach((adj) => {
         const positiveVal = Math.abs(Number(adj.amount || 0));
         if (positiveVal > 0 && adj.type in loadedState) {
-          (loadedState as any)[adj.type] = String(positiveVal);
+          loadedState[adj.type as keyof EditState] = String(positiveVal);
         }
       });
       setEditState(loadedState);
@@ -515,11 +515,11 @@ export const Faturas = () => {
           .from('financial_adjustments')
           .delete()
           .eq('billing_cycle_id', editingCycle.id)
-          .in('type', ADJUSTMENT_TYPES as any);
+          .in('type', [...ADJUSTMENT_TYPES]);
 
         // 2. Inserir registros para cada campo preenchido (> 0)
         const discountTypes = ['previdenciario', 'extravio', 'multa'];
-        const newAdjustments: any[] = [];
+        const newAdjustments = [];
         const occurredIso = editState.expected_payment_date
           ? `${editState.expected_payment_date}T12:00:00.000Z`
           : new Date().toISOString();

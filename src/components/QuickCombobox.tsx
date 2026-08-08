@@ -49,11 +49,11 @@ export const QuickCombobox = ({
   const load = async () => {
     if (!table) return;
     const { data } = await supabase.from(table).select('name').order('name');
-    const fetchedNames = (data ?? []).map((d: any) => d.name);
+    const fetchedNames = (data ?? []).map((d) => d.name);
 
     if (table === 'parts_catalog') {
-      const { data: pmData } = await supabase.from('part_maintenance' as any).select('part_name');
-      const pmNames = (pmData ?? []).map((d: any) => d.part_name).filter(Boolean);
+      const { data: pmData } = await supabase.from('part_maintenance').select('part_name');
+      const pmNames = (pmData ?? []).map((d) => d.part_name).filter(Boolean);
       const defaultPartNames = [
         'Óleo do Motor',
         'Filtro de Óleo',

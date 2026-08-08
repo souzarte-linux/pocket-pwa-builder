@@ -98,7 +98,15 @@ export const NovoPosto = () => {
         .order('created_at', { ascending: false });
 
       if (data && data.length > 0) {
-        setStations(data as GasStation[]);
+        setStations(data.map((d) => ({
+          id: d.id,
+          user_id: d.user_id,
+          name: d.name,
+          address: d.address,
+          brand: d.brand,
+          fuel_types: Array.isArray(d.fuel_types) ? (d.fuel_types as string[]) : null,
+          created_at: d.created_at,
+        })));
       } else {
         setStations(DEFAULT_STATIONS);
       }
@@ -162,7 +170,7 @@ export const NovoPosto = () => {
       setBrand('');
       setSelectedFuels(['Gasolina Comum', 'Etanol']);
       loadStations();
-    } catch (err: any) {
+    } catch {
       toast.error('Erro ao cadastrar posto.');
     } finally {
       setLoading(false);

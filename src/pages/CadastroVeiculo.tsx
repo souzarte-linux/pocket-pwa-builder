@@ -37,20 +37,19 @@ export const CadastroVeiculo = () => {
           .maybeSingle();
 
         if (profile) {
-          const p = profile as any;
-          if (p.avatar_url) setAvatar(p.avatar_url);
+          if (profile.avatar_url) setAvatar(profile.avatar_url);
 
           setForm({
-            marca: p.vehicle_brand ?? 'Honda',
-            modelo: p.vehicle_model ?? 'CB 500X',
-            ano: p.vehicle_year ? String(p.vehicle_year) : '2024',
-            placa: p.plate ?? 'ABC-1234',
-            tanque: p.tank_size_l ? String(p.tank_size_l) : '17',
-            consumo: p.avg_consumption_kml ? String(p.avg_consumption_kml) : '25.5',
-            trocaOleo: p.oil_change_km ? String(p.oil_change_km) : '5000',
-            carga: p.has_bag ? 'bag' : 'bau',
-            pneuDianteiro: p.tire_size_front ?? '110/80 R19',
-            pneuTraseiro: p.tire_size_rear ?? '160/60 R17',
+            marca: profile.vehicle_brand ?? 'Honda',
+            modelo: profile.vehicle_model ?? 'CB 500X',
+            ano: profile.vehicle_year ? String(profile.vehicle_year) : '2024',
+            placa: profile.plate ?? 'ABC-1234',
+            tanque: profile.tank_size_l ? String(profile.tank_size_l) : '17',
+            consumo: profile.avg_consumption_kml ? String(profile.avg_consumption_kml) : '25.5',
+            trocaOleo: profile.oil_change_km ? String(profile.oil_change_km) : '5000',
+            carga: profile.has_bag ? 'bag' : 'bau',
+            pneuDianteiro: profile.tire_size_front ?? '110/80 R19',
+            pneuTraseiro: profile.tire_size_rear ?? '160/60 R17',
           });
         }
       } catch (err) {
@@ -85,10 +84,10 @@ export const CadastroVeiculo = () => {
       }
 
       const payload = {
-        vehicle_brand: form.marca.trim(),
-        vehicle_model: form.modelo.trim(),
+        vehicle_brand: form.marca.trim() || null,
+        vehicle_model: form.modelo.trim() || null,
         vehicle_year: form.ano ? Number(form.ano) : null,
-        plate: form.placa.trim().toUpperCase(),
+        plate: form.placa.trim().toUpperCase() || null,
         tank_size_l: form.tanque ? Number(form.tanque.replace(',', '.')) : null,
         avg_consumption_kml: form.consumo ? Number(form.consumo.replace(',', '.')) : null,
         oil_change_km: form.trocaOleo ? Number(form.trocaOleo.replace(',', '.')) : null,
@@ -98,14 +97,14 @@ export const CadastroVeiculo = () => {
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase.from('profiles').update(payload as any).eq('id', u.user.id);
+      const { error } = await supabase.from('profiles').update(payload).eq('id', u.user.id);
 
       if (error) {
         toast.error(`Erro ao salvar dados do veículo: ${error.message}`);
       } else {
         toast.success('Veículo cadastrado com sucesso!');
       }
-    } catch (err: any) {
+    } catch {
       toast.error('Erro ao salvar veículo.');
     } finally {
       setLoading(false);

@@ -14,11 +14,11 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-function createQueryMock(data: any = []) {
+function createQueryMock(data: unknown = []) {
   const promise = Promise.resolve({ data, error: null });
-  const mockObj: any = {
-    then: (resolve: any, reject: any) => promise.then(resolve, reject),
-    catch: (reject: any) => promise.catch(reject),
+  const mockObj: Record<string, unknown> = {
+    then: (resolve: (v: { data: unknown; error: null }) => unknown, reject?: (r: unknown) => unknown) => promise.then(resolve, reject),
+    catch: (reject: (r: unknown) => unknown) => promise.catch(reject),
     eq: vi.fn().mockImplementation(() => mockObj),
     neq: vi.fn().mockImplementation(() => mockObj),
     in: vi.fn().mockImplementation(() => mockObj),
@@ -28,7 +28,7 @@ function createQueryMock(data: any = []) {
     or: vi.fn().mockImplementation(() => mockObj),
     order: vi.fn().mockImplementation(() => mockObj),
     limit: vi.fn().mockImplementation(() => mockObj),
-    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ data: data?.[0] ?? null, error: null })),
+    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data ?? null, error: null })),
   };
   return mockObj;
 }
@@ -36,24 +36,24 @@ function createQueryMock(data: any = []) {
 describe('AjusteFinanceiro.tsx - Category signs for discounts and additions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (supabase.auth.getUser as any).mockResolvedValue({
+    vi.mocked(supabase.auth.getUser).mockResolvedValue({
       data: { user: { id: 'user-123' } },
-    });
+    } as any);
   });
 
-  const setupMockSupabase = (insertSpy: any) => {
-    (supabase.from as any).mockImplementation((table: string) => {
+  const setupMockSupabase = (insertSpy: ReturnType<typeof vi.fn>) => {
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'platforms') {
         return {
           select: vi.fn().mockReturnValue(createQueryMock([{ id: 'p-1', name: 'Loggi', active: true }])),
-        };
+        } as any;
       }
       if (table === 'financial_adjustments') {
-        return { insert: insertSpy };
+        return { insert: insertSpy } as any;
       }
       return {
         select: vi.fn().mockReturnValue(createQueryMock([])),
-      };
+      } as any;
     });
   };
 
@@ -68,6 +68,12 @@ describe('AjusteFinanceiro.tsx - Category signs for discounts and additions', ()
     );
 
     await waitFor(() => screen.getByText('REGISTRAR AJUSTE ›'));
+
+    const typeLabel = screen.getByText('Tipo de Ajuste');
+    const typeSelect = typeLabel.parentElement?.querySelector('select');
+    if (typeSelect) {
+      fireEvent.change(typeSelect, { target: { value: 'previdenciario' } });
+    }
 
     const amtInput = screen.getByPlaceholderText('0,00');
     fireEvent.change(amtInput, { target: { value: '50,00' } });
@@ -85,7 +91,7 @@ describe('AjusteFinanceiro.tsx - Category signs for discounts and additions', ()
     });
   });
 
-  it('saves amount as positive for addition types (bonus_fatura, gratificacao, incentivo, premiacao)', async () => {
+  it('saves amount as positive for addition types (bonus_fatura, gratificacao, etc.)', async () => {
     const insertSpy = vi.fn().mockResolvedValue({ error: null });
     setupMockSupabase(insertSpy);
 
@@ -98,8 +104,10 @@ describe('AjusteFinanceiro.tsx - Category signs for discounts and additions', ()
     await waitFor(() => screen.getByText('REGISTRAR AJUSTE ›'));
 
     const typeLabel = screen.getByText('Tipo de Ajuste');
-    const typeSelect = typeLabel.parentElement?.querySelector('select')!;
-    fireEvent.change(typeSelect, { target: { value: 'bonus_fatura' } });
+    const typeSelect = typeLabel.parentElement?.querySelector('select');
+    if (typeSelect) {
+      fireEvent.change(typeSelect, { target: { value: 'bonus_fatura' } });
+    }
 
     const amtInput = screen.getByPlaceholderText('0,00');
     fireEvent.change(amtInput, { target: { value: '100,00' } });

@@ -22,11 +22,11 @@ vi.mock('sonner', () => ({
   },
 }));
 
-function createQueryMock(data: any = []) {
+function createQueryMock(data: unknown = []) {
   const promise = Promise.resolve({ data, error: null });
-  const mockObj: any = {
-    then: (resolve: any, reject: any) => promise.then(resolve, reject),
-    catch: (reject: any) => promise.catch(reject),
+  const mockObj: Record<string, unknown> = {
+    then: (resolve: (v: { data: unknown; error: null }) => unknown, reject?: (r: unknown) => unknown) => promise.then(resolve, reject),
+    catch: (reject: (r: unknown) => unknown) => promise.catch(reject),
     eq: vi.fn().mockImplementation(() => mockObj),
     neq: vi.fn().mockImplementation(() => mockObj),
     in: vi.fn().mockImplementation(() => mockObj),
@@ -36,7 +36,7 @@ function createQueryMock(data: any = []) {
     or: vi.fn().mockImplementation(() => mockObj),
     order: vi.fn().mockImplementation(() => mockObj),
     limit: vi.fn().mockImplementation(() => mockObj),
-    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ data: data?.[0] ?? null, error: null })),
+    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data ?? null, error: null })),
   };
   return mockObj;
 }
@@ -44,16 +44,16 @@ function createQueryMock(data: any = []) {
 describe('TrocasOleo Page (Maintenance)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (supabase.auth.getUser as any).mockResolvedValue({
+    vi.mocked(supabase.auth.getUser).mockResolvedValue({
       data: { user: { id: 'user-123' } },
-    });
+    } as any);
   });
 
   it('renders title and form correctly', async () => {
-    (supabase.from as any).mockImplementation((table: string) => {
+    vi.mocked(supabase.from).mockImplementation(() => {
       return {
         select: vi.fn().mockReturnValue(createQueryMock([])),
-      };
+      } as any;
     });
 
     render(

@@ -67,24 +67,24 @@ export const VidaUtilPecas: React.FC = () => {
       // 1. Fetch current vehicle odometer
       const [expRes, oilRes, routeRes] = await Promise.all([
         supabase.from('expenses').select('odometer_km').not('odometer_km', 'is', null).order('odometer_km', { ascending: false }).limit(1),
-        supabase.from('oil_changes' as any).select('km_at_change').order('km_at_change', { ascending: false }).limit(1),
+        supabase.from('oil_changes').select('km_at_change').order('km_at_change', { ascending: false }).limit(1),
         supabase.from('routes').select('end_km').order('end_km', { ascending: false }).limit(1),
       ]);
 
-      const odoExp = Number((expRes.data?.[0] as any)?.odometer_km ?? 0);
-      const odoOil = Number((oilRes.data?.[0] as any)?.km_at_change ?? 0);
-      const odoRoute = Number((routeRes.data?.[0] as any)?.end_km ?? 0);
+      const odoExp = Number(expRes.data?.[0]?.odometer_km ?? 0);
+      const odoOil = Number(oilRes.data?.[0]?.km_at_change ?? 0);
+      const odoRoute = Number(routeRes.data?.[0]?.end_km ?? 0);
       const latestOdo = Math.max(45000, odoExp, odoOil, odoRoute);
       setCurrentOdometer(latestOdo);
 
       // 2. Fetch monitored parts from part_maintenance
       const { data: partData } = await supabase
-        .from('part_maintenance' as any)
+        .from('part_maintenance')
         .select('*')
         .eq('user_id', u.user.id);
 
       if (partData && partData.length > 0) {
-        setParts(partData as any);
+        setParts(partData);
       } else {
         // Fallback to DEFAULT_PARTS list if none exists yet
         const defaultList: PartMaintenanceItem[] = DEFAULT_PARTS.map((p, idx) => ({
@@ -105,7 +105,7 @@ export const VidaUtilPecas: React.FC = () => {
         .order('occurred_at', { ascending: false });
 
       if (expData) {
-        setHistory(expData as any);
+        setHistory(expData);
       }
     } catch (err) {
       console.error('Erro ao carregar vida útil das peças:', err);
@@ -119,10 +119,8 @@ export const VidaUtilPecas: React.FC = () => {
   }, []);
 
   return (
-    <AppShell activeTab="none">
-      <AppHeader title="VIDA ÚTIL DAS PEÇAS" onBack={() => navigate('/trocas-oleo')} />
-
-      <main className="px-4 sm:px-6 md:px-8 pt-4 pb-24 space-y-6 max-w-4xl mx-auto animate-fade-in">
+    <AppShell title="VIDA ÚTIL DAS PEÇAS" back>
+      <div className="space-y-6 max-w-4xl mx-auto">
         {/* Banner Odômetro Atual */}
         <div className="rounded-2xl bg-surface-container border border-border/40 p-4 shadow-card flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -341,7 +339,7 @@ export const VidaUtilPecas: React.FC = () => {
             </div>
           )}
         </section>
-      </main>
+      </div>
     </AppShell>
   );
 };

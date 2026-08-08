@@ -57,18 +57,21 @@ export type Database = {
       }
       card_operators: {
         Row: {
+          card_due_day: number | null
           created_at: string
           id: string
           name: string
           user_id: string
         }
         Insert: {
+          card_due_day?: number | null
           created_at?: string
           id?: string
           name: string
           user_id: string
         }
         Update: {
+          card_due_day?: number | null
           created_at?: string
           id?: string
           name?: string
@@ -78,22 +81,52 @@ export type Database = {
       }
       companies: {
         Row: {
+          address: string | null
+          category: string | null
+          cep: string | null
+          cnpj: string | null
+          complement: string | null
           created_at: string
           id: string
+          is_whatsapp: boolean
           name: string
+          number: string | null
+          phone: string | null
+          social_media: string | null
           user_id: string
+          website: string | null
         }
         Insert: {
+          address?: string | null
+          category?: string | null
+          cep?: string | null
+          cnpj?: string | null
+          complement?: string | null
           created_at?: string
           id?: string
+          is_whatsapp?: boolean
           name: string
+          number?: string | null
+          phone?: string | null
+          social_media?: string | null
           user_id: string
+          website?: string | null
         }
         Update: {
+          address?: string | null
+          category?: string | null
+          cep?: string | null
+          cnpj?: string | null
+          complement?: string | null
           created_at?: string
           id?: string
+          is_whatsapp?: boolean
           name?: string
+          number?: string | null
+          phone?: string | null
+          social_media?: string | null
           user_id?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -158,6 +191,8 @@ export type Database = {
         Row: {
           amount: number
           card_brand: string | null
+          card_due_date: string | null
+          card_due_day: number | null
           card_operator: string | null
           category: Database["public"]["Enums"]["expense_category"]
           created_at: string
@@ -173,6 +208,7 @@ export type Database = {
           occurred_at: string
           odometer_km: number | null
           part_brand: string | null
+          part_life_km: number | null
           part_model: string | null
           payment_method: Database["public"]["Enums"]["payment_method"] | null
           price_per_liter: number | null
@@ -184,6 +220,8 @@ export type Database = {
         Insert: {
           amount: number
           card_brand?: string | null
+          card_due_date?: string | null
+          card_due_day?: number | null
           card_operator?: string | null
           category: Database["public"]["Enums"]["expense_category"]
           created_at?: string
@@ -199,6 +237,7 @@ export type Database = {
           occurred_at?: string
           odometer_km?: number | null
           part_brand?: string | null
+          part_life_km?: number | null
           part_model?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           price_per_liter?: number | null
@@ -210,6 +249,8 @@ export type Database = {
         Update: {
           amount?: number
           card_brand?: string | null
+          card_due_date?: string | null
+          card_due_day?: number | null
           card_operator?: string | null
           category?: Database["public"]["Enums"]["expense_category"]
           created_at?: string
@@ -225,6 +266,7 @@ export type Database = {
           occurred_at?: string
           odometer_km?: number | null
           part_brand?: string | null
+          part_life_km?: number | null
           part_model?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           price_per_liter?: number | null

@@ -252,7 +252,7 @@ export const Bandeiras = () => {
                 <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Tipo do Cartão</label>
                 <select
                   value={type}
-                  onChange={(e) => setType(e.target.value as any)}
+                  onChange={(e) => setType(e.target.value as CardBrand['type'])}
                   className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
                 >
                   <option value="Crédito">Crédito</option>
@@ -330,7 +330,7 @@ export const Bandeiras = () => {
                 <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Tipo do Cartão</label>
                 <select
                   value={editingItem.type}
-                  onChange={(e) => setEditingItem({ ...editingItem, type: e.target.value as any })}
+                  onChange={(e) => setEditingItem({ ...editingItem, type: e.target.value as CardBrand['type'] })}
                   className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
                 >
                   <option value="Crédito">Crédito</option>

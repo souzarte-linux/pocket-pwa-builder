@@ -54,18 +54,17 @@ export const Emissores = () => {
   const fetchIssuers = async () => {
     setLoading(true);
     try {
-      const { data: u } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .from('card_operators')
         .select('*')
         .order('name');
 
       if (!error && data && data.length > 0) {
-        const mapped: CardIssuerItem[] = data.map((item: any) => ({
+        const mapped: CardIssuerItem[] = data.map((item) => ({
           id: item.id,
           name: item.name,
           card_due_day: item.card_due_day ?? null,
-          active: item.active ?? true,
+          active: true,
         }));
 
         // Combinar com defaults evitando duplicados
@@ -108,9 +107,9 @@ export const Emissores = () => {
     }
 
     const dueDayNum = Number(dueDay) > 0 && Number(dueDay) <= 31 ? Number(dueDay) : null;
-    const { data: u } = await supabase.auth.getUser();
-
     let createdId = `iss-${Date.now()}`;
+
+    const { data: u } = await supabase.auth.getUser();
     if (u.user) {
       const { data, error } = await supabase
         .from('card_operators')
@@ -118,7 +117,7 @@ export const Emissores = () => {
           user_id: u.user.id,
           name: cleanName,
           card_due_day: dueDayNum,
-        } as any)
+        })
         .select()
         .single();
 
@@ -171,7 +170,7 @@ export const Emissores = () => {
         .update({
           name: cleanName,
           card_due_day: dueDayNum,
-        } as any)
+        })
         .eq('id', editingItem.id);
     }
 
