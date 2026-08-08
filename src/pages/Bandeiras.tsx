@@ -37,9 +37,18 @@ const DEFAULT_BRANDS: CardBrand[] = [
   { id: '9', name: 'Sodexo / Pluxee', type: 'Voucher / Alimentação', issuer: 'Pluxee', active: false },
 ];
 
+const getErrorMessage = (err: unknown): string => {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'object' && err !== null && 'message' in err) {
+    return String((err as { message: unknown }).message);
+  }
+  return 'Erro inesperado';
+};
+
 export const Bandeiras = () => {
   const navigate = useNavigate();
-  const [brands, setBrands] = useState<CardBrand[]>(DEFAULT_BRANDS);
+  const [brands, setBrands] = useState<CardBrand[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [name, setName] = useState('');
   const [type, setType] = useState<CardBrand['type']>('Crédito');
@@ -48,49 +57,127 @@ export const Bandeiras = () => {
   // Edição
   const [editingItem, setEditingItem] = useState<CardBrand | null>(null);
 
-  const handleAddBrand = (e: React.FormEvent) => {
+  const fetchBrands = async () => {
+    setLoading(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
+
+      const { data, error } = await supabase
+        .from('card_operators')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+
+      if (data) {
+        setBrands(
+          data.map((row) => ({
+            id: row.id,
+            name: row.name,
+            type: 'Crédito',
+            issuer: 'Emissor Geral',
+            active: true,
+          }))
+        );
+      }
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBrands();
+  }, []);
+
+  const handleAddBrand = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       toast.error('Informe o nome da bandeira de cartão.');
       return;
     }
 
-    const newBrand: CardBrand = {
-      id: `brand-${Date.now()}`,
-      name: name.trim(),
-      type,
-      issuer: issuer.trim() || 'Emissor Geral',
-      active: true,
-    };
+    const brandName = name.trim();
+    setLoading(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) {
+        toast.error('Usuário não autenticado.');
+        return;
+      }
 
-    setBrands((prev) => [newBrand, ...prev]);
-    setShowAddModal(false);
-    setName('');
-    setIssuer('');
-    setType('Crédito');
-    toast.success(`Bandeira "${newBrand.name}" cadastrada com sucesso!`);
+      const { error } = await supabase
+        .from('card_operators')
+        .insert({
+          user_id: u.user.id,
+          name: brandName,
+        });
+
+      if (error) throw error;
+
+      setShowAddModal(false);
+      setName('');
+      setIssuer('');
+      setType('Crédito');
+      toast.success(`Bandeira "${brandName}" cadastrada com sucesso!`);
+      await fetchBrands();
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err);
+      toast.error(`Erro ao cadastrar bandeira: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleEditBrand = (e: React.FormEvent) => {
+  const handleEditBrand = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
 
-    setBrands((prev) =>
-      prev.map((b) =>
-        b.id === editingItem.id
-          ? { ...editingItem, name: editingItem.name.trim(), issuer: editingItem.issuer?.trim() }
-          : b
-      )
-    );
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('card_operators')
+        .update({
+          name: editingItem.name.trim(),
+        })
+        .eq('id', editingItem.id);
 
-    setEditingItem(null);
-    toast.success('Bandeira atualizada com sucesso!');
+      if (error) throw error;
+
+      setEditingItem(null);
+      toast.success('Bandeira atualizada com sucesso!');
+      await fetchBrands();
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err);
+      toast.error(`Erro ao atualizar bandeira: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteBrand = (id: string, brandName: string) => {
+  const handleDeleteBrand = async (id: string, brandName: string) => {
     if (!confirm(`Deseja remover a bandeira "${brandName}"?`)) return;
-    setBrands((prev) => prev.filter((b) => b.id !== id));
-    toast.success('Bandeira removida.');
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('card_operators')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Bandeira removida com sucesso!');
+      await fetchBrands();
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err);
+      toast.error(`Erro ao remover bandeira: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleStatus = (id: string) => {
@@ -127,12 +214,32 @@ export const Bandeiras = () => {
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="size-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold flex items-center justify-center shrink-0 hover:bg-[#ffb599] active:scale-95 transition shadow-lg"
+            className="h-12 px-4 rounded-2xl bg-[#ff5f00] text-black font-extrabold flex items-center justify-center gap-2 shrink-0 hover:bg-[#ffb599] active:scale-95 transition shadow-lg"
             title="Cadastrar Nova Bandeira"
           >
-            <Plus className="size-6 stroke-[3]" />
+            <Plus className="size-5 stroke-[3]" />
+            <span className="text-xs uppercase">Nova Bandeira</span>
           </button>
         </div>
+
+        {/* Estado Vazio */}
+        {brands.length === 0 && !loading && (
+          <div className="text-center py-12 px-4 rounded-3xl bg-[#1c1b1b] border-2 border-stone-800 space-y-4">
+            <div className="size-16 rounded-full bg-[#ff5f00]/20 text-[#ff5f00] flex items-center justify-center mx-auto">
+              <CreditCard className="size-8" />
+            </div>
+            <h3 className="font-extrabold text-lg text-white">Nenhuma bandeira cadastrada</h3>
+            <p className="text-xs text-[#ab8a7d] max-w-sm mx-auto">
+              Cadastre suas bandeiras e cartões para organizar seus pagamentos e despesas com cartões.
+            </p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-6 py-3 bg-[#ff5f00] text-black font-extrabold text-sm uppercase rounded-2xl transition hover:bg-[#ff7a29] active:scale-95 shadow-lg shadow-[#ff5f00]/20"
+            >
+              Cadastrar Primeira Bandeira
+            </button>
+          </div>
+        )}
 
         {/* Lista de Bandeiras em Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -24,7 +24,7 @@ interface RouteRow {
 const Home = () => {
   const navigate = useNavigate();
   const [todayNet, setTodayNet] = useState(0);
-  const [goal, setGoal] = useState(200);
+  const [goal, setGoal] = useState(0);
   const [recent, setRecent] = useState<RouteRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,7 +44,7 @@ const Home = () => {
       const [routesRes, expRes, dailyRes] = await Promise.all([
         supabase
           .from('routes')
-          .select('amount, tip')
+          .select('amount, tip, distance_km, product_type, occurred_at, origin, destination')
           .gte('occurred_at', start)
           .lte('occurred_at', end),
         supabase
@@ -58,35 +58,47 @@ const Home = () => {
           .gte('occurred_at', start)
           .lte('occurred_at', end),
       ]);
-      const earned =
-        (routesRes.data ?? []).reduce((s, r) => s + Number(r.amount) + Number(r.tip), 0) +
-        (dailyRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
-      const spent = (expRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
-      setTodayNet(earned - spent);
 
-      const { data: r } = await supabase
-        .from('routes')
-        .select('id, amount, tip, distance_km, product_type, occurred_at, origin, destination')
-        .order('occurred_at', { ascending: false })
-        .limit(4);
-      setRecent((r as RouteRow[]) ?? []);
+      const earningsFromRoutes = (routesRes.data ?? []).reduce(
+        (s, r) => s + Number(r.amount) + Number(r.tip ?? 0),
+        0
+      );
+      const earningsFromDaily = (dailyRes.data ?? []).reduce(
+        (s, r) => s + Number(r.amount),
+        0
+      );
+      const totalExpenses = (expRes.data ?? []).reduce(
+        (s, e) => s + Number(e.amount),
+        0
+      );
+      const net = earningsFromRoutes + earningsFromDaily - totalExpenses;
+      setTodayNet(net);
 
+      const recData = routesRes.data ?? [];
+      setRecent(
+        recData.slice(0, 4).map((r) => ({
+          ...r,
+          amount: Number(r.amount),
+          tip: Number(r.tip ?? 0),
+          distance_km: Number(r.distance_km ?? 0),
+        }))
+      );
       setLoading(false);
     };
     load();
   }, []);
 
-  const pct = goal > 0 ? Math.max(0, Math.min(100, (todayNet / goal) * 100)) : 0;
-  const remaining = Math.max(0, goal - todayNet);
+  const pct = goal > 0 ? Math.min(100, Math.max(0, (todayNet / goal) * 100)) : 0;
+  const remaining = goal > 0 ? Math.max(0, goal - todayNet) : 0;
 
   return (
     <AppShell>
-      <div className="space-y-5">
-        {/* Lucro líquido card */}
+      <div className="space-y-4">
+        {/* Metric hero - High impact card */}
         <motion.section
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl bg-surface border border-border/40 p-5 shadow-card"
+          className="rounded-2xl bg-surface border border-border/40 p-5 shadow-card relative overflow-hidden"
         >
           <div className="flex items-center justify-between">
             <span className="label-up text-xs text-muted-foreground">Lucro líquido hoje</span>
@@ -109,8 +121,8 @@ const Home = () => {
             />
           </div>
           <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-bold">META: {formatBRL(goal)}</span>
-            <span className="font-bold">FALTAM {formatBRL(remaining)}</span>
+            <span className="font-bold">META: {goal > 0 ? formatBRL(goal) : 'Não definida'}</span>
+            {goal > 0 && <span className="font-bold">FALTAM {formatBRL(remaining)}</span>}
           </div>
         </motion.section>
 

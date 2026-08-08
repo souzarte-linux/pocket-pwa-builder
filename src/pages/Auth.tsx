@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Eye, EyeOff, LogIn, User, Lock, Apple, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
@@ -11,7 +11,7 @@ const Auth = () => {
   const rawNext = searchParams.get('next');
   const nextPath = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
   const goNext = () => {
-    if (nextPath) window.location.href = nextPath;
+    if (nextPath) navigate(nextPath, { replace: true });
     else navigate('/', { replace: true });
   };
   const [email, setEmail] = useState('');
@@ -24,7 +24,7 @@ const Auth = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
-        if (nextPath) window.location.href = nextPath;
+        if (nextPath) navigate(nextPath, { replace: true });
         else navigate('/', { replace: true });
       }
     });
@@ -230,7 +230,7 @@ const Auth = () => {
       <footer className="mt-auto py-stack-lg text-center px-margin-main">
         <p className="font-body-md text-on-surface-variant">
           Não tem uma conta?
-          <a className="text-primary-container font-label-md hover:underline decoration-2 underline-offset-4 ml-unit" href="/cadastro">Cadastre-se</a>
+          <Link className="text-primary-container font-label-md hover:underline decoration-2 underline-offset-4 ml-unit" to="/cadastro">Cadastre-se</Link>
         </p>
       </footer>
       {/* Bottom Aesthetic Bar */}

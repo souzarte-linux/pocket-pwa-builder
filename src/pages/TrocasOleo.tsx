@@ -55,14 +55,14 @@ const DEFAULT_PARTS: { part_name: string; life_km: number }[] = [
 export const TrocasOleo = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [currentOdometer, setCurrentOdometer] = useState<number>(45000);
+  const [currentOdometer, setCurrentOdometer] = useState<number | null>(null);
   const [parts, setParts] = useState<PartMaintenanceItem[]>([]);
   const [history, setHistory] = useState<Tables<'oil_changes'>[]>([]);
 
   // Form para registrar nova troca/manutenção
   const [selectedPart, setSelectedPart] = useState('Óleo do Motor');
   const [customPartName, setCustomPartName] = useState('');
-  const [changeKm, setChangeKm] = useState('45000');
+  const [changeKm, setChangeKm] = useState('');
   const [lifeKm, setLifeKm] = useState('3000');
   const [cost, setCost] = useState('');
   const [workshop, setWorkshop] = useState('');
@@ -88,15 +88,18 @@ export const TrocasOleo = () => {
 
       // Buscar odômetro atual baseado em despesas/trocas
       const [expRes, oilRes] = await Promise.all([
-        supabase.from('expenses').select('odometer_km').order('odometer_km', { ascending: false }).limit(1),
+        supabase.from('expenses').select('odometer_km').not('odometer_km', 'is', null).order('odometer_km', { ascending: false }).limit(1),
         supabase.from('oil_changes').select('km_at_change').order('km_at_change', { ascending: false }).limit(1),
       ]);
 
       const odoExp = Number(expRes.data?.[0]?.odometer_km ?? 0);
       const odoOil = Number(oilRes.data?.[0]?.km_at_change ?? 0);
-      const latestOdo = Math.max(45000, odoExp, odoOil);
+      const maxReading = Math.max(odoExp, odoOil);
+      const latestOdo = maxReading > 0 ? maxReading : null;
       setCurrentOdometer(latestOdo);
-      setChangeKm(String(latestOdo));
+      if (latestOdo !== null) {
+        setChangeKm(String(latestOdo));
+      }
 
       // Buscar histórico de trocas de óleo e serviços
       const { data: oilData } = await supabase
@@ -364,7 +367,7 @@ export const TrocasOleo = () => {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 bg-[#201f1f] px-3 py-1.5 rounded-full border border-stone-800 text-xs font-bold text-[#ffb599]">
                 <Clock className="size-4 text-[#ff5f00]" />
-                <span>Odômetro: {currentOdometer.toLocaleString('pt-BR')} KM</span>
+                <span>Odômetro: {currentOdometer !== null ? `${currentOdometer.toLocaleString('pt-BR')} KM` : 'Não informado'}</span>
               </div>
               <button
                 type="button"
@@ -379,7 +382,7 @@ export const TrocasOleo = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {parts.map((p) => {
-              const kmDriven = Math.max(0, currentOdometer - p.last_change_km);
+              const kmDriven = currentOdometer !== null ? Math.max(0, currentOdometer - p.last_change_km) : 0;
               const kmRemaining = p.life_km - kmDriven;
               const pct = Math.min(100, Math.round((kmDriven / p.life_km) * 100));
               const overdue = kmRemaining <= 0;

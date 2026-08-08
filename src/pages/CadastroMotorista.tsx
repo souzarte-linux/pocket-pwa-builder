@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, Image, User, Smartphone, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, MessageCircle, Settings, RotateCcw, Car, Motorbike } from 'lucide-react';
+import { ArrowLeft, Camera, Image, User, Mail, User2, Share, Bike, MapPin, Lock, ShieldCheck, CheckCircle, HelpCircle, MessageCircle, Settings, RotateCcw, Car, Motorbike, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const CadastroMotorista = () => {
   const navigate = useNavigate();
@@ -9,6 +11,7 @@ const CadastroMotorista = () => {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [loading, setLoading] = useState(false);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -126,10 +129,81 @@ const CadastroMotorista = () => {
     };
   }, [cameraStream]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement registration logic
-    console.log('Registration data:', formData);
+
+    // Validações
+    if (!formData.nome.trim() || !formData.email.trim() || !formData.celular.trim() || !formData.placa.trim() || !formData.senha) {
+      toast.error('Preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    if (formData.senha.length < 6) {
+      toast.error('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    if (formData.senha !== formData.confirmarSenha) {
+      toast.error('As senhas não coincidem.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email.trim(),
+        password: formData.senha,
+        options: {
+          data: {
+            full_name: formData.nome.trim(),
+            phone: formData.celular.trim(),
+          },
+        },
+      });
+
+      if (error) {
+        if (
+          error.message.toLowerCase().includes('already registered') ||
+          error.message.toLowerCase().includes('already exists') ||
+          (error.status === 400 && error.message.toLowerCase().includes('user'))
+        ) {
+          toast.error('Este e-mail já está cadastrado. Faça login.');
+        } else {
+          toast.error(error.message || 'Erro ao realizar cadastro.');
+        }
+        return;
+      }
+
+      if (data?.user) {
+        // Atualizar dados complementares se a sessão já estiver ativa
+        if (data.session) {
+          await supabase
+            .from('profiles')
+            .update({
+              full_name: formData.nome.trim(),
+              phone: formData.celular.trim(),
+              vehicle: (formData.veiculo as 'moto' | 'carro' | 'bike' | 'patinete') || 'moto',
+              plate: formData.placa.trim().toUpperCase(),
+              social_handle: formData.redeSocial.trim() || null,
+              avatar_url: profileImage || null,
+            })
+            .eq('id', data.user.id);
+        }
+
+        toast.success('Cadastro realizado com sucesso! Bem-vindo!');
+        if (data.session) {
+          navigate('/', { replace: true });
+        } else {
+          toast.info('Verifique seu e-mail para confirmar sua conta.');
+          navigate('/auth', { replace: true });
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro inesperado';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const vehicleIcon = formData.veiculo === 'carro' ? <Car className="absolute left-4 text-primary-container" size={20} /> : formData.veiculo === 'moto' ? <Motorbike className="absolute left-4 text-primary-container" size={20} /> : <Bike className="absolute left-4 text-primary-container" size={20} />;
@@ -428,10 +502,20 @@ const CadastroMotorista = () => {
           {/* Botão Finalizar */}
           <Button
             type="submit"
-            className="mt-4 h-16 font-headline-md uppercase tracking-widest active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3"
+            disabled={loading}
+            className="mt-4 h-16 font-headline-md uppercase tracking-widest active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3 disabled:opacity-60"
           >
-            <span>FINALIZAR CADASTRO</span>
-            <CheckCircle size={24} />
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin size-6" />
+                <span>CADASTRANDO…</span>
+              </>
+            ) : (
+              <>
+                <span>FINALIZAR CADASTRO</span>
+                <CheckCircle size={24} />
+              </>
+            )}
           </Button>
         </form>
       </main>

@@ -17,13 +17,15 @@ interface Item {
 
 /** Estimates the current odometer from the highest known reading. */
 const getCurrentOdometer = async () => {
-  const [exp, oil] = await Promise.all([
-    supabase.from('expenses').select('odometer_km').order('odometer_km', { ascending: false }).limit(1),
-    supabase.from('oil_changes' as any).select('km_at_change').order('km_at_change', { ascending: false }).limit(1),
+  const [exp, oil, routes] = await Promise.all([
+    supabase.from('expenses').select('odometer_km').not('odometer_km', 'is', null).order('odometer_km', { ascending: false }).limit(1),
+    supabase.from('oil_changes').select('km_at_change').order('km_at_change', { ascending: false }).limit(1),
+    supabase.from('routes').select('end_km').order('end_km', { ascending: false }).limit(1),
   ]);
-  const a = Number((exp.data?.[0] as any)?.odometer_km ?? 0);
-  const b = Number((oil.data?.[0] as any)?.km_at_change ?? 0);
-  return Math.max(a, b);
+  const a = Number(exp.data?.[0]?.odometer_km ?? 0);
+  const b = Number(oil.data?.[0]?.km_at_change ?? 0);
+  const c = Number(routes.data?.[0]?.end_km ?? 0);
+  return Math.max(a, b, c);
 };
 
 export const PartMaintenanceAlerts = () => {
@@ -34,10 +36,11 @@ export const PartMaintenanceAlerts = () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
       const [{ data }, odo] = await Promise.all([
-        supabase.from('part_maintenance' as any).select('part_name, life_km, last_change_km').eq('user_id', u.user.id),
+        supabase.from('part_maintenance').select('part_name, life_km, last_change_km').eq('user_id', u.user.id),
         getCurrentOdometer(),
       ]);
-      const rows = (data ?? []) as unknown as PartRow[];
+      if (odo <= 0) return;
+      const rows = data ?? [];
       const list = rows
         .map((r) => {
           const life = Number(r.life_km || 0);

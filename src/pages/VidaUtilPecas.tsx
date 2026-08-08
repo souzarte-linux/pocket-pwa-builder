@@ -13,7 +13,8 @@ import {
   Tag, 
   History,
   Pencil,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { AppHeader } from '@/components/layout/AppHeader';
@@ -54,7 +55,7 @@ const DEFAULT_PARTS = [
 export const VidaUtilPecas: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [currentOdometer, setCurrentOdometer] = useState<number>(45000);
+  const [currentOdometer, setCurrentOdometer] = useState<number | null>(null);
   const [parts, setParts] = useState<PartMaintenanceItem[]>([]);
   const [history, setHistory] = useState<MaintenanceExpense[]>([]);
 
@@ -74,7 +75,8 @@ export const VidaUtilPecas: React.FC = () => {
       const odoExp = Number(expRes.data?.[0]?.odometer_km ?? 0);
       const odoOil = Number(oilRes.data?.[0]?.km_at_change ?? 0);
       const odoRoute = Number(routeRes.data?.[0]?.end_km ?? 0);
-      const latestOdo = Math.max(45000, odoExp, odoOil, odoRoute);
+      const maxReading = Math.max(odoExp, odoOil, odoRoute);
+      const latestOdo = maxReading > 0 ? maxReading : null;
       setCurrentOdometer(latestOdo);
 
       // 2. Fetch monitored parts from part_maintenance
@@ -129,7 +131,9 @@ export const VidaUtilPecas: React.FC = () => {
             </div>
             <div>
               <p className="label-up text-xs text-muted-foreground">Odômetro Atual Estimado</p>
-              <h2 className="display text-2xl text-foreground font-extrabold">{formatKm(currentOdometer)}</h2>
+              <h2 className="display text-2xl text-foreground font-extrabold">
+                {currentOdometer !== null ? formatKm(currentOdometer) : 'Não informado'}
+              </h2>
             </div>
           </div>
           <button
@@ -146,7 +150,7 @@ export const VidaUtilPecas: React.FC = () => {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-primary">
-              <Wrench className="size-5" />
+              <ShieldCheck className="size-5" />
               <h2 className="display text-lg uppercase font-bold text-foreground tracking-tight">
                 Peças Monitoradas ({parts.length})
               </h2>
@@ -158,7 +162,7 @@ export const VidaUtilPecas: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {parts.map((p) => {
-                const kmDriven = Math.max(0, currentOdometer - p.last_change_km);
+                const kmDriven = currentOdometer !== null ? Math.max(0, currentOdometer - p.last_change_km) : 0;
                 const kmRemaining = p.life_km - kmDriven;
                 const pct = Math.min(100, Math.round((kmDriven / p.life_km) * 100));
                 const overdue = kmRemaining <= 0;
@@ -273,9 +277,9 @@ export const VidaUtilPecas: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {history.map((h) => (
+              {history.map((h, idx) => (
                 <div
-                  key={h.id}
+                  key={h.id || `hist-${idx}`}
                   onClick={() => navigate(`/despesa/manutencao?id=${h.id}`)}
                   className="rounded-2xl bg-surface-container border border-border/40 p-4 shadow-card space-y-2 cursor-pointer hover:border-primary/40 transition active:scale-[0.99]"
                 >

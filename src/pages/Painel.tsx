@@ -15,8 +15,10 @@ interface PlatformStat {
 const Painel = () => {
   const [daily, setDaily] = useState(0);
   const [weekly, setWeekly] = useState(0);
-  const [goal, setGoal] = useState(3450);
   const [monthly, setMonthly] = useState(0);
+  const [dailyGoal, setDailyGoal] = useState(0);
+  const [weeklyGoal, setWeeklyGoal] = useState(0);
+  const [monthlyGoal, setMonthlyGoal] = useState(0);
   const [todayPackages, setTodayPackages] = useState(0);
   const [weeklyPackages, setWeeklyPackages] = useState(0);
   const [monthlyPackages, setMonthlyPackages] = useState(0);
@@ -32,10 +34,12 @@ const Painel = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('monthly_goal')
+        .select('daily_goal, weekly_goal, monthly_goal')
         .eq('id', u.user.id)
         .maybeSingle();
-      if (profile?.monthly_goal) setGoal(Number(profile.monthly_goal));
+      if (profile?.daily_goal) setDailyGoal(Number(profile.daily_goal));
+      if (profile?.weekly_goal) setWeeklyGoal(Number(profile.weekly_goal));
+      if (profile?.monthly_goal) setMonthlyGoal(Number(profile.monthly_goal));
 
       const today = todayBoundaries();
       const weekStart = startOfWeek();
@@ -135,9 +139,9 @@ const Painel = () => {
     load();
   }, [range]);
 
-  const dailyPct = (daily / 200) * 100;
-  const weeklyPct = (weekly / 1000) * 100;
-  const monthlyPct = goal > 0 ? (monthly / goal) * 100 : 0;
+  const dailyPct = dailyGoal > 0 ? (daily / dailyGoal) * 100 : 0;
+  const weeklyPct = weeklyGoal > 0 ? (weekly / weeklyGoal) * 100 : 0;
+  const monthlyPct = monthlyGoal > 0 ? (monthly / monthlyGoal) * 100 : 0;
   const maxTrend = Math.max(1, ...trend);
   const totalEarnings = platforms.reduce((s, p) => s + p.total, 0);
 
@@ -150,23 +154,23 @@ const Painel = () => {
         <StatCard
           label="Lucro Diário"
           value={formatBRL(daily)}
-          trend={`${Math.round(dailyPct)}%`}
-          progress={dailyPct}
+          trend={dailyGoal > 0 ? `${Math.round(dailyPct)}%` : undefined}
+          progress={dailyGoal > 0 ? dailyPct : undefined}
           hint={`${todayPackages} pacotes hoje`}
         />
         <StatCard
           label="Lucro Semanal"
           value={formatBRL(weekly)}
-          trend={`${Math.round(weeklyPct)}%`}
-          progress={weeklyPct}
+          trend={weeklyGoal > 0 ? `${Math.round(weeklyPct)}%` : undefined}
+          progress={weeklyGoal > 0 ? weeklyPct : undefined}
           hint={`${weeklyPackages} pacotes esta semana`}
         />
         <StatCard
           label="Meta Mensal"
-          value={formatBRL(goal)}
+          value={monthlyGoal > 0 ? formatBRL(monthlyGoal) : 'Não definida'}
           highlight
-          progress={monthlyPct}
-          hint={`Progresso ${Math.round(monthlyPct)}% • ${formatBRL(monthly)} • ${monthlyPackages} pacotes este mês`}
+          progress={monthlyGoal > 0 ? monthlyPct : undefined}
+          hint={monthlyGoal > 0 ? `Progresso ${Math.round(monthlyPct)}% • ${formatBRL(monthly)} • ${monthlyPackages} pacotes este mês` : `${formatBRL(monthly)} faturados este mês`}
           right={<TrendingUp className="size-5 text-primary" />}
         />
 
