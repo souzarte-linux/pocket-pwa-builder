@@ -13,6 +13,9 @@ import {
   parsePackageToNumber,
 } from '@/lib/format';
 import { usePlatforms } from '@/hooks/queries/usePlatforms';
+import { useRouteDetail, useLatestRoute } from '@/hooks/queries/useRoutes';
+import { useRouteMutations } from '@/hooks/mutations/useRouteMutations';
+import { getLatestRoute, getRouteById } from '@/api/routes.api';
 
 export const NovaRota = () => {
   const [searchParams] = useSearchParams();
@@ -20,6 +23,10 @@ export const NovaRota = () => {
   const isEdit = !!editId;
   const navigate = useNavigate();
   const { data: platforms = [] } = usePlatforms(true);
+  const { data: routeDetail } = useRouteDetail(editId);
+  const { data: cachedLatestRoute } = useLatestRoute();
+  const { createRoute, updateRoute, deleteRoute, isCreating, isUpdating, isDeleting } = useRouteMutations();
+
   const [platformId, setPlatformId] = useState('');
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
@@ -108,39 +115,48 @@ export const NovaRota = () => {
     }
   }, [editId, platforms, platformId]);
 
+  const applyRouteFields = (r: any) => {
+    if (!r) return;
+    setPlatformId(r.platform_id ?? '');
+    setOrigin(r.origin ?? '');
+    setDestination(r.destination ?? '');
+    setDistance(r.distance_km ? String(r.distance_km) : '');
+    const smallPkgVal = r.small_packages_count ?? r.package_count;
+    setSmallPackageCount(smallPkgVal ? String(smallPkgVal) : '');
+    setLargePackageCount(r.large_packages_count ? String(r.large_packages_count) : '');
+    setLargePackagePrices((r.large_packages_prices as number[]) ?? []);
+    setPackageUnitPrice(r.package_unit_price ? String(r.package_unit_price) : '');
+    setFixedAmount(r.amount ? String(r.amount) : '');
+    setTip(r.tip ? String(r.tip) : '');
+    setType(r.product_type as 'alimento' | 'pacote' | 'documento');
+    setOccurredAt(toLocalInput(r.occurred_at));
+    if (r.started_at) setStartAt(toLocalInput(r.started_at));
+    if (r.ended_at) setEndAt(toLocalInput(r.ended_at));
+    setBreakMin(r.break_minutes ? String(r.break_minutes) : '');
+    setStartKm(r.start_km != null ? String(r.start_km) : '');
+    setEndKm(r.end_km != null ? String(r.end_km) : '');
+  };
+
+  useEffect(() => {
+    if (routeDetail) {
+      applyRouteFields(routeDetail);
+    }
+  }, [routeDetail]);
+
+  useEffect(() => {
+    if (!editId && cachedLatestRoute?.end_km !== undefined) {
+      setStartKm(getRouteInitialKmValue(cachedLatestRoute.end_km));
+    }
+  }, [editId, cachedLatestRoute]);
+
   useEffect(() => {
     const loadRouteData = async () => {
-      const { data: latestRoute } = await supabase
-        .from('routes')
-        .select('end_km')
-        .order('occurred_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const fallbackStartKm = getRouteInitialKmValue((latestRoute as { end_km?: number | null } | null)?.end_km ?? null);
-
       if (editId) {
-        const { data: r } = await supabase.from('routes').select('*').eq('id', editId).maybeSingle();
-        if (r) {
-          setPlatformId(r.platform_id ?? '');
-          setOrigin(r.origin ?? '');
-          setDestination(r.destination ?? '');
-          setDistance(r.distance_km ? String(r.distance_km) : '');
-          const smallPkgVal = r.small_packages_count ?? r.package_count;
-          setSmallPackageCount(smallPkgVal ? String(smallPkgVal) : '');
-          setLargePackageCount(r.large_packages_count ? String(r.large_packages_count) : '');
-          setLargePackagePrices((r.large_packages_prices as number[]) ?? []);
-          setPackageUnitPrice(r.package_unit_price ? String(r.package_unit_price) : '');
-          setFixedAmount(r.amount ? String(r.amount) : '');
-          setTip(r.tip ? String(r.tip) : '');
-          setType(r.product_type as 'alimento' | 'pacote' | 'documento');
-          setOccurredAt(toLocalInput(r.occurred_at));
-          if (r.started_at) setStartAt(toLocalInput(r.started_at));
-          if (r.ended_at) setEndAt(toLocalInput(r.ended_at));
-          setBreakMin(r.break_minutes ? String(r.break_minutes) : '');
-          setStartKm(r.start_km != null ? String(r.start_km) : '');
-          setEndKm(r.end_km != null ? String(r.end_km) : '');
-        }
+        const r = await getRouteById(editId);
+        if (r) applyRouteFields(r);
       } else {
+        const latestRoute = await getLatestRoute();
+        const fallbackStartKm = getRouteInitialKmValue(latestRoute?.end_km ?? null);
         setStartKm(fallbackStartKm);
       }
     };
@@ -169,74 +185,84 @@ export const NovaRota = () => {
     if (eKm > 0 && eKm < sKm) return toast.error('KM final deve ser ≥ KM inicial.');
 
     setLoading(true);
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) {
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) {
+        setLoading(false);
+        return;
+      }
+      const totalCount = isDelivery ? 1 : (parsePackageToNumber(smallPackageCount) + parsePackageToNumber(largePackageCount));
+      const payload = {
+        user_id: u.user.id,
+        platform_id: platformId || null,
+        origin: origin || null,
+        destination: destination || null,
+        distance_km: parseDistanceToNumber(distance),
+        amount: amountNum,
+        package_count: totalCount,
+        package_unit_price: (isDelivery || isDiaria) ? 0 : parseCurrencyToNumber(packageUnitPrice),
+        tip: parseCurrencyToNumber(tip),
+        product_type: type,
+        occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
+        started_at: startedISO,
+        ended_at: endedISO,
+        break_minutes: Number(breakMin) || 0,
+        start_km: sKm,
+        end_km: eKm,
+        small_packages_count: isDelivery ? 0 : parsePackageToNumber(smallPackageCount),
+        large_packages_count: isDelivery ? 0 : parsePackageToNumber(largePackageCount),
+        large_packages_prices: isDelivery ? [] : largePackagePrices.map(p => parseCurrencyToNumber(p)),
+      };
+
+      if (isEdit) {
+        await updateRoute({ id: editId, payload });
+      } else {
+        await createRoute(payload);
+      }
+
       setLoading(false);
-      return;
+      toast.success(isEdit ? 'Rota atualizada!' : 'Rota registrada!');
+      navigate(isEdit ? '/historico' : '/');
+    } catch (error) {
+      setLoading(false);
+      console.error(error);
+      toast.error("Erro ao salvar. Tente novamente.");
     }
-    const totalCount = isDelivery ? 1 : (parsePackageToNumber(smallPackageCount) + parsePackageToNumber(largePackageCount));
-    const payload = {
-      user_id: u.user.id,
-      platform_id: platformId || null,
-      origin: origin || null,
-      destination: destination || null,
-      distance_km: parseDistanceToNumber(distance),
-      amount: amountNum,
-      package_count: totalCount,
-      package_unit_price: (isDelivery || isDiaria) ? 0 : parseCurrencyToNumber(packageUnitPrice),
-      tip: parseCurrencyToNumber(tip),
-      product_type: type,
-      occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
-      started_at: startedISO,
-      ended_at: endedISO,
-      break_minutes: Number(breakMin) || 0,
-      start_km: sKm,
-      end_km: eKm,
-      small_packages_count: isDelivery ? 0 : parsePackageToNumber(smallPackageCount),
-      large_packages_count: isDelivery ? 0 : parsePackageToNumber(largePackageCount),
-      large_packages_prices: isDelivery ? [] : largePackagePrices.map(p => parseCurrencyToNumber(p)),
-    };
-
-    let error;
-    if (isEdit) {
-      const res = await supabase.from('routes').update(payload).eq('id', editId);
-      error = res.error;
-    } else {
-      const res = await supabase.from('routes').insert(payload);
-      error = res.error;
-    }
-
-    setLoading(false);
-    if (error) return (console.error(error), toast.error("Erro ao salvar. Tente novamente."));
-    toast.success(isEdit ? 'Rota atualizada!' : 'Rota registrada!');
-    navigate(isEdit ? '/historico' : '/');
   };
 
   const handleDelete = async () => {
     if (!editId || !confirm('Deseja realmente excluir esta rota?')) return;
     setDeleting(true);
-    const { error } = await supabase.from('routes').delete().eq('id', editId);
-    setDeleting(false);
-    if (error) return (console.error(error), toast.error("Erro ao salvar. Tente novamente."));
-    toast.success('Rota excluída!');
-    navigate('/historico');
+    try {
+      await deleteRoute(editId);
+      setDeleting(false);
+      toast.success('Rota excluída!');
+      navigate('/historico');
+    } catch (error) {
+      setDeleting(false);
+      console.error(error);
+      toast.error("Erro ao salvar. Tente novamente.");
+    }
   };
+
+  const isSubmitting = loading || isCreating || isUpdating;
+  const isRemoving = deleting || isDeleting;
 
   return (
     <AppShell back title={isEdit ? "Editar entrega" : "COURIER PRO"} subtitle={isEdit ? undefined : "Nova entrega — Registrar rota"}>
       <form onSubmit={submit}>
         <FormShell footer={
           <div className="flex flex-col gap-2 w-full">
-            <SubmitButton loading={loading}>{isEdit ? 'SALVAR ALTERAÇÕES ›' : 'FINALIZAR E REGISTRAR ROTA ›'}</SubmitButton>
+            <SubmitButton loading={isSubmitting}>{isEdit ? 'SALVAR ALTERAÇÕES ›' : 'FINALIZAR E REGISTRAR ROTA ›'}</SubmitButton>
             {isEdit && (
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={deleting}
+                disabled={isRemoving}
                 className="w-full h-14 rounded-xl border border-destructive/40 text-destructive font-black tracking-wide flex items-center justify-center gap-2 bg-surface hover:bg-destructive/10 transition active:scale-[0.98]"
               >
                 <Trash2 className="size-5" />
-                {deleting ? 'EXCLUINDO...' : 'EXCLUIR ROTA'}
+                {isRemoving ? 'EXCLUINDO...' : 'EXCLUIR ROTA'}
               </button>
             )}
           </div>
