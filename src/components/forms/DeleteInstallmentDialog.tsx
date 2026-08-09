@@ -1,18 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { supabase } from '@/integrations/supabase/client';
 import { formatBRL } from '@/lib/format';
 import { Trash2, AlertTriangle, Loader2, Calendar, CreditCard, ArrowLeft, Layers } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface InstallmentItem {
-  id: string;
-  title: string;
-  amount: number;
-  installment_number: number | null;
-  installment_total: number | null;
-  occurred_at: string;
-}
+import { useInstallmentGroup } from '@/hooks/queries/useExpenses';
+import { useExpenseMutations } from '@/hooks/mutations/useExpenseMutations';
 
 interface DeleteInstallmentDialogProps {
   open: boolean;
@@ -30,42 +22,13 @@ export const DeleteInstallmentDialog = ({
   onDeleted,
 }: DeleteInstallmentDialogProps) => {
   const [step, setStep] = useState<1 | 2>(1);
-  const [loading, setLoading] = useState(false);
   const [deletingMode, setDeletingMode] = useState<'single' | 'future' | 'all' | null>(null);
-  const [installments, setInstallments] = useState<InstallmentItem[]>([]);
 
-  useEffect(() => {
-    if (!open || !installmentGroupId) {
-      setStep(1);
-      setDeletingMode(null);
-      return;
-    }
+  const { data: installments = [], isLoading: loading } = useInstallmentGroup(
+    open ? installmentGroupId : null
+  );
 
-    let isMounted = true;
-    setLoading(true);
-    setStep(1);
-    setDeletingMode(null);
-
-    supabase
-      .from('expenses')
-      .select('id, title, amount, installment_number, installment_total, occurred_at')
-      .eq('installment_group_id', installmentGroupId)
-      .order('installment_number', { ascending: true })
-      .then(({ data, error }) => {
-        if (!isMounted) return;
-        setLoading(false);
-        if (error) {
-          console.error(error);
-          toast.error('Erro ao carregar parcelas');
-          return;
-        }
-        setInstallments(data ?? []);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [open, installmentGroupId]);
+  const { deleteExpense, deleteInstallmentGroup, deleteFutureInstallments } = useExpenseMutations();
 
   const currentInst = installments.find((i) => i.id === currentExpenseId);
   const currentNum = currentInst?.installment_number ?? 1;
@@ -73,58 +36,49 @@ export const DeleteInstallmentDialog = ({
 
   const handleDeleteSingle = async () => {
     setDeletingMode('single');
-    const { error } = await supabase.from('expenses').delete().eq('id', currentExpenseId);
-    setDeletingMode(null);
-
-    if (error) {
-      console.error(error);
+    try {
+      await deleteExpense({ id: currentExpenseId, category: null });
+      toast.success('Parcela excluída!');
+      onOpenChange(false);
+      onDeleted();
+    } catch (err: any) {
+      console.error(err);
       toast.error('Erro ao excluir parcela');
-      return;
     }
-
-    toast.success('Parcela excluída!');
-    onOpenChange(false);
-    onDeleted();
+    setDeletingMode(null);
   };
 
   const handleDeleteFuture = async () => {
     setDeletingMode('future');
-    let query = supabase.from('expenses').delete().eq('installment_group_id', installmentGroupId);
-
-    if (currentInst?.installment_number) {
-      query = query.gte('installment_number', currentInst.installment_number);
-    } else {
-      query = query.gte('occurred_at', currentInst?.occurred_at ?? new Date().toISOString());
-    }
-
-    const { error } = await query;
-    setDeletingMode(null);
-
-    if (error) {
-      console.error(error);
+    try {
+      await deleteFutureInstallments({
+        installmentGroupId,
+        fromNumber: currentInst?.installment_number ?? null,
+        fromDate: currentInst?.occurred_at,
+        category: null,
+      });
+      toast.success('Parcela atual e futuras foram excluídas!');
+      onOpenChange(false);
+      onDeleted();
+    } catch (err: any) {
+      console.error(err);
       toast.error('Erro ao excluir parcelas atuais e futuras');
-      return;
     }
-
-    toast.success('Parcela atual e futuras foram excluídas!');
-    onOpenChange(false);
-    onDeleted();
+    setDeletingMode(null);
   };
 
   const handleDeleteAll = async () => {
     setDeletingMode('all');
-    const { error } = await supabase.from('expenses').delete().eq('installment_group_id', installmentGroupId);
-    setDeletingMode(null);
-
-    if (error) {
-      console.error(error);
+    try {
+      await deleteInstallmentGroup({ installmentGroupId, category: null });
+      toast.success('Todas as parcelas foram excluídas!');
+      onOpenChange(false);
+      onDeleted();
+    } catch (err: any) {
+      console.error(err);
       toast.error('Erro ao excluir todas as parcelas');
-      return;
     }
-
-    toast.success('Todas as parcelas foram excluídas!');
-    onOpenChange(false);
-    onDeleted();
+    setDeletingMode(null);
   };
 
   const fmtDate = (iso: string) => {

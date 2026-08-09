@@ -6,10 +6,12 @@ import { QuickCombobox } from '@/components/QuickCombobox';
 import { CardPaymentDialog, CardDetails } from '@/components/CardPaymentDialog';
 import { DeleteInstallmentDialog } from '@/components/forms/DeleteInstallmentDialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/integrations/supabase/types';
 import { formatBRL, parseCurrencyInput, toLocalInput } from '@/lib/format';
 import { toast } from 'sonner';
 import { CreditCard, QrCode, Banknote, Plus, Trash2, History } from 'lucide-react';
+import { useGasStations } from '@/hooks/queries/useAuxiliary';
+import { useExpenseMutations } from '@/hooks/mutations/useExpenseMutations';
+import { getExpenseById } from '@/api/expenses.api';
 
 type Cat = 'combustivel' | 'manutencao' | 'alimentacao';
 
@@ -95,26 +97,35 @@ const Despesa = () => {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const [gasStations, setGasStations] = useState<Tables<'gas_stations'>[]>([]);
-  const [partHistory, setPartHistory] = useState<Pick<Tables<'expenses'>, 'id' | 'title' | 'amount' | 'odometer_km' | 'occurred_at'>[]>([]);
+  // Gas stations loaded via TanStack Query cache (shared with NovoPosto)
+  const { data: gasStations = [] } = useGasStations();
+
+  const [partHistory, setPartHistory] = useState<Array<{
+    id: string;
+    title: string | null;
+    amount: number | null;
+    odometer_km: number | null;
+    occurred_at: string;
+  }>>([]);
+
+  const {
+    createExpense,
+    updateExpense,
+    deleteExpense,
+    upsertPartMaintenance,
+    isCreating,
+    isUpdating,
+    isDeleting,
+  } = useExpenseMutations();
 
   useEffect(() => {
-    if (cat === 'combustivel') {
-      supabase
-        .from('gas_stations')
-        .select('*')
-        .order('name')
-        .then(({ data }) => {
-          setGasStations(data ?? []);
-        });
-    }
     if (cat === 'manutencao' && !isEdit) {
       const last = localStorage.getItem('lastCompany');
       if (last) setVendor(last);
     }
 
     if (editId) {
-      supabase.from('expenses').select('*').eq('id', editId).maybeSingle().then(({ data: ex }) => {
+      getExpenseById(editId).then((ex) => {
         if (ex) {
           setVendor(ex.vendor ?? '');
           setTitle(ex.title ?? '');
@@ -157,21 +168,16 @@ const Despesa = () => {
     setLifeKm(suggestLife(title));
   }, [title, cat, lifeTouched]);
 
-  // histórico da mesma peça/serviço
+  // histórico da mesma peça/serviço (debounced — estado local de busca auxiliar)
   useEffect(() => {
     if (cat !== 'manutencao' || title.trim().length < 3) {
       setPartHistory([]);
       return;
     }
     const t = setTimeout(async () => {
-      const { data } = await supabase
-        .from('expenses')
-        .select('id, title, amount, odometer_km, occurred_at')
-        .eq('category', 'manutencao')
-        .ilike('title', title.trim())
-        .order('occurred_at', { ascending: false })
-        .limit(6);
-      setPartHistory((data ?? []).filter((d) => d.id !== editId));
+      const { getPartHistory } = await import('@/api/expenses.api');
+      const data = await getPartHistory(title, editId ?? undefined);
+      setPartHistory(data);
     }, 350);
     return () => clearTimeout(t);
   }, [title, cat, editId]);
@@ -301,94 +307,91 @@ const Despesa = () => {
         payload.part_model = partModel || null;
       }
 
+      const buildInstallmentRows = (p: any) => {
+        const total = paymentMethod === 'cartao' ? Math.max(1, cardDetails?.installments ?? 1) : 1;
+        if (total <= 1) return null;
+        const groupId = crypto.randomUUID();
+        const [fy, fm] = (cardDetails?.firstMonth ?? occurred.toISOString().slice(0, 7))
+          .split('-')
+          .map(Number);
+        return Array.from({ length: total }, (_, i) => {
+          const d = new Date(fy, fm - 1 + i, occurred.getDate(), occurred.getHours(), occurred.getMinutes());
+          let instDueDate: string | null = null;
+          if (dueDay) {
+            instDueDate = calculateCardDueDate(fy, fm - 1 + i, dueDay);
+          }
+          const row: any = {
+            ...p,
+            occurred_at: d.toISOString(),
+            amount: Number((final / total).toFixed(2)),
+            title: `${p.title} (Parcela ${i + 1}/${total})`,
+          };
+          if (p.card_due_day !== undefined && dueDay) row.card_due_day = dueDay;
+          if (p.card_due_date !== undefined && dueDay) row.card_due_date = instDueDate;
+          if (p.card_brand !== undefined) {
+            row.installment_group_id = groupId;
+            row.installment_number = i + 1;
+            row.installment_total = total;
+          }
+          return row;
+        });
+      };
+
       const attemptSave = async (p: any) => {
         if (isEdit) {
-          return await supabase.from('expenses').update(p).eq('id', editId);
+          await updateExpense({ id: editId!, payload: p, category: cat });
+          return { error: null };
         } else {
-          const total = paymentMethod === 'cartao' ? Math.max(1, cardDetails?.installments ?? 1) : 1;
-          if (total > 1) {
-            const groupId = crypto.randomUUID();
-            const [fy, fm] = (cardDetails?.firstMonth ?? occurred.toISOString().slice(0, 7))
-              .split('-')
-              .map(Number);
-
-            const rows = Array.from({ length: total }, (_, i) => {
-              const d = new Date(fy, fm - 1 + i, occurred.getDate(), occurred.getHours(), occurred.getMinutes());
-              let instDueDate: string | null = null;
-              if (dueDay) {
-                instDueDate = calculateCardDueDate(fy, fm - 1 + i, dueDay);
-              }
-              const row: any = {
-                ...p,
-                occurred_at: d.toISOString(),
-                amount: Number((final / total).toFixed(2)),
-                title: `${p.title} (Parcela ${i + 1}/${total})`,
-              };
-              if (p.card_due_day !== undefined && dueDay) {
-                row.card_due_day = dueDay;
-              }
-              if (p.card_due_date !== undefined && dueDay) {
-                row.card_due_date = instDueDate;
-              }
-              if (p.card_brand !== undefined) {
-                row.installment_group_id = groupId;
-                row.installment_number = i + 1;
-                row.installment_total = total;
-              }
-              return row;
-            });
-            return await supabase.from('expenses').insert(rows);
-          } else {
-            return await supabase.from('expenses').insert(p);
-          }
+          const rows = buildInstallmentRows(p);
+          await createExpense({ payload: rows ?? p, category: cat });
+          return { error: null };
         }
       };
 
-      let { error } = await attemptSave(payload);
-
-      // Fallback: If remote DB lacks extended columns (card_due_day, invoice_number, part_brand, etc.), retry with core payload
-      if (
-        error &&
-        (error.code === 'PGRST204' ||
-          error.message?.toLowerCase().includes('column') ||
-          error.message?.toLowerCase().includes('schema cache'))
-      ) {
-        console.warn('Extended columns not present in expenses table, retrying with core payload:', error);
-        const corePayload: any = {
-          user_id: u.user.id,
-          category: cat,
-          title: title || currentTitleObj.defaultTitle,
-          vendor: vendor || null,
-          amount: final,
-          liters: cat === 'combustivel' ? Number(liters.replace(',', '.')) || null : null,
-          fuel_type: cat === 'combustivel' ? fuelType : null,
-          price_per_liter: cat === 'combustivel' ? Number(pricePerLiter.replace(',', '.')) || null : null,
-          odometer_km: cat === 'alimentacao' ? null : odo,
-          description: description || null,
-          payment_method: paymentMethod,
-          occurred_at: occurred.toISOString(),
-        };
-        if (cat === 'combustivel') {
-          corePayload.receipt_number = receiptNumber || null;
-          corePayload.is_full_tank = isFullTank;
+      try {
+        await attemptSave(payload);
+      } catch (saveErr: any) {
+        // Fallback: If remote DB lacks extended columns, retry with core payload
+        if (
+          saveErr?.code === 'PGRST204' ||
+          saveErr?.message?.toLowerCase().includes('column') ||
+          saveErr?.message?.toLowerCase().includes('schema cache')
+        ) {
+          console.warn('Extended columns not present in expenses table, retrying with core payload:', saveErr);
+          const corePayload: any = {
+            user_id: u.user.id,
+            category: cat,
+            title: title || currentTitleObj.defaultTitle,
+            vendor: vendor || null,
+            amount: final,
+            liters: cat === 'combustivel' ? Number(liters.replace(',', '.')) || null : null,
+            fuel_type: cat === 'combustivel' ? fuelType : null,
+            price_per_liter: cat === 'combustivel' ? Number(pricePerLiter.replace(',', '.')) || null : null,
+            odometer_km: cat === 'alimentacao' ? null : odo,
+            description: description || null,
+            payment_method: paymentMethod,
+            occurred_at: occurred.toISOString(),
+          };
+          if (cat === 'combustivel') {
+            corePayload.receipt_number = receiptNumber || null;
+            corePayload.is_full_tank = isFullTank;
+          }
+          await attemptSave(corePayload);
+        } else {
+          throw saveErr;
         }
-        const retryRes = await attemptSave(corePayload);
-        error = retryRes.error;
       }
 
-      // registra/atualiza controle de vida útil da peça se manutenção
-      if (!error && cat === 'manutencao' && Number(lifeKm) > 0 && title.trim()) {
+      // Registra/atualiza controle de vida útil da peça se manutenção
+      if (cat === 'manutencao' && Number(lifeKm) > 0 && title.trim()) {
         try {
-          await supabase.from('part_maintenance').upsert(
-            {
-              user_id: u.user.id,
-              part_name: title.trim(),
-              life_km: Number(lifeKm),
-              last_change_km: odo ?? 0,
-              last_change_at: occurred.toISOString(),
-            },
-            { onConflict: 'user_id,part_name' },
-          );
+          await upsertPartMaintenance({
+            user_id: u.user.id,
+            part_name: title.trim(),
+            life_km: Number(lifeKm),
+            last_change_km: odo ?? 0,
+            last_change_at: occurred.toISOString(),
+          });
         } catch (e) {
           console.error(e);
         }
@@ -397,19 +400,12 @@ const Despesa = () => {
       if (cat === 'manutencao' && vendor) localStorage.setItem('lastCompany', vendor);
 
       setLoading(false);
-
-      if (error) {
-        console.error('Error saving expense:', error);
-        toast.error(`Erro ao salvar despesa: ${error.message || 'Tente novamente.'}`);
-        return;
-      }
-
       toast.success(isEdit ? 'Despesa atualizada!' : 'Despesa registrada!');
       navigate(isEdit ? '/historico' : '/');
     } catch (err: any) {
-      console.error('Unexpected error saving expense:', err);
+      console.error('Error saving expense:', err);
       setLoading(false);
-      toast.error(`Erro ao salvar: ${err.message || 'Tente novamente.'}`);
+      toast.error(`Erro ao salvar despesa: ${err.message || 'Tente novamente.'}`);
     }
   };
 
@@ -423,12 +419,20 @@ const Despesa = () => {
 
     if (!confirm('Deseja realmente excluir esta despesa?')) return;
     setDeleting(true);
-    const { error } = await supabase.from('expenses').delete().eq('id', editId);
-    setDeleting(false);
-    if (error) return (console.error(error), toast.error('Erro ao excluir despesa.'));
-    toast.success('Despesa excluída!');
-    navigate('/historico');
+    try {
+      await deleteExpense({ id: editId, category: cat });
+      setDeleting(false);
+      toast.success('Despesa excluída!');
+      navigate('/historico');
+    } catch (error: any) {
+      setDeleting(false);
+      console.error(error);
+      toast.error('Erro ao excluir despesa.');
+    }
   };
+
+  const isSubmitting = loading || isCreating || isUpdating;
+  const isRemoving = deleting || isDeleting;
 
   return (
     <AppShell back title={isEdit ? `EDITAR ${currentTitleObj.defaultTitle.toUpperCase()}` : currentTitleObj.title}>
@@ -436,16 +440,16 @@ const Despesa = () => {
         <FormShell
           footer={
             <div className="flex flex-col gap-2 w-full">
-              <SubmitButton loading={loading}>{isEdit ? 'SALVAR ALTERAÇÕES' : 'SALVAR DESPESA'}</SubmitButton>
+              <SubmitButton loading={isSubmitting}>{isEdit ? 'SALVAR ALTERAÇÕES' : 'SALVAR DESPESA'}</SubmitButton>
               {isEdit && (
                 <button
                   type="button"
                   onClick={handleDelete}
-                  disabled={deleting}
+                  disabled={isRemoving}
                   className="w-full h-14 rounded-xl border border-destructive/40 text-destructive font-black tracking-wide flex items-center justify-center gap-2 bg-surface hover:bg-destructive/10 transition active:scale-[0.98]"
                 >
                   <Trash2 className="size-5" />
-                  {deleting ? 'EXCLUINDO...' : 'EXCLUIR DESPESA'}
+                  {isRemoving ? 'EXCLUINDO...' : 'EXCLUIR DESPESA'}
                 </button>
               )}
             </div>
