@@ -1,8 +1,7 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { Search, Filter, Fuel, Wrench, UtensilsCrossed, Package, FileText, Pencil, Trash2, Calendar, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, formatTime, todayBoundaries } from '@/lib/format';
 import { EditTransactionDialog, EditTarget } from '@/components/EditTransactionDialog';
 import { ViewTransactionDialog } from '@/components/forms/ViewTransactionDialog';
@@ -10,6 +9,15 @@ import { DeleteInstallmentDialog } from '@/components/forms/DeleteInstallmentDia
 import { toast } from 'sonner';
 import { startOfWeek, endOfWeek, isSameWeek, isSameMonth, format, startOfMonth, endOfMonth, max, min } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useRoutes } from '@/hooks/queries/useRoutes';
+import { useExpenses } from '@/hooks/queries/useExpenses';
+import { useDailyTotals } from '@/hooks/queries/useDailyTotals';
+import { usePlatforms } from '@/hooks/queries/usePlatforms';
+import { useProfile } from '@/hooks/queries/useProfile';
+import { useBillingCycles } from '@/hooks/queries/useBillingCycles';
+import { useRouteMutations } from '@/hooks/mutations/useRouteMutations';
+import { useExpenseMutations } from '@/hooks/mutations/useExpenseMutations';
+import { useDailyTotalMutations } from '@/hooks/queries/useDailyTotals';
 
 type Tab = 'todos' | 'ganhos' | 'despesas';
 
@@ -263,15 +271,33 @@ const Historico = () => {
   const untilParam = searchParams.get('until');
   const [tab, setTab] = useState<Tab>(catParam ? 'despesas' : 'todos');
   const [search, setSearch] = useState('');
-  const [items, setItems] = useState<Tx[]>([]);
-  const [todayBalance, setTodayBalance] = useState(0);
-  const [todayExp, setTodayExp] = useState(0);
-  const [goal, setGoal] = useState(300);
   const [editTarget, setEditTarget] = useState<EditTarget>(null);
-
   const [viewTarget, setViewTarget] = useState<Tx | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Tx | null>(null);
   const [deleteInstallmentOpen, setDeleteInstallmentOpen] = useState(false);
+
+  // History date range: last 180 days
+  const since180 = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 180);
+    return d.toISOString();
+  }, []);
+
+  // Data sources via TanStack Query (shared cache — deduplication with Home, Painel, Relatorios)
+  const { data: routes = [] } = useRoutes({ since: since180 });
+  const { data: expenses = [] } = useExpenses({ since: since180 });
+  const { data: dailyTotals = [] } = useDailyTotals({ since: since180 });
+  const { data: platforms = [] } = usePlatforms(false);
+  const { data: profile } = useProfile();
+  const { data: billingCycles = [] } = useBillingCycles();
+
+  // Goal from profile
+  const goal = profile?.daily_goal ? Number(profile.daily_goal) : 300;
+
+  // Mutations for delete operations — invalidation handles cache sync across all pages
+  const { deleteRoute } = useRouteMutations();
+  const { deleteExpense } = useExpenseMutations();
+  const { deleteDailyTotal } = useDailyTotalMutations();
 
   const handleDelete = async (x: Tx) => {
     if (x.table === 'expenses' && x.raw?.installment_group_id) {
@@ -282,52 +308,31 @@ const Historico = () => {
 
     if (!confirm('Deseja realmente excluir este registro?')) return;
 
-    const { error } = await supabase.from(x.table).delete().eq('id', x.raw_id);
-    if (error) {
-      console.error(error);
+    try {
+      if (x.table === 'routes') {
+        await deleteRoute(x.raw_id);
+      } else if (x.table === 'expenses') {
+        await deleteExpense({ id: x.raw_id, category: x.raw?.category ?? null });
+      } else if (x.table === 'daily_totals') {
+        await deleteDailyTotal(x.raw_id);
+      }
+      toast.success('Registro excluído com sucesso!');
+    } catch (err: any) {
+      console.error(err);
       toast.error('Erro ao excluir registro.');
-      return;
     }
-
-    toast.success('Registro excluído com sucesso!');
-    load();
   };
 
-  const load = async () => {
-    const { data: u } = await supabase.auth.getUser();
-    const userId = u?.user?.id;
-
-    const since = new Date();
-    since.setDate(since.getDate() - 180); // 180 days to cover full history
-
-    const routesQuery = supabase.from('routes').select('*').gte('occurred_at', since.toISOString()).order('occurred_at', { ascending: false });
-    const expQuery = supabase.from('expenses').select('*').gte('occurred_at', since.toISOString()).order('occurred_at', { ascending: false });
-    const dailyQuery = supabase.from('daily_totals').select('*').gte('occurred_at', since.toISOString()).order('occurred_at', { ascending: false });
-
-    if (userId) {
-      routesQuery.eq('user_id', userId);
-      expQuery.eq('user_id', userId);
-      dailyQuery.eq('user_id', userId);
-    }
-
-    const [routesRes, expRes, dailyRes, plats, prof, cyclesRes] = await Promise.all([
-      routesQuery,
-      expQuery,
-      dailyQuery,
-      supabase.from('platforms').select('id, name'),
-      userId ? supabase.from('profiles').select('daily_goal').eq('id', userId).maybeSingle() : Promise.resolve({ data: null }),
-      supabase.from('billing_cycles').select('id, status'),
-    ]);
-
-    if (prof.data?.daily_goal) setGoal(Number(prof.data.daily_goal));
-
-    const platMap = new Map((plats.data ?? []).map((p: any) => [p.id, p.name]));
-    const cycleMap = new Map((cyclesRes.data ?? []).map((c: any) => [c.id, c.status]));
+  // Build unified Tx list from TanStack Query data (replaces imperative load() + setItems)
+  const items = useMemo(() => {
+    const platMap = new Map(platforms.map((p: any) => [p.id, p.name]));
+    const cycleMap = new Map(billingCycles.map((c: any) => [c.id, c.status]));
 
     const txs: Tx[] = [];
     const abbr = (s: string | null | undefined) =>
       (s ?? '').trim().slice(0, 3).toUpperCase() || '---';
-    (routesRes.data ?? []).forEach((r: any) => {
+
+    routes.forEach((r: any) => {
       const platName = (platMap.get(r.platform_id) as string) ?? 'AVULSO';
       const pkgs =
         Number(r.package_count ?? 0) ||
@@ -364,7 +369,7 @@ const Historico = () => {
       });
     });
 
-    (dailyRes.data ?? []).forEach((d: any) => {
+    dailyTotals.forEach((d: any) => {
       txs.push({
         id: 'd' + d.id,
         raw_id: d.id,
@@ -383,9 +388,8 @@ const Historico = () => {
 
     // Map maintenance expenses by title to compute odometer differences
     const maintenanceByTitle = new Map<string, any[]>();
-    const expensesList = expRes.data ?? [];
 
-    expensesList.forEach((e: any) => {
+    expenses.forEach((e: any) => {
       if ((e.category === 'manutencao' || e.category === 'manutenção') && e.title && e.odometer_km) {
         const key = e.title.trim().toLowerCase();
         if (!maintenanceByTitle.has(key)) maintenanceByTitle.set(key, []);
@@ -406,7 +410,7 @@ const Historico = () => {
       }
     });
 
-    expensesList.forEach((e: any) => {
+    expenses.forEach((e: any) => {
       const categoryStr = (e.category ?? 'manutencao').toLowerCase();
       const isMaint = categoryStr === 'manutencao' || categoryStr === 'manutenção';
       const ic =
@@ -450,22 +454,22 @@ const Historico = () => {
         raw: e,
       });
     });
-    txs.sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
-    setItems(txs);
 
+    txs.sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
+    return txs;
+  }, [routes, expenses, dailyTotals, platforms, billingCycles]);
+
+  // Today balance and expenses derived reactively from items
+  const { todayBalance, todayExp } = useMemo(() => {
     const t = todayBoundaries();
-    const todayTx = txs.filter(
+    const todayTx = items.filter(
       (x) => x.occurred_at >= t.start && x.occurred_at <= t.end
     );
-    setTodayBalance(
-      todayTx.reduce((s, x) => s + (x.positive ? x.amount : -x.amount), 0)
-    );
-    setTodayExp(todayTx.filter((x) => !x.positive).reduce((s, x) => s + x.amount, 0));
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
+    return {
+      todayBalance: todayTx.reduce((s, x) => s + (x.positive ? x.amount : -x.amount), 0),
+      todayExp: todayTx.filter((x) => !x.positive).reduce((s, x) => s + x.amount, 0),
+    };
+  }, [items]);
 
   const filtered = useMemo(() => {
     return items
@@ -682,13 +686,19 @@ const Historico = () => {
         tx={viewTarget}
         onClose={() => setViewTarget(null)}
         onEdit={handleEdit}
-        onDeleted={load}
+        onDeleted={() => {
+          // Cache invalidation is handled by mutation hooks — no manual reload needed
+          setViewTarget(null);
+        }}
       />
 
       <EditTransactionDialog
         target={editTarget}
         onClose={() => setEditTarget(null)}
-        onSaved={load}
+        onSaved={() => {
+          // Cache invalidation is handled by mutation hooks — no manual reload needed
+          setEditTarget(null);
+        }}
       />
 
       {deleteTarget && deleteTarget.raw?.installment_group_id && (
@@ -699,7 +709,6 @@ const Historico = () => {
           installmentGroupId={deleteTarget.raw.installment_group_id}
           onDeleted={() => {
             setDeleteTarget(null);
-            load();
           }}
         />
       )}
