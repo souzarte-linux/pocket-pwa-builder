@@ -1,4 +1,6 @@
 import "@testing-library/jest-dom";
+import { beforeEach } from "vitest";
+import { queryClient } from "@/lib/queryClient";
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,
@@ -19,3 +21,7 @@ global.ResizeObserver = class ResizeObserver {
   unobserve() {}
   disconnect() {}
 };
+
+beforeEach(() => {
+  queryClient.clear();
+});

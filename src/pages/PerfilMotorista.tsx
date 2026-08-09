@@ -6,6 +6,10 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { X, Save, ArrowLeft, Edit3 } from 'lucide-react';
 
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/queries/useProfile';
+import { useProfileMutations } from '@/hooks/mutations/useProfileMutations';
+
 // Help functions for visual masks
 const formatDisplayDate = (value: string): string => {
   const digits = value.replace(/\D/g, '').slice(0, 8);
@@ -29,6 +33,10 @@ const unmaskDigits = (value: string): string => {
 
 export const PerfilMotorista = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
+  const { upsertProfile } = useProfileMutations();
+
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -52,28 +60,18 @@ export const PerfilMotorista = () => {
   const [confirmarSenha, setConfirmarSenha] = useState('');
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      const u = data.user;
-      if (!u) return;
-      setEmail(u.email || 'fernando.souza@email.com');
-      setNome(u.user_metadata?.full_name || 'Fernando Souza');
-
-      supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', u.id)
-        .maybeSingle()
-        .then(({ data: p }) => {
-          if (p) {
-            if (p.full_name) setNome(p.full_name);
-            if (p.avatar_url) setAvatar(p.avatar_url);
-            if (p.phone) setCelular(formatDisplayPhone(p.phone));
-            if (p.vehicle_model) setModeloVeiculo(p.vehicle_model);
-            if (p.plate) setPlacaVeiculo(p.plate);
-          }
-        });
-    });
-  }, []);
+    if (user) {
+      setEmail(user.email || 'fernando.souza@email.com');
+      setNome(user.user_metadata?.full_name || 'Fernando Souza');
+    }
+    if (profile) {
+      if (profile.full_name) setNome(profile.full_name);
+      if (profile.avatar_url) setAvatar(profile.avatar_url);
+      if (profile.phone) setCelular(formatDisplayPhone(profile.phone));
+      if (profile.vehicle_model) setModeloVeiculo(profile.vehicle_model);
+      if (profile.plate) setPlacaVeiculo(profile.plate);
+    }
+  }, [user, profile]);
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatDisplayDate(e.target.value);
@@ -99,17 +97,19 @@ export const PerfilMotorista = () => {
     setLoading(true);
 
     try {
-      const u = (await supabase.auth.getUser()).data.user;
-      if (u) {
+      if (user) {
         const rawPhone = unmaskDigits(celular);
 
-        await supabase.from('profiles').upsert({
-          id: u.id,
-          full_name: nome,
-          phone: rawPhone,
-          vehicle_model: modeloVeiculo,
-          plate: placaVeiculo,
-          updated_at: new Date().toISOString(),
+        await upsertProfile({
+          userId: user.id,
+          payload: {
+            id: user.id,
+            full_name: nome,
+            phone: rawPhone,
+            vehicle_model: modeloVeiculo,
+            plate: placaVeiculo,
+            updated_at: new Date().toISOString(),
+          },
         });
       }
       toast.success('Perfil atualizado com sucesso!');

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { supabase } from '@/integrations/supabase/client';
 import { parseCurrencyToNumber } from '@/lib/format';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/queries/useProfile';
+import { useProfileMutations } from '@/hooks/mutations/useProfileMutations';
 
 const formatGoalInput = (num: number | null | undefined): string => {
   if (num === null || num === undefined || isNaN(num) || num === 0) return '';
@@ -12,50 +14,34 @@ const formatGoalInput = (num: number | null | undefined): string => {
 
 export const MetasFinanceiras = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { data: profile, isLoading: isProfileLoading } = useProfile(user?.id);
+  const { updateProfile } = useProfileMutations();
+
   const [metaDiaria, setMetaDiaria] = useState('');
   const [metaSemanal, setMetaSemanal] = useState('');
   const [metaMensal, setMetaMensal] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const { data: u } = await supabase.auth.getUser();
-        if (!u.user) return;
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('daily_goal, weekly_goal, monthly_goal')
-          .eq('id', u.user.id)
-          .maybeSingle();
-
-        if (profile) {
-          if (profile.daily_goal !== null && profile.daily_goal !== undefined) {
-            setMetaDiaria(formatGoalInput(Number(profile.daily_goal)));
-          }
-          if (profile.weekly_goal !== null && profile.weekly_goal !== undefined) {
-            setMetaSemanal(formatGoalInput(Number(profile.weekly_goal)));
-          }
-          if (profile.monthly_goal !== null && profile.monthly_goal !== undefined) {
-            setMetaMensal(formatGoalInput(Number(profile.monthly_goal)));
-          }
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Erro ao carregar metas';
-        toast.error(msg);
-      } finally {
-        setLoading(false);
+    if (profile) {
+      if (profile.daily_goal !== null && profile.daily_goal !== undefined) {
+        setMetaDiaria(formatGoalInput(Number(profile.daily_goal)));
       }
-    };
-    load();
-  }, []);
+      if (profile.weekly_goal !== null && profile.weekly_goal !== undefined) {
+        setMetaSemanal(formatGoalInput(Number(profile.weekly_goal)));
+      }
+      if (profile.monthly_goal !== null && profile.monthly_goal !== undefined) {
+        setMetaMensal(formatGoalInput(Number(profile.monthly_goal)));
+      }
+    }
+  }, [profile]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) {
+      if (!user) {
         toast.error('Usuário não autenticado.');
         return;
       }
@@ -64,16 +50,14 @@ export const MetasFinanceiras = () => {
       const weeklyNum = parseCurrencyToNumber(metaSemanal);
       const monthlyNum = parseCurrencyToNumber(metaMensal);
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({
+      await updateProfile({
+        userId: user.id,
+        updates: {
           daily_goal: dailyNum,
           weekly_goal: weeklyNum,
           monthly_goal: monthlyNum,
-        })
-        .eq('id', u.user.id);
-
-      if (error) throw error;
+        },
+      });
 
       toast.success('Metas financeiras atualizadas com sucesso!');
       navigate(-1);

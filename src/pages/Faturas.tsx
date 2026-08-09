@@ -23,6 +23,8 @@ import { toast } from 'sonner';
 import { startOfWeek, startOfMonth, addDays } from 'date-fns';
 import { Field, Input, MaskedInput, Select } from '@/components/forms/Form';
 import { checkOverlap, getPlatformCycleIntervals } from '@/lib/billing';
+import { usePlatforms } from '@/hooks/queries/usePlatforms';
+import { useBillingCycleMutations } from '@/hooks/mutations/useBillingCycleMutations';
 import { ConfirmCycleModal } from '@/components/faturas/ConfirmCycleModal';
 
 interface BillingCycle {
@@ -216,6 +218,7 @@ const SwipeableCycleCard: React.FC<SwipeableCycleCardProps> = ({
 
 export const Faturas = () => {
   const navigate = useNavigate();
+  const { updateBillingCycle, deleteBillingCycle } = useBillingCycleMutations();
   const [loading, setLoading] = useState(true);
   const [cycles, setCycles] = useState<BillingCycle[]>([]);
   const [platformsDb, setPlatformsDb] = useState<PlatformDb[]>([]);
@@ -477,14 +480,17 @@ export const Faturas = () => {
       );
     }
 
-    const { error } = await supabase.from('billing_cycles').update({
-      period_start: editState.period_start,
-      period_end: editState.period_end,
-      expected_payment_date: editState.expected_payment_date,
-      status: editState.status,
-    }).eq('id', editingCycle.id);
+    try {
+      await updateBillingCycle({
+        id: editingCycle.id,
+        payload: {
+          period_start: editState.period_start,
+          period_end: editState.period_end,
+          expected_payment_date: editState.expected_payment_date,
+          status: editState.status as any,
+        },
+      });
 
-    if (!error) {
       // 4. Só associar registros sem fatura ou já vinculados a esta própria fatura
       await supabase.from('routes')
         .update({ billing_cycle_id: editingCycle.id })
@@ -545,14 +551,16 @@ export const Faturas = () => {
           await supabase.from('financial_adjustments').insert(newAdjustments);
         }
       }
-    }
 
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success('Fatura atualizada!');
-    setEditingCycle(null);
-    setEditState(null);
-    fetchCycles();
+      setSaving(false);
+      toast.success('Fatura atualizada!');
+      setEditingCycle(null);
+      setEditState(null);
+      fetchCycles();
+    } catch (error: any) {
+      setSaving(false);
+      return toast.error(error?.message || 'Erro ao atualizar fatura');
+    }
   };
 
   const openPay = (c: BillingCycle) => {
@@ -563,15 +571,22 @@ export const Faturas = () => {
   const confirmPay = async () => {
     if (!payingCycle) return;
     setSaving(true);
-    const { error } = await supabase.from('billing_cycles').update({
-      status: 'pago',
-      expected_payment_date: paidDate,
-    }).eq('id', payingCycle.id);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success('Fatura recebida!');
-    setPayingCycle(null);
-    fetchCycles();
+    try {
+      await updateBillingCycle({
+        id: payingCycle.id,
+        payload: {
+          status: 'pago',
+          expected_payment_date: paidDate,
+        },
+      });
+      setSaving(false);
+      toast.success('Fatura recebida!');
+      setPayingCycle(null);
+      fetchCycles();
+    } catch (error: any) {
+      setSaving(false);
+      return toast.error(error?.message || 'Erro ao receber fatura');
+    }
   };
 
   const deleteCycle = async () => {
@@ -579,23 +594,27 @@ export const Faturas = () => {
     if (!confirm(`Excluir permanentemente a fatura de ${editingCycle.platform_name}?\nAs rotas vinculadas serão desassociadas.`)) return;
     setDeleting(true);
 
-    await supabase.from('routes')
-      .update({ billing_cycle_id: null })
-      .eq('billing_cycle_id', editingCycle.id);
-    await supabase.from('daily_totals')
-      .update({ billing_cycle_id: null })
-      .eq('billing_cycle_id', editingCycle.id);
-    await supabase.from('financial_adjustments')
-      .update({ billing_cycle_id: null })
-      .eq('billing_cycle_id', editingCycle.id);
+    try {
+      await supabase.from('routes')
+        .update({ billing_cycle_id: null })
+        .eq('billing_cycle_id', editingCycle.id);
+      await supabase.from('daily_totals')
+        .update({ billing_cycle_id: null })
+        .eq('billing_cycle_id', editingCycle.id);
+      await supabase.from('financial_adjustments')
+        .update({ billing_cycle_id: null })
+        .eq('billing_cycle_id', editingCycle.id);
 
-    const { error } = await supabase.from('billing_cycles').delete().eq('id', editingCycle.id);
-    setDeleting(false);
-    if (error) return toast.error(error.message);
-    toast.success('Fatura excluída com sucesso!');
-    setEditingCycle(null);
-    setEditState(null);
-    fetchCycles();
+      await deleteBillingCycle(editingCycle.id);
+      setDeleting(false);
+      toast.success('Fatura excluída com sucesso!');
+      setEditingCycle(null);
+      setEditState(null);
+      fetchCycles();
+    } catch (error: any) {
+      setDeleting(false);
+      return toast.error(error?.message || 'Erro ao excluir fatura');
+    }
   };
 
   // ── LÓGICA DE FILTROS & PLATAFORMAS DESABILITADAS (Item 1 & 2) ──

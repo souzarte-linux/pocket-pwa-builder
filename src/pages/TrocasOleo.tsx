@@ -26,6 +26,8 @@ import { QuickCombobox } from '@/components/QuickCombobox';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useCurrentOdometer } from '@/hooks/queries/useCurrentOdometer';
+import { getCurrentOdometer } from '@/api/odometer.api';
 
 interface PartMaintenanceItem {
   id: string;
@@ -55,6 +57,7 @@ const DEFAULT_PARTS: { part_name: string; life_km: number }[] = [
 export const TrocasOleo = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const { data: cachedOdometer } = useCurrentOdometer();
   const [currentOdometer, setCurrentOdometer] = useState<number | null>(null);
   const [parts, setParts] = useState<PartMaintenanceItem[]>([]);
   const [history, setHistory] = useState<Tables<'oil_changes'>[]>([]);
@@ -81,21 +84,22 @@ export const TrocasOleo = () => {
   const [editHistoryDate, setEditHistoryDate] = useState('');
   const [editHistoryNotes, setEditHistoryNotes] = useState('');
 
+  useEffect(() => {
+    if (cachedOdometer !== undefined) {
+      setCurrentOdometer(cachedOdometer);
+      if (cachedOdometer !== null && !changeKm) {
+        setChangeKm(String(cachedOdometer));
+      }
+    }
+  }, [cachedOdometer]);
+
   const loadData = async () => {
     try {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
 
-      // Buscar odômetro atual baseado em despesas/trocas
-      const [expRes, oilRes] = await Promise.all([
-        supabase.from('expenses').select('odometer_km').not('odometer_km', 'is', null).order('odometer_km', { ascending: false }).limit(1),
-        supabase.from('oil_changes').select('km_at_change').order('km_at_change', { ascending: false }).limit(1),
-      ]);
-
-      const odoExp = Number(expRes.data?.[0]?.odometer_km ?? 0);
-      const odoOil = Number(oilRes.data?.[0]?.km_at_change ?? 0);
-      const maxReading = Math.max(odoExp, odoOil);
-      const latestOdo = maxReading > 0 ? maxReading : null;
+      // Buscar odômetro atual
+      const latestOdo = await getCurrentOdometer(u.user.id);
       setCurrentOdometer(latestOdo);
       if (latestOdo !== null) {
         setChangeKm(String(latestOdo));

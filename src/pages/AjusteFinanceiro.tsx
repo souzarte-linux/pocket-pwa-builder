@@ -6,11 +6,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { parseCurrencyToNumber } from '@/lib/format';
 
+import { usePlatforms } from '@/hooks/queries/usePlatforms';
+
 const DISCOUNT_TYPES = ['previdenciario', 'extravio', 'multa'];
 
 const AjusteFinanceiro = () => {
   const navigate = useNavigate();
-  const [platforms, setPlatforms] = useState<{ id: string; name: string }[]>([]);
+  const { data: platforms = [] } = usePlatforms(true);
   const [platformId, setPlatformId] = useState('');
   
   const [type, setType] = useState<string>('previdenciario');
@@ -21,11 +23,10 @@ const AjusteFinanceiro = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.from('platforms').select('id, name').eq('active', true).then(({ data }) => {
-      setPlatforms(data ?? []);
-      if (data?.[0]) setPlatformId(data[0].id);
-    });
-  }, []);
+    if (platforms.length > 0 && !platformId) {
+      setPlatformId(platforms[0].id);
+    }
+  }, [platforms, platformId]);
 
   const isDiscount = DISCOUNT_TYPES.includes(type);
 

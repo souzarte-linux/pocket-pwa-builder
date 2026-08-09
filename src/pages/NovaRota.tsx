@@ -12,17 +12,19 @@ import {
   parseDistanceToNumber,
   parsePackageToNumber,
 } from '@/lib/format';
+import { usePlatforms } from '@/hooks/queries/usePlatforms';
 
-const NovaRota = () => {
-  const navigate = useNavigate();
+export const NovaRota = () => {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
   const isEdit = !!editId;
-  const [platforms, setPlatforms] = useState<{ id: string; name: string, segment: string, payment_model: string }[]>([]);
+  const navigate = useNavigate();
+  const { data: platforms = [] } = usePlatforms(true);
   const [platformId, setPlatformId] = useState('');
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [distance, setDistance] = useState('');
+  const [type, setType] = useState<'alimento' | 'pacote' | 'documento'>('pacote');
   const [smallPackageCount, setSmallPackageCount] = useState('');
   const [largePackageCount, setLargePackageCount] = useState('');
   const [largePackagePrices, setLargePackagePrices] = useState<number[]>([]);
@@ -58,34 +60,28 @@ const NovaRota = () => {
   };
 
   const handleLargePackageCountChange = (val: string) => {
-    if (val === '') {
-      setLargePackageCount('');
-      setLargePackagePrices([]);
-      setShowLargePackageModal(false);
-      return;
-    }
-    const count = Math.max(0, parsePackageToNumber(val));
-    setLargePackageCount(String(count));
-    if (count > 0) {
-      openLargePackageModal(count);
-    } else {
-      setLargePackagePrices([]);
-      setShowLargePackageModal(false);
-    }
-  };
+    const parsed = Math.max(0, parsePackageToNumber(val) || 0);
+    setLargePackageCount(val);
 
-  const applyToAllPrices = () => {
-    const firstVal = tempLargePackagePrices[0] || '0';
-    setTempLargePackagePrices(Array(tempLargePackagePrices.length).fill(firstVal));
+    setLargePackagePrices(prev => {
+      const copy = [...prev];
+      if (parsed < copy.length) {
+        return copy.slice(0, parsed);
+      }
+      return copy;
+    });
+
+    if (parsed > 0 && largePackagePrices.length === 0) {
+      openLargePackageModal(parsed);
+    }
   };
 
   const saveLargePackagePrices = () => {
-    const prices = tempLargePackagePrices.map(p => parseCurrencyToNumber(p));
-    setLargePackagePrices(prices);
+    const numPrices = tempLargePackagePrices.map(p => parseCurrencyToNumber(p));
+    setLargePackagePrices(numPrices);
     setShowLargePackageModal(false);
   };
 
-  const [type, setType] = useState<'alimento' | 'pacote' | 'documento'>('alimento');
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const nowLocal = (offsetMin = 0) => {
@@ -99,9 +95,15 @@ const NovaRota = () => {
   const [endKm, setEndKm] = useState<string>('');
 
   useEffect(() => {
-    supabase.from('platforms').select('id, name, segment, payment_model').eq('active', true).then(async ({ data }) => {
-      setPlatforms(data ?? []);
+    if (!editId && platforms.length > 0 && !platformId) {
+      setPlatformId(platforms[0].id);
+      if (platforms[0].segment === 'delivery') setType('alimento');
+      else setType('pacote');
+    }
+  }, [editId, platforms, platformId]);
 
+  useEffect(() => {
+    const loadRouteData = async () => {
       const { data: latestRoute } = await supabase
         .from('routes')
         .select('end_km')
@@ -134,13 +136,10 @@ const NovaRota = () => {
         }
       } else {
         setStartKm(fallbackStartKm);
-        if (data?.[0]) {
-          setPlatformId(data[0].id);
-          if (data[0].segment === 'delivery') setType('alimento');
-          else setType('pacote');
-        }
       }
-    });
+    };
+
+    loadRouteData();
   }, [editId]);
 
   useEffect(() => {

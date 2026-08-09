@@ -4,6 +4,8 @@ import { formatBRL } from '@/lib/format';
 import { CheckCircle2, FileCheck, X, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { useBillingCycleMutations } from '@/hooks/mutations/useBillingCycleMutations';
+
 export interface ConfirmCycleModalProps {
   cycle: {
     id: string;
@@ -26,6 +28,7 @@ export const ConfirmCycleModal: React.FC<ConfirmCycleModalProps> = ({
   onSuccess,
 }) => {
   const [loading, setLoading] = useState(false);
+  const { updateBillingCycle } = useBillingCycleMutations();
 
   const fmtDate = (iso: string) => {
     if (!iso) return '';
@@ -43,24 +46,21 @@ export const ConfirmCycleModal: React.FC<ConfirmCycleModalProps> = ({
   const handleConfirm = async () => {
     setLoading(true);
 
-    // 1. Atualiza status de pendente_confirmacao para open (A receber)
-    const { error } = await supabase
-      .from('billing_cycles')
-      .update({ status: 'open' })
-      .eq('id', cycle.id);
+    try {
+      // 1. Atualiza status de pendente_confirmacao para open (A receber)
+      await updateBillingCycle({ id: cycle.id, payload: { status: 'open' } });
 
-    if (error) {
+      // 2. Marca notificação como lida
+      await markNotificationRead();
+
       setLoading(false);
-      return toast.error('Erro ao confirmar fatura: ' + error.message);
+      toast.success('Fatura confirmada e movida para A Receber!');
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err: any) {
+      setLoading(false);
+      return toast.error('Erro ao confirmar fatura: ' + (err?.message || ''));
     }
-
-    // 2. Marca notificação como lida
-    await markNotificationRead();
-
-    setLoading(false);
-    toast.success('Fatura confirmada e movida para A Receber!');
-    if (onSuccess) onSuccess();
-    onClose();
   };
 
   const handleDismissOnly = async () => {

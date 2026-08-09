@@ -7,12 +7,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, todayBoundaries, startOfWeek, startOfMonth } from '@/lib/format';
 import { Fuel, Wrench, UtensilsCrossed, TrendingUp } from 'lucide-react';
 
+import { usePlatforms } from '@/hooks/queries/usePlatforms';
+import { useProfile } from '@/hooks/queries/useProfile';
+import { useAuth } from '@/hooks/useAuth';
+
 interface PlatformStat {
   name: string;
   total: number;
 }
 
 const Painel = () => {
+  const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
+  const { data: activePlatforms = [] } = usePlatforms(true);
+
   const [daily, setDaily] = useState(0);
   const [weekly, setWeekly] = useState(0);
   const [monthly, setMonthly] = useState(0);
@@ -28,18 +36,15 @@ const Painel = () => {
   const [range, setRange] = useState<'7d' | '30d'>('7d');
 
   useEffect(() => {
+    if (profile?.daily_goal) setDailyGoal(Number(profile.daily_goal));
+    if (profile?.weekly_goal) setWeeklyGoal(Number(profile.weekly_goal));
+    if (profile?.monthly_goal) setMonthlyGoal(Number(profile.monthly_goal));
+  }, [profile]);
+
+  useEffect(() => {
     const load = async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('daily_goal, weekly_goal, monthly_goal')
-        .eq('id', u.user.id)
-        .maybeSingle();
-      if (profile?.daily_goal) setDailyGoal(Number(profile.daily_goal));
-      if (profile?.weekly_goal) setWeeklyGoal(Number(profile.weekly_goal));
-      if (profile?.monthly_goal) setMonthlyGoal(Number(profile.monthly_goal));
 
       const today = todayBoundaries();
       const weekStart = startOfWeek();
@@ -85,13 +90,12 @@ const Painel = () => {
       setMonthlyPackages(totalMonthlyPackages);
 
       // Earnings by platform (current month - active platforms only)
-      const { data: plats } = await supabase.from('platforms').select('id, name').eq('active', true);
       const map = new Map<string, number>();
       [...month_r, ...month_d].forEach((r: any) => {
         if (!r.platform_id) return;
         map.set(r.platform_id, (map.get(r.platform_id) ?? 0) + Number(r.amount) + Number(r.tip ?? 0));
       });
-      const ps = (plats ?? [])
+      const ps = activePlatforms
         .map((p) => ({ name: p.name, total: map.get(p.id) ?? 0 }))
         .sort((a, b) => b.total - a.total)
         .slice(0, 5);

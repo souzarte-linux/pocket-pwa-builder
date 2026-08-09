@@ -6,6 +6,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Trash2, Scissors, Wallet } from 'lucide-react';
 
+import { usePlatformDetail } from '@/hooks/queries/usePlatforms';
+import { usePlatformMutations } from '@/hooks/mutations/usePlatformMutations';
+
 type Cycle = 'semanal' | 'quinzenal' | 'mensal' | 'misto';
 type Segment = 'logistica' | 'delivery';
 type PaymentModel = 'producao' | 'diaria';
@@ -35,7 +38,9 @@ const parseCycleEntries = (rules: any): CycleEntry[] => {
 const Plataforma = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isEdit = id && id !== 'nova';
+  const isEdit = Boolean(id && id !== 'nova');
+  const { data: platformData } = usePlatformDetail(isEdit ? id : undefined);
+  const { createPlatform, updatePlatform, deletePlatform } = usePlatformMutations();
 
   const [name, setName] = useState('');
   const [cycle, setCycle] = useState<Cycle>('semanal');
@@ -70,26 +75,23 @@ const Plataforma = () => {
   };
 
   useEffect(() => {
-    if (!isEdit) return;
-    supabase.from('platforms').select('*').eq('id', id).maybeSingle().then(({ data }) => {
-      if (!data) return;
-      setName(data.name);
-      setCycle(data.cycle as Cycle);
-      setPaymentDay(data.payment_day ?? 'QUA');
-      const entries = parseCycleEntries(data.rules);
-      if (entries.length > 0) setCycleEntries(entries);
-      const rules = (data.rules ?? {}) as { fixed_pay_delay?: string | number };
-      const fd = rules.fixed_pay_delay;
-      if (fd) setFixedPayDelay(String(fd));
-      setBankName(data.bank_name ?? '');
-      setAgency(data.bank_agency ?? '');
-      setAccount(data.bank_account ?? '');
-      setPixType(data.pix_key_type ?? 'CPF');
-      setPixKey(data.pix_key ?? '');
-      if (data.segment) setSegment(data.segment as Segment);
-      if (data.payment_model) setPaymentModel(data.payment_model as PaymentModel);
-    });
-  }, [id, isEdit]);
+    if (!platformData) return;
+    setName(platformData.name);
+    setCycle(platformData.cycle as Cycle);
+    setPaymentDay(platformData.payment_day ?? 'QUA');
+    const entries = parseCycleEntries(platformData.rules);
+    if (entries.length > 0) setCycleEntries(entries);
+    const rules = (platformData.rules ?? {}) as { fixed_pay_delay?: string | number };
+    const fd = rules.fixed_pay_delay;
+    if (fd) setFixedPayDelay(String(fd));
+    setBankName(platformData.bank_name ?? '');
+    setAgency(platformData.bank_agency ?? '');
+    setAccount(platformData.bank_account ?? '');
+    setPixType(platformData.pix_key_type ?? 'CPF');
+    setPixKey(platformData.pix_key ?? '');
+    if (platformData.segment) setSegment(platformData.segment as Segment);
+    if (platformData.payment_model) setPaymentModel(platformData.payment_model as PaymentModel);
+  }, [platformData]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +101,10 @@ const Plataforma = () => {
     }
     setLoading(true);
     const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
+    if (!u.user) {
+      setLoading(false);
+      return;
+    }
 
     let rules: any = {};
     if (cycle === 'misto') {
@@ -116,21 +121,34 @@ const Plataforma = () => {
       segment, payment_model: paymentModel,
       rules,
     };
-    const { error } = isEdit
-      ? await supabase.from('platforms').update(payload).eq('id', id!)
-      : await supabase.from('platforms').insert(payload);
-    setLoading(false);
-    if (error) return (console.error(error), toast.error("Erro ao salvar. Tente novamente."));
-    toast.success(isEdit ? 'Plataforma atualizada!' : 'Plataforma vinculada!');
-    navigate('/apps');
+
+    try {
+      if (isEdit && id) {
+        await updatePlatform({ id, payload });
+      } else {
+        await createPlatform(payload);
+      }
+      setLoading(false);
+      toast.success(isEdit ? 'Plataforma atualizada!' : 'Plataforma vinculada!');
+      navigate('/apps');
+    } catch (error) {
+      setLoading(false);
+      console.error(error);
+      toast.error("Erro ao salvar. Tente novamente.");
+    }
   };
 
   const remove = async () => {
-    if (!isEdit) return;
+    if (!isEdit || !id) return;
     if (!confirm('Excluir esta plataforma?')) return;
-    await supabase.from('platforms').delete().eq('id', id!);
-    toast.success('Removida.');
-    navigate('/apps');
+    try {
+      await deletePlatform(id);
+      toast.success('Removida.');
+      navigate('/apps');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao excluir plataforma.');
+    }
   };
 
   return (

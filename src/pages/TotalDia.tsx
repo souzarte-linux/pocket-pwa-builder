@@ -7,9 +7,11 @@ import { toast } from 'sonner';
 import { UtensilsCrossed, Package, FileText } from 'lucide-react';
 import { parseCurrencyToNumber, parseDistanceToNumber } from '@/lib/format';
 
+import { usePlatforms } from '@/hooks/queries/usePlatforms';
+
 const TotalDia = () => {
   const navigate = useNavigate();
-  const [platforms, setPlatforms] = useState<{ id: string; name: string }[]>([]);
+  const { data: platforms = [] } = usePlatforms(true);
   const [platformId, setPlatformId] = useState('');
   const [subtract, setSubtract] = useState(true);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -21,11 +23,10 @@ const TotalDia = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.from('platforms').select('id, name').eq('active', true).then(({ data }) => {
-      setPlatforms(data ?? []);
-      if (data?.[0]) setPlatformId(data[0].id);
-    });
-  }, []);
+    if (platforms.length > 0 && !platformId) {
+      setPlatformId(platforms[0].id);
+    }
+  }, [platforms, platformId]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -6,6 +6,9 @@ import { formatBRL } from '@/lib/format';
 import { SideDrawer } from './SideDrawer';
 import { ConfirmCycleModal } from '@/components/faturas/ConfirmCycleModal';
 
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/queries/useProfile';
+
 interface Props {
   title?: string;
   subtitle?: string;
@@ -32,9 +35,12 @@ interface NotificationItem {
 
 export const AppHeader = ({ title = 'CENTRAL DO\nMOTORISTA', subtitle, back, right }: Props) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const [name, setName] = useState<string>('');
+  const avatar = profile?.avatar_url || null;
+  const name = profile?.full_name || user?.user_metadata?.full_name || user?.email || '';
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -133,21 +139,6 @@ export const AppHeader = ({ title = 'CENTRAL DO\nMOTORISTA', subtitle, back, rig
   };
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      const u = data.user;
-      if (!u) return;
-      setName(u.user_metadata?.full_name || u.email || '');
-      supabase
-        .from('profiles')
-        .select('avatar_url, full_name')
-        .eq('id', u.id)
-        .maybeSingle()
-        .then(({ data: p }) => {
-          if (p?.avatar_url) setAvatar(p.avatar_url);
-          if (p?.full_name) setName(p.full_name);
-        });
-    });
-
     fetchNotifications();
   }, []);
 

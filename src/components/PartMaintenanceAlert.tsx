@@ -4,6 +4,8 @@ import { AlertTriangle, Wrench, CheckCircle2, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+import { getCurrentOdometer } from '@/api/odometer.api';
+
 export interface PartMaintenanceItem {
   id: string;
   part_name: string;
@@ -36,29 +38,7 @@ export const PartMaintenanceAlert = () => {
     }
 
     // 2. Determine current vehicle odometer
-    const [expRes, routeRes, sessRes] = await Promise.all([
-      supabase
-        .from('expenses')
-        .select('odometer_km')
-        .not('odometer_km', 'is', null)
-        .order('odometer_km', { ascending: false })
-        .limit(1),
-      supabase
-        .from('routes')
-        .select('end_km')
-        .order('end_km', { ascending: false })
-        .limit(1),
-      supabase
-        .from('work_sessions')
-        .select('end_km')
-        .order('end_km', { ascending: false })
-        .limit(1),
-    ]);
-
-    const maxOdoExp = Number(expRes.data?.[0]?.odometer_km ?? 0);
-    const maxOdoRoute = Number(routeRes.data?.[0]?.end_km ?? 0);
-    const maxOdoSess = Number(sessRes.data?.[0]?.end_km ?? 0);
-    const currentOdometer = Math.max(maxOdoExp, maxOdoRoute, maxOdoSess);
+    const currentOdometer = (await getCurrentOdometer(u.user.id)) ?? 0;
 
     const alertItems: PartMaintenanceItem[] = [];
 

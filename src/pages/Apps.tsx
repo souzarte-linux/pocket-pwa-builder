@@ -17,6 +17,9 @@ import { formatBRL, startOfMonth } from '@/lib/format';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
+import { usePlatforms } from '@/hooks/queries/usePlatforms';
+import { usePlatformMutations } from '@/hooks/mutations/usePlatformMutations';
+
 interface Platform {
   id: string;
   name: string;
@@ -37,6 +40,9 @@ const cycleLabel = (c?: string | null, day?: string | null) => {
 
 const Apps = () => {
   const navigate = useNavigate();
+  const { data: rawPlatforms = [] } = usePlatforms(false);
+  const { toggleActive } = usePlatformMutations();
+
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [segmentFilter, setSegmentFilter] = useState<'all' | 'delivery' | 'logistica'>('all');
@@ -44,12 +50,7 @@ const Apps = () => {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
-      const { data: ps } = await supabase
-        .from('platforms')
-        .select('id, name, cycle, payment_day, active, segment')
-        .order('name', { ascending: true });
-
+    const loadTotals = async () => {
       const monthStart = startOfMonth();
       const { data: r } = await supabase
         .from('routes')
@@ -69,7 +70,7 @@ const Apps = () => {
         );
       });
 
-      const list = (ps ?? []).map((p) => ({
+      const list = rawPlatforms.map((p) => ({
         ...p,
         active: p.active ?? true,
         total: totals.get(p.id) ?? 0,
@@ -79,8 +80,9 @@ const Apps = () => {
       list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
       setPlatforms(list);
     };
-    load();
-  }, []);
+
+    loadTotals();
+  }, [rawPlatforms]);
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
     const nextActive = !currentActive;
@@ -88,21 +90,16 @@ const Apps = () => {
       prev.map((p) => (p.id === id ? { ...p, active: nextActive } : p))
     );
 
-    const { error } = await supabase
-      .from('platforms')
-      .update({ active: nextActive })
-      .eq('id', id);
-
-    if (error) {
-      console.error(error);
+    try {
+      await toggleActive({ id, active: nextActive });
+      toast.success(nextActive ? 'Plataforma ativada' : 'Plataforma desativada');
+    } catch (err) {
+      console.error(err);
       toast.error('Erro ao atualizar status da plataforma');
       setPlatforms((prev) =>
         prev.map((p) => (p.id === id ? { ...p, active: currentActive } : p))
       );
-      return;
     }
-
-    toast.success(nextActive ? 'Plataforma ativada' : 'Plataforma desativada');
   };
 
   const filteredAndSortedPlatforms = useMemo(() => {

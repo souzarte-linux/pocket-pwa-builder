@@ -75,7 +75,11 @@ describe('CadastroVeiculo Page', () => {
         }),
       }),
       update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: null }),
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: { vehicle_brand: 'Yamaha' }, error: null }),
+          }),
+        }),
       }),
     });
 

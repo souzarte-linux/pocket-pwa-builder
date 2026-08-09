@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/queries/useProfile';
+import { useProfileMutations } from '@/hooks/mutations/useProfileMutations';
 
 export const CadastroVeiculo = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
+  const { updateProfile } = useProfileMutations();
+
   const [loading, setLoading] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -25,38 +31,23 @@ export const CadastroVeiculo = () => {
   });
 
   useEffect(() => {
-    (async () => {
-      try {
-        const { data: u } = await supabase.auth.getUser();
-        if (!u.user) return;
+    if (profile) {
+      if (profile.avatar_url) setAvatar(profile.avatar_url);
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', u.user.id)
-          .maybeSingle();
-
-        if (profile) {
-          if (profile.avatar_url) setAvatar(profile.avatar_url);
-
-          setForm({
-            marca: profile.vehicle_brand ?? 'Honda',
-            modelo: profile.vehicle_model ?? 'CB 500X',
-            ano: profile.vehicle_year ? String(profile.vehicle_year) : '2024',
-            placa: profile.plate ?? 'ABC-1234',
-            tanque: profile.tank_size_l ? String(profile.tank_size_l) : '17',
-            consumo: profile.avg_consumption_kml ? String(profile.avg_consumption_kml) : '25.5',
-            trocaOleo: profile.oil_change_km ? String(profile.oil_change_km) : '5000',
-            carga: profile.has_bag ? 'bag' : 'bau',
-            pneuDianteiro: profile.tire_size_front ?? '110/80 R19',
-            pneuTraseiro: profile.tire_size_rear ?? '160/60 R17',
-          });
-        }
-      } catch (err) {
-        console.error('Erro ao carregar dados do veículo:', err);
-      }
-    })();
-  }, []);
+      setForm({
+        marca: profile.vehicle_brand ?? 'Honda',
+        modelo: profile.vehicle_model ?? 'CB 500X',
+        ano: profile.vehicle_year ? String(profile.vehicle_year) : '2024',
+        placa: profile.plate ?? 'ABC-1234',
+        tanque: profile.tank_size_l ? String(profile.tank_size_l) : '17',
+        consumo: profile.avg_consumption_kml ? String(profile.avg_consumption_kml) : '25.5',
+        trocaOleo: profile.oil_change_km ? String(profile.oil_change_km) : '5000',
+        carga: profile.has_bag ? 'bag' : 'bau',
+        pneuDianteiro: profile.tire_size_front ?? '110/80 R19',
+        pneuTraseiro: profile.tire_size_rear ?? '160/60 R17',
+      });
+    }
+  }, [profile]);
 
   const setField = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -76,8 +67,7 @@ export const CadastroVeiculo = () => {
     event.preventDefault();
     setLoading(true);
     try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) {
+      if (!user) {
         toast.error('Usuário não autenticado.');
         setLoading(false);
         return;
@@ -97,15 +87,12 @@ export const CadastroVeiculo = () => {
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase.from('profiles').update(payload).eq('id', u.user.id);
-
-      if (error) {
-        toast.error(`Erro ao salvar dados do veículo: ${error.message}`);
-      } else {
-        toast.success('Veículo cadastrado com sucesso!');
-      }
-    } catch {
-      toast.error('Erro ao salvar veículo.');
+      await updateProfile({ userId: user.id, updates: payload });
+      toast.success('Veículo cadastrado com sucesso!');
+      navigate('/');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao salvar';
+      toast.error(`Erro ao salvar dados do veículo: ${msg}`);
     } finally {
       setLoading(false);
     }

@@ -14,6 +14,7 @@ function createQueryMock(data: any = []) {
   const mockObj: any = {
     then: (resolve: any, reject: any) => promise.then(resolve, reject),
     catch: (reject: any) => promise.catch(reject),
+    select: vi.fn().mockImplementation(() => mockObj),
     eq: vi.fn().mockImplementation(() => mockObj),
     neq: vi.fn().mockImplementation(() => mockObj),
     in: vi.fn().mockImplementation(() => mockObj),
@@ -23,7 +24,8 @@ function createQueryMock(data: any = []) {
     or: vi.fn().mockImplementation(() => mockObj),
     order: vi.fn().mockImplementation(() => mockObj),
     limit: vi.fn().mockImplementation(() => mockObj),
-    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ data: data?.[0] ?? null, error: null })),
+    single: vi.fn().mockImplementation(() => Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data ?? null, error: null })),
+    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data ?? null, error: null })),
   };
   return mockObj;
 }

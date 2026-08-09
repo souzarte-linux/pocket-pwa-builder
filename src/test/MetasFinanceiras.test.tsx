@@ -85,9 +85,13 @@ describe('MetasFinanceiras Page - Persistence & Load', () => {
   });
 
   it('saves updated goals to Supabase and displays success toast', async () => {
-    const updateSpy = vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    });
+    const updateSpy = vi.fn().mockImplementation((payload) => ({
+      eq: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: payload, error: null }),
+        }),
+      }),
+    }));
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'profiles') {

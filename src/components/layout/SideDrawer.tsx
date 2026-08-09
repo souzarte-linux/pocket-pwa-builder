@@ -21,6 +21,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/queries/useProfile';
+
 interface SideDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -29,32 +32,14 @@ interface SideDrawerProps {
 export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onOpenChange }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [name, setName] = useState<string>('Motorista');
-  const [email, setEmail] = useState<string>('');
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const [vehicle, setVehicle] = useState<string>('Moto Courier');
+  const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
+
+  const name = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Motorista';
+  const email = user?.email || '';
+  const avatar = profile?.avatar_url || null;
+  const vehicle = profile?.vehicle_model || 'Moto Courier';
   const [cadastroOpen, setCadastroOpen] = useState<boolean>(true);
-
-  useEffect(() => {
-    if (!open) return;
-    supabase.auth.getUser().then(({ data }) => {
-      const u = data.user;
-      if (!u) return;
-      setEmail(u.email || '');
-      setName(u.user_metadata?.full_name || u.email?.split('@')[0] || 'Motorista');
-
-      supabase
-        .from('profiles')
-        .select('avatar_url, full_name, vehicle_model')
-        .eq('id', u.id)
-        .maybeSingle()
-        .then(({ data: p }) => {
-          if (p?.avatar_url) setAvatar(p.avatar_url);
-          if (p?.full_name) setName(p.full_name);
-          if (p?.vehicle_model) setVehicle(p.vehicle_model);
-        });
-    });
-  }, [open]);
 
   const handleNavigate = (path: string) => {
     onOpenChange(false);

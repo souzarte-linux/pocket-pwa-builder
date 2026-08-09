@@ -86,7 +86,11 @@ describe('Plataforma and Apps Management', () => {
   });
 
   it('creates a new platform and persists to platforms table', async () => {
-    const insertSpy = vi.fn().mockResolvedValue({ error: null });
+    const insertSpy = vi.fn().mockImplementation((payload) => ({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: payload, error: null }),
+      }),
+    }));
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'platforms') {

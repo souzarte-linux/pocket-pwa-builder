@@ -20,6 +20,8 @@ import { AppShell } from '@/components/layout/AppShell';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, formatKm } from '@/lib/format';
+import { useCurrentOdometer } from '@/hooks/queries/useCurrentOdometer';
+import { getCurrentOdometer } from '@/api/odometer.api';
 
 interface PartMaintenanceItem {
   id: string;
@@ -41,12 +43,13 @@ interface MaintenanceExpense {
   part_model?: string | null;
 }
 
-const DEFAULT_PARTS = [
-  { part_name: 'Óleo do Motor', life_km: 3000 },
-  { part_name: 'Filtro de Óleo', life_km: 6000 },
-  { part_name: 'Pastilhas de Freio', life_km: 8000 },
-  { part_name: 'Pneu Traseiro', life_km: 12000 },
-  { part_name: 'Pneu Dianteiro', life_km: 15000 },
+const DEFAULT_PARTS: { part_name: string; life_km: number }[] = [
+  { part_name: 'Óleo do Motor', life_km: 1000 },
+  { part_name: 'Filtro de Óleo', life_km: 3000 },
+  { part_name: 'Pneu Dianteiro', life_km: 20000 },
+  { part_name: 'Pneu Traseiro', life_km: 15000 },
+  { part_name: 'Pastilha de Freio Dianteira', life_km: 10000 },
+  { part_name: 'Lona de Freio Traseira', life_km: 15000 },
   { part_name: 'Kit Transmissão / Corrente', life_km: 15000 },
   { part_name: 'Vela de Ignição', life_km: 10000 },
   { part_name: 'Filtro de Ar', life_km: 10000 },
@@ -55,9 +58,16 @@ const DEFAULT_PARTS = [
 export const VidaUtilPecas: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const { data: cachedOdometer } = useCurrentOdometer();
   const [currentOdometer, setCurrentOdometer] = useState<number | null>(null);
   const [parts, setParts] = useState<PartMaintenanceItem[]>([]);
   const [history, setHistory] = useState<MaintenanceExpense[]>([]);
+
+  useEffect(() => {
+    if (cachedOdometer !== undefined) {
+      setCurrentOdometer(cachedOdometer);
+    }
+  }, [cachedOdometer]);
 
   const loadData = async () => {
     setLoading(true);
@@ -66,17 +76,7 @@ export const VidaUtilPecas: React.FC = () => {
       if (!u.user) return;
 
       // 1. Fetch current vehicle odometer
-      const [expRes, oilRes, routeRes] = await Promise.all([
-        supabase.from('expenses').select('odometer_km').not('odometer_km', 'is', null).order('odometer_km', { ascending: false }).limit(1),
-        supabase.from('oil_changes').select('km_at_change').order('km_at_change', { ascending: false }).limit(1),
-        supabase.from('routes').select('end_km').order('end_km', { ascending: false }).limit(1),
-      ]);
-
-      const odoExp = Number(expRes.data?.[0]?.odometer_km ?? 0);
-      const odoOil = Number(oilRes.data?.[0]?.km_at_change ?? 0);
-      const odoRoute = Number(routeRes.data?.[0]?.end_km ?? 0);
-      const maxReading = Math.max(odoExp, odoOil, odoRoute);
-      const latestOdo = maxReading > 0 ? maxReading : null;
+      const latestOdo = await getCurrentOdometer(u.user.id);
       setCurrentOdometer(latestOdo);
 
       // 2. Fetch monitored parts from part_maintenance
