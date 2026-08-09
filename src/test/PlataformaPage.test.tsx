@@ -1,6 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import Plataforma from '@/pages/Plataforma';
 import Apps from '@/pages/Apps';
 import { supabase } from '@/integrations/supabase/client';

@@ -82,6 +82,12 @@ export const NovaRota = () => {
     setShowLargePackageModal(false);
   };
 
+  const applyToAllPrices = () => {
+    if (tempLargePackagePrices.length === 0) return;
+    const first = tempLargePackagePrices[0] || '';
+    setTempLargePackagePrices(tempLargePackagePrices.map(() => first));
+  };
+
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const nowLocal = (offsetMin = 0) => {
