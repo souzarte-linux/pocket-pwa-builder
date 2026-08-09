@@ -27,7 +27,8 @@ interface Platform {
   total?: number;
 }
 
-const cycleLabel = (c: string, day: string | null) => {
+const cycleLabel = (c?: string | null, day?: string | null) => {
+  if (!c) return 'SEMANAL';
   if (c === 'semanal' && day) return `SEMANAL (${day.slice(0, 3).toUpperCase()})`;
   if (c === 'quinzenal') return 'QUINZENAL';
   if (c === 'mensal') return 'MENSAL';

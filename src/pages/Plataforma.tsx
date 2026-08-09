@@ -93,6 +93,10 @@ const Plataforma = () => {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim()) {
+      toast.error('Informe o nome da plataforma.');
+      return;
+    }
     setLoading(true);
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
