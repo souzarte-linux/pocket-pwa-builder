@@ -56,7 +56,7 @@ describe('Configuracoes Route Protection', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('ENTRAR')).toBeDefined();
+      expect(screen.getByRole('button', { name: /ENTRAR/i })).toBeInTheDocument();
     });
   });
 
@@ -97,8 +97,11 @@ describe('Configuracoes Route Protection', () => {
 
     render(<App />);
 
-    await waitFor(() => {
-      expect(screen.getAllByText(/Configurações/i).length).toBeGreaterThan(0);
-    });
+    await waitFor(
+      () => {
+        expect(screen.getAllByText(/Configurações/i).length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 }
+    );
   });
 });

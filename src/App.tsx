@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -5,33 +6,36 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { RequireAuth } from "@/components/RequireAuth";
-import Auth from "./pages/Auth";
-import CadastroMotorista from "./pages/CadastroMotorista";
-import Home from "./pages/Home";
-import Painel from "./pages/Painel";
-import Relatorios from "./pages/Relatorios";
-import Apps from "./pages/Apps";
-import Historico from "./pages/Historico";
-import NovaRota from "./pages/NovaRota";
-import TotalDia from "./pages/TotalDia";
-import Despesa from "./pages/Despesa";
-import Plataforma from "./pages/Plataforma";
-import PerfilMotorista from "./pages/PerfilMotorista";
-import MetasFinanceiras from "./pages/MetasFinanceiras";
-import CadastroVeiculo from "./pages/CadastroVeiculo";
-import Configuracoes from "./pages/Configuracoes";
-import TrocasOleo from "./pages/TrocasOleo";
-import VidaUtilPecas from "./pages/VidaUtilPecas";
-import Faturas from "./pages/Faturas";
-import NovaFatura from "./pages/NovaFatura";
-import AjusteFinanceiro from "./pages/AjusteFinanceiro";
-import NovoPosto from "./pages/NovoPosto";
-import Empresas from "./pages/Empresas";
-import Bandeiras from "./pages/Bandeiras";
-import { Emissores } from "./pages/Emissores";
-import OAuthConsent from "./pages/OAuthConsent";
-import NotFound from "./pages/NotFound";
+import { RouteLoadingFallback } from "@/components/layout/RouteLoadingFallback";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
+// Lazy-loaded routes with retry and stale chunk recovery
+const Auth = lazyWithRetry(() => import("./pages/Auth"));
+const CadastroMotorista = lazyWithRetry(() => import("./pages/CadastroMotorista"));
+const CadastroVeiculo = lazyWithRetry(() => import("./pages/CadastroVeiculo"));
+const Home = lazyWithRetry(() => import("./pages/Home"));
+const Painel = lazyWithRetry(() => import("./pages/Painel"));
+const Relatorios = lazyWithRetry(() => import("./pages/Relatorios"));
+const Apps = lazyWithRetry(() => import("./pages/Apps"));
+const Historico = lazyWithRetry(() => import("./pages/Historico"));
+const NovaRota = lazyWithRetry(() => import("./pages/NovaRota"));
+const TotalDia = lazyWithRetry(() => import("./pages/TotalDia"));
+const Despesa = lazyWithRetry(() => import("./pages/Despesa"));
+const Plataforma = lazyWithRetry(() => import("./pages/Plataforma"));
+const PerfilMotorista = lazyWithRetry(() => import("./pages/PerfilMotorista"));
+const MetasFinanceiras = lazyWithRetry(() => import("./pages/MetasFinanceiras"));
+const Configuracoes = lazyWithRetry(() => import("./pages/Configuracoes"));
+const TrocasOleo = lazyWithRetry(() => import("./pages/TrocasOleo"));
+const VidaUtilPecas = lazyWithRetry(() => import("./pages/VidaUtilPecas"));
+const Faturas = lazyWithRetry(() => import("./pages/Faturas"));
+const NovaFatura = lazyWithRetry(() => import("./pages/NovaFatura"));
+const AjusteFinanceiro = lazyWithRetry(() => import("./pages/AjusteFinanceiro"));
+const NovoPosto = lazyWithRetry(() => import("./pages/NovoPosto"));
+const Empresas = lazyWithRetry(() => import("./pages/Empresas"));
+const Bandeiras = lazyWithRetry(() => import("./pages/Bandeiras"));
+const Emissores = lazyWithRetry(() => import("./pages/Emissores"), "Emissores");
+const OAuthConsent = lazyWithRetry(() => import("./pages/OAuthConsent"));
+const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -40,32 +44,261 @@ const App = () => (
       <Sonner theme="dark" position="top-center" />
       <BrowserRouter>
         <Routes>
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/cadastro" element={<CadastroMotorista />} />
-          <Route path="/cadastro-veiculo" element={<RequireAuth><CadastroVeiculo /></RequireAuth>} />
-          <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
-          <Route path="/painel" element={<RequireAuth><Painel /></RequireAuth>} />
-          <Route path="/relatorios" element={<RequireAuth><Relatorios /></RequireAuth>} />
-          <Route path="/apps" element={<RequireAuth><Apps /></RequireAuth>} />
-          <Route path="/historico" element={<RequireAuth><Historico /></RequireAuth>} />
-          <Route path="/rota/nova" element={<RequireAuth><NovaRota /></RequireAuth>} />
-          <Route path="/total-dia" element={<RequireAuth><TotalDia /></RequireAuth>} />
-          <Route path="/despesa/:categoria" element={<RequireAuth><Despesa /></RequireAuth>} />
-          <Route path="/plataforma/:id" element={<RequireAuth><Plataforma /></RequireAuth>} />
-          <Route path="/perfil" element={<RequireAuth><PerfilMotorista /></RequireAuth>} />
-          <Route path="/metas-financeiras" element={<RequireAuth><MetasFinanceiras /></RequireAuth>} />
-          <Route path="/configuracoes" element={<RequireAuth><Configuracoes /></RequireAuth>} />
-          <Route path="/trocas-oleo" element={<RequireAuth><TrocasOleo /></RequireAuth>} />
-          <Route path="/vida-util-pecas" element={<RequireAuth><VidaUtilPecas /></RequireAuth>} />
-          <Route path="/faturas" element={<RequireAuth><Faturas /></RequireAuth>} />
-          <Route path="/fatura/nova" element={<RequireAuth><NovaFatura /></RequireAuth>} />
-          <Route path="/ajuste-financeiro" element={<RequireAuth><AjusteFinanceiro /></RequireAuth>} />
-          <Route path="/posto/novo" element={<RequireAuth><NovoPosto /></RequireAuth>} />
-          <Route path="/empresas" element={<RequireAuth><Empresas /></RequireAuth>} />
-          <Route path="/bandeiras" element={<RequireAuth><Bandeiras /></RequireAuth>} />
-          <Route path="/emissores" element={<RequireAuth><Emissores /></RequireAuth>} />
-          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
-          <Route path="*" element={<NotFound />} />
+          {/* Public Routes */}
+          <Route
+            path="/auth"
+            element={
+              <Suspense fallback={<RouteLoadingFallback minimal />}>
+                <Auth />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/cadastro"
+            element={
+              <Suspense fallback={<RouteLoadingFallback minimal />}>
+                <CadastroMotorista />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/.lovable/oauth/consent"
+            element={
+              <Suspense fallback={<RouteLoadingFallback minimal />}>
+                <OAuthConsent />
+              </Suspense>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <Suspense fallback={<RouteLoadingFallback minimal />}>
+                <NotFound />
+              </Suspense>
+            }
+          />
+
+          {/* Protected Routes: Router -> RequireAuth -> Suspense -> Lazy Page */}
+          <Route
+            path="/cadastro-veiculo"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <CadastroVeiculo />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Home />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/painel"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Painel />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/relatorios"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Relatorios />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/apps"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Apps />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/historico"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Historico />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/rota/nova"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <NovaRota />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/total-dia"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <TotalDia />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/despesa/:categoria"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Despesa />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/plataforma/:id"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Plataforma />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/perfil"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <PerfilMotorista />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/metas-financeiras"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <MetasFinanceiras />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/configuracoes"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Configuracoes />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/trocas-oleo"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <TrocasOleo />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/vida-util-pecas"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <VidaUtilPecas />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/faturas"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Faturas />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/fatura/nova"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <NovaFatura />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/ajuste-financeiro"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <AjusteFinanceiro />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/posto/novo"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <NovoPosto />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/empresas"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Empresas />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/bandeiras"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Bandeiras />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/emissores"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Emissores />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
