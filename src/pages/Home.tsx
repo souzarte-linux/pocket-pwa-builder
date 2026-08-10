@@ -1,92 +1,58 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Route, Calendar, Clock, Fuel, Wrench, UtensilsCrossed, Package, FileText, Wallet } from 'lucide-react';
+import { Route, Calendar, Fuel, Wrench, UtensilsCrossed, Package, FileText, Wallet } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { QuickActionsFab } from '@/components/QuickActionsFab';
 import { OilChangeAlert } from '@/components/OilChangeAlert';
 import { PartMaintenanceAlerts } from '@/components/PartMaintenanceAlerts';
-import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, todayBoundaries, relativeFromNow } from '@/lib/format';
-import { toast } from 'sonner';
-
-interface RouteRow {
-  id: string;
-  amount: number;
-  tip: number;
-  distance_km: number;
-  product_type: string;
-  occurred_at: string;
-  origin: string | null;
-  destination: string | null;
-}
+import { useProfile } from '@/hooks/queries/useProfile';
+import { useRoutes } from '@/hooks/queries/useRoutes';
+import { useExpenses } from '@/hooks/queries/useExpenses';
+import { useDailyTotals } from '@/hooks/queries/useDailyTotals';
 
 const Home = () => {
   const navigate = useNavigate();
-  const [todayNet, setTodayNet] = useState(0);
-  const [goal, setGoal] = useState(0);
-  const [recent, setRecent] = useState<RouteRow[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
+  const { start, end } = useMemo(() => todayBoundaries(), []);
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('daily_goal')
-        .eq('id', u.user.id)
-        .maybeSingle();
-      if (profile?.daily_goal) setGoal(Number(profile.daily_goal));
+  const { data: profile, isLoading: isProfileLoading } = useProfile();
+  const { data: routes = [], isLoading: isRoutesLoading } = useRoutes({ since: start, until: end });
+  const { data: expenses = [], isLoading: isExpensesLoading } = useExpenses({ since: start, until: end });
+  const { data: dailyTotals = [], isLoading: isDailyTotalsLoading } = useDailyTotals({ since: start, until: end });
 
-      const { start, end } = todayBoundaries();
-      const [routesRes, expRes, dailyRes] = await Promise.all([
-        supabase
-          .from('routes')
-          .select('amount, tip, distance_km, product_type, occurred_at, origin, destination')
-          .gte('occurred_at', start)
-          .lte('occurred_at', end),
-        supabase
-          .from('expenses')
-          .select('amount')
-          .gte('occurred_at', start)
-          .lte('occurred_at', end),
-        supabase
-          .from('daily_totals')
-          .select('amount')
-          .gte('occurred_at', start)
-          .lte('occurred_at', end),
-      ]);
+  const goal = profile?.daily_goal ? Number(profile.daily_goal) : 0;
+  const loading = isProfileLoading || isRoutesLoading || isExpensesLoading || isDailyTotalsLoading;
 
-      const earningsFromRoutes = (routesRes.data ?? []).reduce(
-        (s, r) => s + Number(r.amount) + Number(r.tip ?? 0),
-        0
-      );
-      const earningsFromDaily = (dailyRes.data ?? []).reduce(
-        (s, r) => s + Number(r.amount),
-        0
-      );
-      const totalExpenses = (expRes.data ?? []).reduce(
-        (s, e) => s + Number(e.amount),
-        0
-      );
-      const net = earningsFromRoutes + earningsFromDaily - totalExpenses;
-      setTodayNet(net);
+  const { todayNet, recent } = useMemo(() => {
+    const earningsFromRoutes = routes.reduce(
+      (s, r) => s + Number(r.amount) + Number(r.tip ?? 0),
+      0
+    );
+    const earningsFromDaily = dailyTotals.reduce(
+      (s, r) => s + Number(r.amount),
+      0
+    );
+    const totalExpenses = expenses.reduce(
+      (s, e) => s + Number(e.amount),
+      0
+    );
+    const net = earningsFromRoutes + earningsFromDaily - totalExpenses;
 
-      const recData = routesRes.data ?? [];
-      setRecent(
-        recData.slice(0, 4).map((r) => ({
-          ...r,
-          amount: Number(r.amount),
-          tip: Number(r.tip ?? 0),
-          distance_km: Number(r.distance_km ?? 0),
-        }))
-      );
-      setLoading(false);
-    };
-    load();
-  }, []);
+    const rec = routes.slice(0, 4).map((r) => ({
+      id: r.id,
+      amount: Number(r.amount),
+      tip: Number(r.tip ?? 0),
+      distance_km: Number(r.distance_km ?? 0),
+      product_type: r.product_type ?? 'pacote',
+      occurred_at: r.occurred_at,
+      origin: r.origin ?? null,
+      destination: r.destination ?? null,
+    }));
+
+    return { todayNet: net, recent: rec };
+  }, [routes, expenses, dailyTotals]);
 
   const pct = goal > 0 ? Math.min(100, Math.max(0, (todayNet / goal) * 100)) : 0;
   const remaining = goal > 0 ? Math.max(0, goal - todayNet) : 0;
@@ -209,9 +175,9 @@ const Home = () => {
           </p>
         ) : (
           <ul className="space-y-2.5 md:space-y-0 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-4">
-            {recent.map((r) => (
+            {recent.map((r, idx) => (
               <li
-                key={r.id}
+                key={r.id || `recent-${idx}`}
                 className="relative pl-3 rounded-xl bg-surface border border-border/40 p-3 flex items-center gap-3"
               >
                 <span className="absolute left-0 top-3 bottom-3 w-1 rounded-full bg-primary" />

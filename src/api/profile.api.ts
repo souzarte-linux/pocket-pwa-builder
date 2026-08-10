@@ -8,13 +8,23 @@ export type ProfileUpdate = TablesUpdate<"profiles">;
 /**
  * Pure API service for driver profile, vehicle specs, and financial goals.
  */
-export async function getProfile(userId: string): Promise<Profile | null> {
-  if (!userId) return null;
+export async function getProfile(userId?: string | null): Promise<Profile | null> {
+  let uid = userId;
+  if (!uid) {
+    try {
+      const { data } = await supabase.auth.getUser();
+      uid = data?.user?.id;
+    } catch {
+      return null;
+    }
+  }
+  if (!uid) return null;
 
-  const { data, error } = await supabase
-    .from("profiles")
+  const fromProf = supabase.from("profiles");
+  if (!fromProf || typeof fromProf.select !== "function") return null;
+  const { data, error } = await fromProf
     .select("*")
-    .eq("id", userId)
+    .eq("id", uid)
     .maybeSingle();
 
   if (error) {

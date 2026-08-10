@@ -8,10 +8,13 @@ import { UtensilsCrossed, Package, FileText } from 'lucide-react';
 import { parseCurrencyToNumber, parseDistanceToNumber } from '@/lib/format';
 
 import { usePlatforms } from '@/hooks/queries/usePlatforms';
+import { useDailyTotalMutations } from '@/hooks/mutations/useDailyTotalMutations';
 
 const TotalDia = () => {
   const navigate = useNavigate();
   const { data: platforms = [] } = usePlatforms(true);
+  const { createDailyTotal, isCreating } = useDailyTotalMutations();
+
   const [platformId, setPlatformId] = useState('');
   const [subtract, setSubtract] = useState(true);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -31,29 +34,38 @@ const TotalDia = () => {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
-    const occurred = new Date(`${date}T${time}:00`).toISOString();
-    const { error } = await supabase.from('daily_totals').insert({
-      user_id: u.user.id,
-      platform_id: platformId || null,
-      amount: parseCurrencyToNumber(amount),
-      distance_km: parseDistanceToNumber(distance),
-      product_type: type,
-      subtract_routes: subtract,
-      notes: notes || null,
-      occurred_at: occurred,
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success('Total do dia registrado!');
-    navigate('/');
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) {
+        setLoading(false);
+        return;
+      }
+      const occurred = new Date(`${date}T${time}:00`).toISOString();
+      await createDailyTotal({
+        user_id: u.user.id,
+        platform_id: platformId || null,
+        amount: parseCurrencyToNumber(amount),
+        distance_km: parseDistanceToNumber(distance),
+        product_type: type,
+        subtract_routes: subtract,
+        notes: notes || null,
+        occurred_at: occurred,
+      });
+      setLoading(false);
+      toast.success('Total do dia registrado!');
+      navigate('/');
+    } catch (err: any) {
+      setLoading(false);
+      toast.error(err.message || 'Erro ao registrar total do dia');
+    }
   };
+
+  const isSubmitting = loading || isCreating;
 
   return (
     <AppShell back title="LANÇAR TOTAL DO DIA">
       <form onSubmit={submit}>
-        <FormShell footer={<SubmitButton loading={loading}>CONFIRMAR LANÇAMENTO ✓</SubmitButton>}>
+        <FormShell footer={<SubmitButton loading={isSubmitting}>CONFIRMAR LANÇAMENTO ✓</SubmitButton>}>
           <div className="rounded-2xl bg-surface border border-border/40 p-4">
             <p className="text-sm">O valor a ser informado deverá ser reduzido das rotas realizadas no dia de hoje?</p>
             <div className="grid grid-cols-2 gap-2 mt-3">

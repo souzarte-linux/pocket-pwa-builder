@@ -20,10 +20,10 @@ export function useProfile(userId?: string | null) {
     {
       queryKey: queryKeys.profile(userId),
       queryFn: () => {
-        if (!userId) return null;
+        if (userId === null) return null;
         return getProfile(userId);
       },
-      enabled: Boolean(userId),
+      enabled: userId !== null,
       staleTime: 1000 * 60 * 15,
     },
     client

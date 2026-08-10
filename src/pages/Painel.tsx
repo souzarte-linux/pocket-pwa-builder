@@ -1,147 +1,139 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { StatCard } from '@/components/StatCard';
 import { PartMaintenanceAlert } from '@/components/PartMaintenanceAlert';
 import { QuickActionsFab } from '@/components/QuickActionsFab';
-import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, todayBoundaries, startOfWeek, startOfMonth } from '@/lib/format';
 import { Fuel, Wrench, UtensilsCrossed, TrendingUp } from 'lucide-react';
 
 import { usePlatforms } from '@/hooks/queries/usePlatforms';
 import { useProfile } from '@/hooks/queries/useProfile';
+import { useRoutes } from '@/hooks/queries/useRoutes';
+import { useDailyTotals } from '@/hooks/queries/useDailyTotals';
+import { useExpenses } from '@/hooks/queries/useExpenses';
 import { useAuth } from '@/hooks/useAuth';
-
-interface PlatformStat {
-  name: string;
-  total: number;
-}
 
 const Painel = () => {
   const { user } = useAuth();
+  const [range, setRange] = useState<'7d' | '30d'>('7d');
+
   const { data: profile } = useProfile(user?.id);
   const { data: activePlatforms = [] } = usePlatforms(true);
 
-  const [daily, setDaily] = useState(0);
-  const [weekly, setWeekly] = useState(0);
-  const [monthly, setMonthly] = useState(0);
-  const [dailyGoal, setDailyGoal] = useState(0);
-  const [weeklyGoal, setWeeklyGoal] = useState(0);
-  const [monthlyGoal, setMonthlyGoal] = useState(0);
-  const [todayPackages, setTodayPackages] = useState(0);
-  const [weeklyPackages, setWeeklyPackages] = useState(0);
-  const [monthlyPackages, setMonthlyPackages] = useState(0);
-  const [platforms, setPlatforms] = useState<PlatformStat[]>([]);
-  const [exp, setExp] = useState({ combustivel: 0, manutencao: 0, alimentacao: 0 });
-  const [trend, setTrend] = useState<number[]>([]);
-  const [range, setRange] = useState<'7d' | '30d'>('7d');
+  // Earliest date needed: covers both current month and 30-day trend
+  const earliestSince = useMemo(() => {
+    const d35 = new Date();
+    d35.setHours(0, 0, 0, 0);
+    d35.setDate(d35.getDate() - 35);
+    const mStart = new Date(startOfMonth());
+    return (d35 < mStart ? d35 : mStart).toISOString();
+  }, []);
 
-  useEffect(() => {
-    if (profile?.daily_goal) setDailyGoal(Number(profile.daily_goal));
-    if (profile?.weekly_goal) setWeeklyGoal(Number(profile.weekly_goal));
-    if (profile?.monthly_goal) setMonthlyGoal(Number(profile.monthly_goal));
-  }, [profile]);
+  const { data: routes = [] } = useRoutes({ since: earliestSince });
+  const { data: dailyTotals = [] } = useDailyTotals({ since: earliestSince });
+  const { data: expenses = [] } = useExpenses({ since: earliestSince });
 
-  useEffect(() => {
-    const load = async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
+  const dailyGoal = profile?.daily_goal ? Number(profile.daily_goal) : 0;
+  const weeklyGoal = profile?.weekly_goal ? Number(profile.weekly_goal) : 0;
+  const monthlyGoal = profile?.monthly_goal ? Number(profile.monthly_goal) : 0;
 
-      const today = todayBoundaries();
-      const weekStart = startOfWeek();
-      const monthStart = startOfMonth();
+  const {
+    daily,
+    weekly,
+    monthly,
+    todayPackages,
+    weeklyPackages,
+    monthlyPackages,
+    platforms,
+    exp,
+  } = useMemo(() => {
+    const today = todayBoundaries();
+    const weekStart = startOfWeek();
+    const monthStart = startOfMonth();
 
-      const sumRoutes = async (gte: string, lte?: string) => {
-        let q = supabase.from('routes').select('amount, tip, platform_id, package_count, small_packages_count, large_packages_count').gte('occurred_at', gte);
-        if (lte) q = q.lte('occurred_at', lte);
-        const { data } = await q;
-        return data ?? [];
-      };
-      const sumDaily = async (gte: string, lte?: string) => {
-        let q = supabase.from('daily_totals').select('amount, platform_id').gte('occurred_at', gte);
-        if (lte) q = q.lte('occurred_at', lte);
-        const { data } = await q;
-        return data ?? [];
-      };
+    const today_r = routes.filter((r) => r.occurred_at >= today.start && r.occurred_at <= today.end);
+    const week_r = routes.filter((r) => r.occurred_at >= weekStart);
+    const month_r = routes.filter((r) => r.occurred_at >= monthStart);
 
-      const [today_r, week_r, month_r, today_d, week_d, month_d] = await Promise.all([
-        sumRoutes(today.start, today.end),
-        sumRoutes(weekStart),
-        sumRoutes(monthStart),
-        sumDaily(today.start, today.end),
-        sumDaily(weekStart),
-        sumDaily(monthStart),
-      ]);
+    const today_d = dailyTotals.filter((d) => d.occurred_at >= today.start && d.occurred_at <= today.end);
+    const week_d = dailyTotals.filter((d) => d.occurred_at >= weekStart);
+    const month_d = dailyTotals.filter((d) => d.occurred_at >= monthStart);
 
-      const sum = (arr: any[]) =>
-        arr.reduce((s, r) => s + Number(r.amount) + Number(r.tip ?? 0), 0);
-      
-      const sumPackages = (arr: any[]) =>
-        arr.reduce((s, r) => s + (Number(r.small_packages_count ?? r.package_count ?? 0) + Number(r.large_packages_count ?? 0)), 0);
+    const sum = (arr: any[]) =>
+      arr.reduce((s, r) => s + Number(r.amount) + Number(r.tip ?? 0), 0);
 
-      setDaily(sum(today_r) + sum(today_d));
-      setWeekly(sum(week_r) + sum(week_d));
-      setMonthly(sum(month_r) + sum(month_d));
-      
-      const totalTodayPackages = sumPackages(today_r);
-      const totalWeeklyPackages = sumPackages(week_r);
-      const totalMonthlyPackages = sumPackages(month_r);
-      setTodayPackages(totalTodayPackages);
-      setWeeklyPackages(totalWeeklyPackages);
-      setMonthlyPackages(totalMonthlyPackages);
+    const sumPackages = (arr: any[]) =>
+      arr.reduce(
+        (s, r) =>
+          s +
+          (Number(r.small_packages_count ?? r.package_count ?? 0) +
+            Number(r.large_packages_count ?? 0)),
+        0
+      );
 
-      // Earnings by platform (current month - active platforms only)
-      const map = new Map<string, number>();
-      [...month_r, ...month_d].forEach((r: any) => {
-        if (!r.platform_id) return;
-        map.set(r.platform_id, (map.get(r.platform_id) ?? 0) + Number(r.amount) + Number(r.tip ?? 0));
-      });
-      const ps = activePlatforms
-        .map((p) => ({ name: p.name, total: map.get(p.id) ?? 0 }))
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 5);
-      setPlatforms(ps);
+    const d = sum(today_r) + sum(today_d);
+    const w = sum(week_r) + sum(week_d);
+    const m = sum(month_r) + sum(month_d);
 
-      // Expenses by category (month)
-      const { data: ex } = await supabase
-        .from('expenses')
-        .select('category, amount')
-        .gte('occurred_at', monthStart);
-      const eAgg = { combustivel: 0, manutencao: 0, alimentacao: 0 };
-      (ex ?? []).forEach((e: any) => {
-        if (e.category in eAgg) eAgg[e.category as keyof typeof eAgg] += Number(e.amount);
-      });
-      setExp(eAgg);
+    const tp = sumPackages(today_r);
+    const wp = sumPackages(week_r);
+    const mp = sumPackages(month_r);
 
-      // Trend — "7d" = current week starting Monday; "30d" = last 30 days
-      const days = range === '7d' ? 7 : 30;
-      const since = new Date();
-      since.setHours(0, 0, 0, 0);
-      if (range === '7d') {
-        since.setDate(since.getDate() - ((since.getDay() + 6) % 7));
-      } else {
-        since.setDate(since.getDate() - (days - 1));
-      }
-      const { data: tr } = await supabase
-        .from('routes')
-        .select('amount, tip, occurred_at')
-        .gte('occurred_at', since.toISOString());
-      const { data: td } = await supabase
-        .from('daily_totals')
-        .select('amount, occurred_at')
-        .gte('occurred_at', since.toISOString());
-      const buckets = new Array(days).fill(0);
-      [...(tr ?? []), ...(td ?? [])].forEach((r: any) => {
-        const d = new Date(r.occurred_at);
-        d.setHours(0, 0, 0, 0);
-        const idx = Math.round((d.getTime() - since.getTime()) / 86400000);
-        if (idx >= 0 && idx < days) {
-          buckets[idx] += Number(r.amount) + Number(r.tip ?? 0);
-        }
-      });
-      setTrend(buckets);
+    // Earnings by platform (current month - active platforms only)
+    const map = new Map<string, number>();
+    [...month_r, ...month_d].forEach((r: any) => {
+      if (!r.platform_id) return;
+      map.set(r.platform_id, (map.get(r.platform_id) ?? 0) + Number(r.amount) + Number(r.tip ?? 0));
+    });
+    const ps = activePlatforms
+      .map((p) => ({ name: p.name, total: map.get(p.id) ?? 0 }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+
+    // Expenses by category (month)
+    const month_e = expenses.filter((e) => e.occurred_at >= monthStart);
+    const eAgg = { combustivel: 0, manutencao: 0, alimentacao: 0 };
+    month_e.forEach((e: any) => {
+      if (e.category in eAgg) eAgg[e.category as keyof typeof eAgg] += Number(e.amount);
+    });
+
+    return {
+      daily: d,
+      weekly: w,
+      monthly: m,
+      todayPackages: tp,
+      weeklyPackages: wp,
+      monthlyPackages: mp,
+      platforms: ps,
+      exp: eAgg,
     };
-    load();
-  }, [range]);
+  }, [routes, dailyTotals, expenses, activePlatforms]);
+
+  // Trend — "7d" = current week starting Monday; "30d" = last 30 days
+  const trend = useMemo(() => {
+    const days = range === '7d' ? 7 : 30;
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    if (range === '7d') {
+      since.setDate(since.getDate() - ((since.getDay() + 6) % 7));
+    } else {
+      since.setDate(since.getDate() - (days - 1));
+    }
+    const sinceIso = since.toISOString();
+    const tr = routes.filter((r) => r.occurred_at >= sinceIso);
+    const td = dailyTotals.filter((d) => d.occurred_at >= sinceIso);
+
+    const buckets = new Array(days).fill(0);
+    [...tr, ...td].forEach((r: any) => {
+      const d = new Date(r.occurred_at);
+      d.setHours(0, 0, 0, 0);
+      const idx = Math.round((d.getTime() - since.getTime()) / 86400000);
+      if (idx >= 0 && idx < days) {
+        buckets[idx] += Number(r.amount) + Number(r.tip ?? 0);
+      }
+    });
+    return buckets;
+  }, [routes, dailyTotals, range]);
 
   const dailyPct = dailyGoal > 0 ? (daily / dailyGoal) * 100 : 0;
   const weeklyPct = weeklyGoal > 0 ? (weekly / weeklyGoal) * 100 : 0;
