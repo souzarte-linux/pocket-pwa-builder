@@ -244,15 +244,15 @@ describe('Faturas.tsx - Invoice Management & Adjustments', () => {
     const cycleElements = screen.getAllByText('Loggi');
     const cardTitle = cycleElements[cycleElements.length - 1];
     
-    // Click card to open View Modal
+    // Click card to open Details Modal
     fireEvent.click(cardTitle);
 
-    // Wait for View Modal and click EDITAR
-    await waitFor(() => screen.getByText('VISUALIZAR FATURA'));
-    const editBtnInModal = screen.getByRole('button', { name: /^EDITAR$/i });
+    // Wait for Details Modal and click Editar Fatura
+    await waitFor(() => screen.getByText('DETALHES DA FATURA'));
+    const editBtnInModal = screen.getByRole('button', { name: /Editar Fatura/i });
     fireEvent.click(editBtnInModal);
 
-    await waitFor(() => screen.getByText('Descontos e Acréscimos'));
+    await waitFor(() => screen.getByText(/Descontos & Acréscimos/i));
     const saveBtn = screen.getByText('SALVAR ALTERAÇÕES');
     fireEvent.click(saveBtn);
 
@@ -268,7 +268,7 @@ describe('Faturas.tsx - Invoice Management & Adjustments', () => {
     });
 
     const deleteSpy = vi.fn().mockReturnValue(createQueryMock([]));
-    const insertSpy = vi.fn().mockResolvedValue({ error: null });
+    const insertSpy = vi.fn().mockResolvedValue({ data: [], error: null });
 
     (supabase.from as any).mockImplementation((table: string) => {
       const base = getBaseMockImplementation(table);
@@ -330,21 +330,21 @@ describe('Faturas.tsx - Invoice Management & Adjustments', () => {
     const cycleElements = screen.getAllByText('Loggi');
     const cardTitle = cycleElements[cycleElements.length - 1];
     
-    // Click card to open View Modal
+    // Click card to open Details Modal
     fireEvent.click(cardTitle);
 
-    // Wait for View Modal and click EDITAR
-    await waitFor(() => screen.getByText('VISUALIZAR FATURA'));
-    const editBtnInModal = screen.getByRole('button', { name: /^EDITAR$/i });
+    // Wait for Details Modal and click Editar Fatura
+    await waitFor(() => screen.getByText('DETALHES DA FATURA'));
+    const editBtnInModal = screen.getByRole('button', { name: /Editar Fatura/i });
     fireEvent.click(editBtnInModal);
 
-    await waitFor(() => screen.getByText('Descontos e Acréscimos'));
+    await waitFor(() => screen.getByText(/Descontos & Acréscimos/i));
 
     const prevLabel = screen.getByText('Previdenciário');
     const prevInput = (prevLabel.parentElement?.querySelector('input') as HTMLInputElement)!;
     expect(prevInput.value.replace(/\s/g, ' ')).toBe('R$ 50,00');
 
-    const bonusLabel = screen.getByText('Bônus');
+    const bonusLabel = screen.getByText('Bônus de Fatura');
     const bonusInput = (bonusLabel.parentElement?.querySelector('input') as HTMLInputElement)!;
     expect(bonusInput.value.replace(/\s/g, ' ')).toBe('R$ 100,00');
 

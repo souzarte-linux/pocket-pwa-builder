@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { FormShell, Field, Select, Input, SubmitButton } from '@/components/forms/Form';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { checkOverlap } from '@/lib/billing';
-
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { usePlatforms } from '@/hooks/queries/usePlatforms';
 import { useBillingCycleMutations } from '@/hooks/mutations/useBillingCycleMutations';
 
 const NovaFatura = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: platforms = [] } = usePlatforms(true);
-  const { createBillingCycle } = useBillingCycleMutations();
+  const { createBillingCycle, linkCycleTransactions } = useBillingCycleMutations();
   const [platformId, setPlatformId] = useState('');
 
   // Default to last week
@@ -38,9 +39,17 @@ const NovaFatura = () => {
     if (!platformId) return toast.error('Selecione a plataforma');
     if (new Date(periodEnd) < new Date(periodStart)) return toast.error('Fim do período deve ser maior que início');
 
+    let currentUser = user;
+    if (!currentUser) {
+      const { data: u } = await supabase.auth.getUser();
+      currentUser = u?.user ? (u.user as any) : null;
+    }
+
+    if (!currentUser) {
+      return toast.error('Usuário não autenticado');
+    }
+
     setLoading(true);
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
 
     // Check overlap
     const { hasOverlap, conflictingCycle: conf } = await checkOverlap(
@@ -63,12 +72,12 @@ const NovaFatura = () => {
     try {
       // 1. Create Billing Cycle
       const cycle = await createBillingCycle({
-        user_id: u.user.id,
+        user_id: currentUser.id,
         platform_id: platformId,
         period_start: periodStart,
         period_end: periodEnd,
         expected_payment_date: expectedDate,
-        status: 'pending'
+        status: 'pending',
       });
 
       if (!cycle) {
@@ -76,37 +85,22 @@ const NovaFatura = () => {
         return toast.error('Erro ao criar fatura');
       }
 
-    // 2. Associate Routes without a cycle or owned by this cycle in this period
-    const { error: routeErr } = await supabase.from('routes')
-      .update({ billing_cycle_id: cycle.id })
-      .eq('platform_id', platformId)
-      .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${cycle.id}`)
-      .gte('occurred_at', `${periodStart}T00:00:00`)
-      .lte('occurred_at', `${periodEnd}T23:59:59`);
+      // 2. Associate unassigned routes, daily totals, and adjustments
+      await linkCycleTransactions({
+        cycleId: cycle.id,
+        platformId,
+        periodStart,
+        periodEnd,
+      });
 
-    const { error: dailyErr } = await supabase.from('daily_totals')
-      .update({ billing_cycle_id: cycle.id })
-      .eq('platform_id', platformId)
-      .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${cycle.id}`)
-      .gte('occurred_at', `${periodStart}T00:00:00`)
-      .lte('occurred_at', `${periodEnd}T23:59:59`);
-
-    // 3. Associate Adjustments
-    const { error: adjErr } = await supabase.from('financial_adjustments')
-      .update({ billing_cycle_id: cycle.id })
-      .eq('platform_id', platformId)
-      .or(`billing_cycle_id.is.null,billing_cycle_id.eq.${cycle.id}`)
-      .gte('occurred_at', periodStart)
-      .lte('occurred_at', periodEnd);
-
-    setLoading(false);
-    toast.success('Fatura fechada e corridas associadas!');
-    navigate('/faturas');
-  } catch (err: any) {
-    setLoading(false);
-    return toast.error(err?.message || 'Erro ao criar fatura');
-  }
-};
+      setLoading(false);
+      toast.success('Fatura fechada e corridas associadas!');
+      navigate('/faturas');
+    } catch (err: any) {
+      setLoading(false);
+      return toast.error(err?.message || 'Erro ao criar fatura');
+    }
+  };
 
   return (
     <AppShell back title={'FECHAR CICLO\nNOVA FATURA'}>
@@ -114,21 +108,25 @@ const NovaFatura = () => {
         <FormShell footer={<SubmitButton loading={loading}>GERAR FATURA E VINCULAR CORRIDAS ›</SubmitButton>}>
           <Field label="Plataforma">
             <Select value={platformId} onChange={(e) => setPlatformId(e.target.value)} required>
-              {platforms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {platforms.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
             </Select>
           </Field>
 
           <div className="grid grid-cols-2 gap-3 mt-4">
             <Field label="Início do Período">
-              <Input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)} required />
+              <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} required />
             </Field>
             <Field label="Fim do Período">
-              <Input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} required />
+              <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} required />
             </Field>
           </div>
 
           <Field label="Data Prevista para Pagamento">
-            <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} required />
+            <Input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} required />
           </Field>
 
           <div className="rounded-xl border-l-4 border-info bg-surface p-4 flex gap-3 text-sm text-muted-foreground mt-4">

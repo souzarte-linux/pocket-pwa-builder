@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { formatBRL } from '@/lib/format';
 import { CheckCircle2, FileCheck, X, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useBillingCycleMutations } from '@/hooks/mutations/useBillingCycleMutations';
+import { markCycleNotificationsRead } from '@/api/billing.api';
 
 export interface ConfirmCycleModalProps {
   cycle: {
@@ -36,13 +36,6 @@ export const ConfirmCycleModal: React.FC<ConfirmCycleModalProps> = ({
     return `${d}/${m}/${y}`;
   };
 
-  const markNotificationRead = async () => {
-    if (notificationId) {
-      await supabase.from('notifications').update({ read: true }).eq('id', notificationId);
-    }
-    await supabase.from('notifications').update({ read: true }).eq('billing_cycle_id', cycle.id);
-  };
-
   const handleConfirm = async () => {
     setLoading(true);
 
@@ -51,7 +44,7 @@ export const ConfirmCycleModal: React.FC<ConfirmCycleModalProps> = ({
       await updateBillingCycle({ id: cycle.id, payload: { status: 'open' } });
 
       // 2. Marca notificação como lida
-      await markNotificationRead();
+      await markCycleNotificationsRead(cycle.id, notificationId);
 
       setLoading(false);
       toast.success('Fatura confirmada e movida para A Receber!');
@@ -65,7 +58,7 @@ export const ConfirmCycleModal: React.FC<ConfirmCycleModalProps> = ({
 
   const handleDismissOnly = async () => {
     setLoading(true);
-    await markNotificationRead();
+    await markCycleNotificationsRead(cycle.id, notificationId);
     setLoading(false);
     if (onSuccess) onSuccess();
     onClose();
@@ -151,3 +144,5 @@ export const ConfirmCycleModal: React.FC<ConfirmCycleModalProps> = ({
     </div>
   );
 };
+
+export default ConfirmCycleModal;

@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   getFinancialAdjustments,
   createFinancialAdjustment,
+  createFinancialAdjustmentsBatch,
   updateFinancialAdjustment,
   deleteFinancialAdjustment,
+  deleteCycleAdjustmentsByType,
 } from "@/api/adjustments.api";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,6 +22,7 @@ function createQueryMock(data: unknown = []) {
     catch: (reject: any) => promise.catch(reject),
     select: vi.fn().mockImplementation(() => mockObj),
     eq: vi.fn().mockImplementation(() => mockObj),
+    in: vi.fn().mockImplementation(() => mockObj),
     gte: vi.fn().mockImplementation(() => mockObj),
     lte: vi.fn().mockImplementation(() => mockObj),
     order: vi.fn().mockImplementation(() => mockObj),
@@ -80,6 +83,17 @@ describe("adjustments.api - Financial Adjustments Service Layer", () => {
     await expect(createFinancialAdjustment(mockPayload)).resolves.toEqual(mockPayload);
   });
 
+  it("createFinancialAdjustmentsBatch inserts multiple records", async () => {
+    const payloads: any[] = [
+      { user_id: "u1", platform_id: "p1", amount: 50, type: "bonus_fatura" },
+      { user_id: "u1", platform_id: "p1", amount: -20, type: "multa" },
+    ];
+    vi.mocked(supabase.from).mockReturnValue(createQueryMock(payloads) as any);
+
+    const result = await createFinancialAdjustmentsBatch(payloads);
+    expect(result).toEqual(payloads);
+  });
+
   it("updateFinancialAdjustment updates an existing record", async () => {
     const mockUpdated: any = { id: "adj-1", amount: 150 };
     vi.mocked(supabase.from).mockReturnValue(createQueryMock(mockUpdated) as any);
@@ -91,5 +105,12 @@ describe("adjustments.api - Financial Adjustments Service Layer", () => {
     vi.mocked(supabase.from).mockReturnValue(createQueryMock(null) as any);
 
     await expect(deleteFinancialAdjustment("adj-1")).resolves.toBeUndefined();
+  });
+
+  it("deleteCycleAdjustmentsByType removes adjustments matching types", async () => {
+    vi.mocked(supabase.from).mockReturnValue(createQueryMock(null) as any);
+
+    await expect(deleteCycleAdjustmentsByType("c-1", ["multa", "extravio"])).resolves.toBeUndefined();
+    expect(supabase.from).toHaveBeenCalledWith("financial_adjustments");
   });
 });

@@ -3,6 +3,8 @@ import { getFinancialAdjustments, type GetFinancialAdjustmentsParams } from "@/a
 import { queryKeys } from "@/lib/queryKeys";
 import { queryClient as defaultQueryClient } from "@/lib/queryClient";
 
+export * from "@/hooks/mutations/useFinancialAdjustmentMutations";
+
 /**
  * Hook to retrieve financial adjustments (bonuses, deductions) with optional filters.
  * Stale time: 30 seconds.

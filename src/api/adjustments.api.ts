@@ -73,6 +73,26 @@ export async function createFinancialAdjustment(
 }
 
 /**
+ * Inserts multiple financial adjustments in batch.
+ */
+export async function createFinancialAdjustmentsBatch(
+  payloads: FinancialAdjustmentInsert[]
+): Promise<FinancialAdjustment[]> {
+  if (!payloads || payloads.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("financial_adjustments")
+    .insert(payloads)
+    .select();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+/**
  * Updates an existing financial adjustment.
  */
 export async function updateFinancialAdjustment(
@@ -94,13 +114,31 @@ export async function updateFinancialAdjustment(
 }
 
 /**
- * Deletes a financial adjustment.
+ * Deletes a financial adjustment by ID.
  */
 export async function deleteFinancialAdjustment(id: string): Promise<void> {
   const { error } = await supabase
     .from("financial_adjustments")
     .delete()
     .eq("id", id);
+
+  if (error) {
+    throw error;
+  }
+}
+
+/**
+ * Deletes adjustments linked to a billing cycle by types.
+ */
+export async function deleteCycleAdjustmentsByType(
+  cycleId: string,
+  types: string[]
+): Promise<void> {
+  const { error } = await supabase
+    .from("financial_adjustments")
+    .delete()
+    .eq("billing_cycle_id", cycleId)
+    .in("type", types);
 
   if (error) {
     throw error;

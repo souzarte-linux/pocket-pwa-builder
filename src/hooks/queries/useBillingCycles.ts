@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getBillingCycles,
+  getBillingCyclesWithTotals,
   getBillingCycleById,
   type GetBillingCyclesOptions,
 } from "@/api/billing.api";
@@ -9,9 +10,34 @@ import { queryClient as defaultQueryClient } from "@/lib/queryClient";
 
 /**
  * Hook to retrieve billing cycles and invoices.
- * Cached with a 5-minute staleTime.
+ * Cached with a 1-minute staleTime.
  */
-export function useBillingCycles(options?: GetBillingCyclesOptions) {
+export function useBillingCycles(statusOrOptions?: string | GetBillingCyclesOptions) {
+  let client = defaultQueryClient;
+  try {
+    const ctx = useQueryClient();
+    if (ctx) client = ctx;
+  } catch {
+    // Uses defaultQueryClient if rendered outside QueryClientProvider
+  }
+
+  const options: GetBillingCyclesOptions | undefined =
+    typeof statusOrOptions === "string" ? { status: statusOrOptions } : statusOrOptions;
+
+  return useQuery(
+    {
+      queryKey: queryKeys.billingCycles(options?.status),
+      queryFn: () => getBillingCycles(options),
+      staleTime: 1000 * 60,
+    },
+    client
+  );
+}
+
+/**
+ * Hook to retrieve all billing cycles with calculated aggregate amounts.
+ */
+export function useBillingCyclesWithTotals(options?: GetBillingCyclesOptions) {
   let client = defaultQueryClient;
   try {
     const ctx = useQueryClient();
@@ -22,9 +48,9 @@ export function useBillingCycles(options?: GetBillingCyclesOptions) {
 
   return useQuery(
     {
-      queryKey: queryKeys.billingCycles(options?.status),
-      queryFn: () => getBillingCycles(options),
-      staleTime: 1000 * 60 * 5,
+      queryKey: ["billing_cycles", "with_totals", options ?? {}],
+      queryFn: () => getBillingCyclesWithTotals(options),
+      staleTime: 1000 * 30,
     },
     client
   );
@@ -32,7 +58,7 @@ export function useBillingCycles(options?: GetBillingCyclesOptions) {
 
 /**
  * Hook to retrieve a single billing cycle by ID.
- * Cached with a 5-minute staleTime.
+ * Cached with a 1-minute staleTime.
  */
 export function useBillingCycleDetail(id?: string) {
   let client = defaultQueryClient;
@@ -48,7 +74,7 @@ export function useBillingCycleDetail(id?: string) {
       queryKey: queryKeys.billingCycleDetail(id ?? ""),
       queryFn: () => (id ? getBillingCycleById(id) : null),
       enabled: Boolean(id),
-      staleTime: 1000 * 60 * 5,
+      staleTime: 1000 * 60,
     },
     client
   );

@@ -20,6 +20,7 @@ function createQueryMock(data: any = []) {
   const mockObj: any = {
     then: (resolve: any, reject: any) => promise.then(resolve, reject),
     catch: (reject: any) => promise.catch(reject),
+    select: vi.fn().mockImplementation(() => mockObj),
     eq: vi.fn().mockImplementation(() => mockObj),
     neq: vi.fn().mockImplementation(() => mockObj),
     in: vi.fn().mockImplementation(() => mockObj),
@@ -29,7 +30,10 @@ function createQueryMock(data: any = []) {
     or: vi.fn().mockImplementation(() => mockObj),
     order: vi.fn().mockImplementation(() => mockObj),
     limit: vi.fn().mockImplementation(() => mockObj),
-    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ data: data?.[0] ?? null, error: null })),
+    update: vi.fn().mockImplementation(() => mockObj),
+    insert: vi.fn().mockImplementation(() => mockObj),
+    single: vi.fn().mockImplementation(() => Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data ?? null, error: null })),
+    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data ?? null, error: null })),
   };
   return mockObj;
 }
@@ -37,9 +41,9 @@ function createQueryMock(data: any = []) {
 describe('NovaFatura.tsx - Manual Invoice Creation Overlap Validation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (supabase.auth.getUser as any).mockResolvedValue({
+    vi.mocked(supabase.auth.getUser).mockResolvedValue({
       data: { user: { id: 'user-123' } },
-    });
+    } as any);
   });
 
   it('blocks creation of manual invoice when checkOverlap returns conflict', async () => {
@@ -56,20 +60,16 @@ describe('NovaFatura.tsx - Manual Invoice Creation Overlap Validation', () => {
       },
     });
 
-    const insertCycleSpy = vi.fn();
+    const insertCycleSpy = vi.fn().mockReturnValue(createQueryMock({ id: 'c-1' }));
 
-    (supabase.from as any).mockImplementation((table: string) => {
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'platforms') {
-        return {
-          select: vi.fn().mockReturnValue(createQueryMock([{ id: 'p-1', name: 'Loggi', active: true }])),
-        };
+        return createQueryMock([{ id: 'p-1', name: 'Loggi', active: true }]) as any;
       }
       if (table === 'billing_cycles') {
-        return { insert: insertCycleSpy };
+        return { insert: insertCycleSpy } as any;
       }
-      return {
-        select: vi.fn().mockReturnValue(createQueryMock([])),
-      };
+      return createQueryMock([]) as any;
     });
 
     render(
@@ -78,13 +78,60 @@ describe('NovaFatura.tsx - Manual Invoice Creation Overlap Validation', () => {
       </BrowserRouter>
     );
 
-    await waitFor(() => screen.getByText('GERAR FATURA E VINCULAR CORRIDAS ›'));
+    await waitFor(() => screen.getByRole('button', { name: /GERAR FATURA E VINCULAR CORRIDAS/i }));
 
-    const submitBtn = screen.getByText('GERAR FATURA E VINCULAR CORRIDAS ›');
+    const select = screen.getByDisplayValue('Loggi');
+    fireEvent.change(select, { target: { value: 'p-1' } });
+
+    const submitBtn = screen.getByRole('button', { name: /GERAR FATURA E VINCULAR CORRIDAS/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
       expect(insertCycleSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  it('creates manual invoice and links transactions when valid', async () => {
+    vi.spyOn(billingModule, 'checkOverlap').mockResolvedValue({
+      hasOverlap: false,
+      conflictingCycle: null,
+    });
+
+    const createdCycle = { id: 'c-created', platform_id: 'p-1', status: 'pending' };
+    const insertCycleSpy = vi.fn().mockReturnValue(createQueryMock(createdCycle));
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'platforms') {
+        return createQueryMock([{ id: 'p-1', name: 'Loggi', active: true }]) as any;
+      }
+      if (table === 'billing_cycles') {
+        return {
+          insert: insertCycleSpy,
+        } as any;
+      }
+      if (table === 'routes' || table === 'daily_totals' || table === 'financial_adjustments') {
+        return createQueryMock([]) as any;
+      }
+      return createQueryMock([]) as any;
+    });
+
+    render(
+      <BrowserRouter>
+        <NovaFatura />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => expect(screen.getByDisplayValue('Loggi')).toBeInTheDocument());
+
+    const select = screen.getByDisplayValue('Loggi');
+    fireEvent.change(select, { target: { value: 'p-1' } });
+
+    const submitBtn = screen.getByRole('button', { name: /GERAR FATURA E VINCULAR CORRIDAS/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(insertCycleSpy).toHaveBeenCalled();
+      expect(supabase.from).toHaveBeenCalledWith('routes');
     });
   });
 });
