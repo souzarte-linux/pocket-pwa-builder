@@ -3,6 +3,8 @@ import { getOilChanges, getPartMaintenance } from "@/api/maintenance.api";
 import { queryKeys } from "@/lib/queryKeys";
 import { queryClient as defaultQueryClient } from "@/lib/queryClient";
 
+export * from "@/hooks/mutations/useMaintenanceMutations";
+
 /**
  * Hook to retrieve vehicle oil changes.
  * Stale time: 1 minute.

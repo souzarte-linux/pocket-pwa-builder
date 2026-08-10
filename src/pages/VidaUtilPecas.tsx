@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Wrench, 
@@ -7,21 +7,18 @@ import {
   Clock, 
   Gauge, 
   Calendar, 
-  DollarSign, 
   Building2, 
   FileText, 
   Tag, 
   History,
-  Pencil,
-  ChevronRight,
   ShieldCheck
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
-import { AppHeader } from '@/components/layout/AppHeader';
-import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, formatKm } from '@/lib/format';
+import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOdometer } from '@/hooks/queries/useCurrentOdometer';
-import { getCurrentOdometer } from '@/api/odometer.api';
+import { usePartMaintenance } from '@/hooks/queries/useMaintenance';
+import { useExpenses } from '@/hooks/queries/useExpenses';
 
 interface PartMaintenanceItem {
   id: string;
@@ -29,18 +26,6 @@ interface PartMaintenanceItem {
   life_km: number;
   last_change_km: number;
   last_change_date?: string;
-}
-
-interface MaintenanceExpense {
-  id: string;
-  title: string;
-  amount: number;
-  occurred_at: string;
-  odometer_km?: number | null;
-  vendor?: string | null;
-  invoice_number?: string | null;
-  part_brand?: string | null;
-  part_model?: string | null;
 }
 
 const DEFAULT_PARTS: { part_name: string; life_km: number }[] = [
@@ -57,68 +42,35 @@ const DEFAULT_PARTS: { part_name: string; life_km: number }[] = [
 
 export const VidaUtilPecas: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const { data: cachedOdometer } = useCurrentOdometer();
-  const [currentOdometer, setCurrentOdometer] = useState<number | null>(null);
-  const [parts, setParts] = useState<PartMaintenanceItem[]>([]);
-  const [history, setHistory] = useState<MaintenanceExpense[]>([]);
+  const { user } = useAuth();
 
-  useEffect(() => {
-    if (cachedOdometer !== undefined) {
-      setCurrentOdometer(cachedOdometer);
+  const { data: currentOdometer = null } = useCurrentOdometer(user?.id);
+  const { data: dbParts = [], isLoading: isPartsLoading } = usePartMaintenance(user?.id);
+  const { data: allExpenses = [], isLoading: isExpLoading } = useExpenses();
+
+  const parts: PartMaintenanceItem[] = useMemo(() => {
+    if (dbParts && dbParts.length > 0) {
+      return dbParts.map((p) => ({
+        id: p.id,
+        part_name: p.part_name,
+        life_km: Number(p.life_km),
+        last_change_km: Number(p.last_change_km),
+        last_change_date: p.last_change_at,
+      }));
     }
-  }, [cachedOdometer]);
+    return DEFAULT_PARTS.map((p, idx) => ({
+      id: `def-${idx}`,
+      part_name: p.part_name,
+      life_km: p.life_km,
+      last_change_km: 0,
+    }));
+  }, [dbParts]);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-
-      // 1. Fetch current vehicle odometer
-      const latestOdo = await getCurrentOdometer(u.user.id);
-      setCurrentOdometer(latestOdo);
-
-      // 2. Fetch monitored parts from part_maintenance
-      const { data: partData } = await supabase
-        .from('part_maintenance')
-        .select('*')
-        .eq('user_id', u.user.id);
-
-      if (partData && partData.length > 0) {
-        setParts(partData);
-      } else {
-        // Fallback to DEFAULT_PARTS list if none exists yet
-        const defaultList: PartMaintenanceItem[] = DEFAULT_PARTS.map((p, idx) => ({
-          id: `def-${idx}`,
-          part_name: p.part_name,
-          life_km: p.life_km,
-          last_change_km: 0,
-        }));
-        setParts(defaultList);
-      }
-
-      // 3. Fetch full maintenance history from expenses
-      const { data: expData } = await supabase
-        .from('expenses')
-        .select('id, title, amount, occurred_at, odometer_km, vendor, invoice_number, part_brand, part_model')
-        .eq('user_id', u.user.id)
-        .eq('category', 'manutencao')
-        .order('occurred_at', { ascending: false });
-
-      if (expData) {
-        setHistory(expData);
-      }
-    } catch (err) {
-      console.error('Erro ao carregar vida útil das peças:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
+  const history = useMemo(() => {
+    return allExpenses
+      .filter((e) => e.category === 'manutencao')
+      .sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
+  }, [allExpenses]);
 
   return (
     <AppShell title="VIDA ÚTIL DAS PEÇAS" back>
@@ -157,7 +109,7 @@ export const VidaUtilPecas: React.FC = () => {
             </div>
           </div>
 
-          {loading ? (
+          {isPartsLoading ? (
             <p className="text-center text-xs text-muted-foreground py-6">Carregando peças…</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -262,7 +214,7 @@ export const VidaUtilPecas: React.FC = () => {
             </h2>
           </div>
 
-          {loading ? (
+          {isExpLoading ? (
             <p className="text-center text-xs text-muted-foreground py-6">Carregando histórico…</p>
           ) : history.length === 0 ? (
             <div className="rounded-2xl bg-surface-container border border-border/40 p-6 text-center text-sm text-muted-foreground space-y-2">

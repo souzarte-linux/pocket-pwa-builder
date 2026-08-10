@@ -1,59 +1,40 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Wrench, CheckCircle2, History } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface State {
-  threshold: number;
-  driven: number;
-  since: string | null;
-}
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/queries/useProfile';
+import { useRoutes } from '@/hooks/queries/useRoutes';
+import { useCreateOilChange } from '@/hooks/queries/useMaintenance';
+import { useProfileMutations } from '@/hooks/mutations/useProfileMutations';
 
 export const OilChangeAlert = () => {
-  const [s, setS] = useState<State | null>(null);
+  const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
+  const { data: routes = [] } = useRoutes();
+  const createOilChangeMutation = useCreateOilChange(user?.id);
+  const { updateProfile } = useProfileMutations();
+
   const [resetting, setResetting] = useState(false);
 
-  const load = async () => {
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
-    const { data: p } = await supabase
-      .from('profiles')
-      .select('oil_change_km, last_oil_change_at, created_at')
-      .eq('id', u.user.id)
-      .maybeSingle();
-    const threshold = Number((p as any)?.oil_change_km ?? 0);
-    if (!threshold || threshold <= 0) {
-      setS(null);
-      return;
-    }
-    const since: string =
-      (p as any)?.last_oil_change_at ?? (p as any)?.created_at ?? new Date(0).toISOString();
+  const s = useMemo(() => {
+    if (!profile) return null;
+    const threshold = Number(profile.oil_change_km ?? 0);
+    if (!threshold || threshold <= 0) return null;
 
-    const [routesRes, sessRes] = await Promise.all([
-      supabase
-        .from('routes')
-        .select('distance_km')
-        .gte('occurred_at', since),
-      supabase
-        .from('work_sessions')
-        .select('start_km, end_km')
-        .gte('started_at', since),
-    ]);
-    const routesKm = (routesRes.data ?? []).reduce(
-      (acc, r: any) => acc + Number(r.distance_km || 0),
-      0,
-    );
-    const sessKm = (sessRes.data ?? []).reduce((acc, r: any) => {
-      const diff = Number(r.end_km || 0) - Number(r.start_km || 0);
-      return acc + (diff > 0 ? diff : 0);
-    }, 0);
-    setS({ threshold, driven: routesKm + sessKm, since });
-  };
+    const since = profile.last_oil_change_at ?? profile.created_at ?? new Date(0).toISOString();
 
-  useEffect(() => {
-    load();
-  }, []);
+    const routesKm = routes
+      .filter((r) => r.occurred_at >= since)
+      .reduce((acc, r) => acc + Number(r.distance_km || 0), 0);
+
+    return {
+      threshold,
+      driven: routesKm,
+      since,
+    };
+  }, [profile, routes]);
 
   if (!s) return null;
   const pct = s.threshold > 0 ? (s.driven / s.threshold) * 100 : 0;
@@ -63,26 +44,29 @@ export const OilChangeAlert = () => {
   const remaining = Math.max(0, s.threshold - s.driven);
 
   const reset = async () => {
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
+    if (!user) return;
     setResetting(true);
     const now = new Date().toISOString();
-    const { error: insErr } = await supabase.from('oil_changes' as any).insert({
-      user_id: u.user.id,
-      changed_at: now,
-      km_at_change: Math.round(s!.driven),
-    } as any);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ last_oil_change_at: now } as any)
-      .eq('id', u.user.id);
-    setResetting(false);
-    if (error || insErr) {
-      toast.error((error || insErr)!.message);
-      return;
+
+    try {
+      await createOilChangeMutation.mutateAsync({
+        user_id: user.id,
+        changed_at: now,
+        km_at_change: Math.round(s.driven),
+      });
+
+      await updateProfile({
+        userId: user.id,
+        updates: { last_oil_change_at: now },
+      });
+
+      toast.success('Troca de óleo registrada');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao registrar troca';
+      toast.error(msg);
+    } finally {
+      setResetting(false);
     }
-    toast.success('Troca de óleo registrada');
-    load();
   };
 
   return (
@@ -119,15 +103,15 @@ export const OilChangeAlert = () => {
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               onClick={reset}
-              disabled={resetting}
-              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-1.5 rounded-lg bg-foreground text-background disabled:opacity-50"
+              disabled={resetting || createOilChangeMutation.isPending}
+              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-1.5 rounded-lg bg-foreground text-background disabled:opacity-50 min-h-[44px]"
             >
               <CheckCircle2 className="size-3.5" />
               {resetting ? 'Salvando...' : 'Marquei a troca'}
             </button>
             <Link
               to="/trocas-oleo"
-              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-1.5 rounded-lg bg-background/40 text-current"
+              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-1.5 rounded-lg bg-background/40 text-current min-h-[44px]"
             >
               <History className="size-3.5" />
               Histórico
@@ -138,3 +122,5 @@ export const OilChangeAlert = () => {
     </section>
   );
 };
+
+export default OilChangeAlert;

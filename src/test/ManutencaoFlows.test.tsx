@@ -133,7 +133,7 @@ describe('ManutencaoFlows - Vehicle Parts Life and Maintenance Cycles', () => {
       // Header title always visible
       expect(screen.getByText(/Odômetro Atual Estimado/i)).toBeDefined();
       // Parts list shows after data loads
-      expect(screen.queryByText('Carregando pe')).toBeNull();
+      expect(screen.getByText('Pastilha de Freio')).toBeDefined();
     }, { timeout: 3000 });
 
     // Parts should now be in DOM

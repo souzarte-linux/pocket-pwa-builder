@@ -1,12 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { AlertTriangle, Wrench } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-
-interface PartRow {
-  part_name: string;
-  life_km: number;
-  last_change_km: number;
-}
+import { useAuth } from '@/hooks/useAuth';
+import { useCurrentOdometer } from '@/hooks/queries/useCurrentOdometer';
+import { usePartMaintenance } from '@/hooks/queries/useMaintenance';
 
 interface Item {
   name: string;
@@ -15,43 +11,24 @@ interface Item {
   pct: number;
 }
 
-/** Estimates the current odometer from the highest known reading. */
-const getCurrentOdometer = async () => {
-  const [exp, oil, routes] = await Promise.all([
-    supabase.from('expenses').select('odometer_km').not('odometer_km', 'is', null).order('odometer_km', { ascending: false }).limit(1),
-    supabase.from('oil_changes').select('km_at_change').order('km_at_change', { ascending: false }).limit(1),
-    supabase.from('routes').select('end_km').order('end_km', { ascending: false }).limit(1),
-  ]);
-  const a = Number(exp.data?.[0]?.odometer_km ?? 0);
-  const b = Number(oil.data?.[0]?.km_at_change ?? 0);
-  const c = Number(routes.data?.[0]?.end_km ?? 0);
-  return Math.max(a, b, c);
-};
-
 export const PartMaintenanceAlerts = () => {
-  const [items, setItems] = useState<Item[]>([]);
+  const { user } = useAuth();
+  const { data: currentOdometer = null } = useCurrentOdometer(user?.id);
+  const { data: parts = [] } = usePartMaintenance(user?.id);
 
-  useEffect(() => {
-    (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      const [{ data }, odo] = await Promise.all([
-        supabase.from('part_maintenance').select('part_name, life_km, last_change_km').eq('user_id', u.user.id),
-        getCurrentOdometer(),
-      ]);
-      if (odo <= 0) return;
-      const rows = data ?? [];
-      const list = rows
-        .map((r) => {
-          const life = Number(r.life_km || 0);
-          const driven = Math.max(0, odo - Number(r.last_change_km || 0));
-          return { name: r.part_name, life, driven, pct: life > 0 ? (driven / life) * 100 : 0 };
-        })
-        .filter((i) => i.life > 0 && i.pct >= 90)
-        .sort((a, b) => b.pct - a.pct);
-      setItems(list);
-    })();
-  }, []);
+  const items: Item[] = useMemo(() => {
+    const odo = currentOdometer ?? 0;
+    if (odo <= 0 || !parts || parts.length === 0) return [];
+
+    return parts
+      .map((r) => {
+        const life = Number(r.life_km || 0);
+        const driven = Math.max(0, odo - Number(r.last_change_km || 0));
+        return { name: r.part_name, life, driven, pct: life > 0 ? (driven / life) * 100 : 0 };
+      })
+      .filter((i) => i.life > 0 && i.pct >= 90)
+      .sort((a, b) => b.pct - a.pct);
+  }, [parts, currentOdometer]);
 
   if (items.length === 0) return null;
 
@@ -95,3 +72,5 @@ export const PartMaintenanceAlerts = () => {
     </div>
   );
 };
+
+export default PartMaintenanceAlerts;

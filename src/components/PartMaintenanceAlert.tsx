@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Wrench, CheckCircle2, History } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-import { getCurrentOdometer } from '@/api/odometer.api';
+import { useAuth } from '@/hooks/useAuth';
+import { useCurrentOdometer } from '@/hooks/queries/useCurrentOdometer';
+import { usePartMaintenance, useUpdatePartMaintenance } from '@/hooks/queries/useMaintenance';
+import { useRoutes } from '@/hooks/queries/useRoutes';
 
 export interface PartMaintenanceItem {
   id: string;
@@ -19,27 +21,17 @@ export interface PartMaintenanceItem {
 }
 
 export const PartMaintenanceAlert = () => {
-  const [items, setItems] = useState<PartMaintenanceItem[]>([]);
+  const { user } = useAuth();
+  const { data: currentOdometer = null } = useCurrentOdometer(user?.id);
+  const { data: parts = [] } = usePartMaintenance(user?.id);
+  const { data: routes = [] } = useRoutes();
+
+  const updatePartMutation = useUpdatePartMaintenance(user?.id);
   const [resettingId, setResettingId] = useState<string | null>(null);
 
-  const load = async () => {
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
-
-    // 1. Get all part_maintenance records
-    const { data: parts, error: partsErr } = await supabase
-      .from('part_maintenance')
-      .select('*')
-      .eq('user_id', u.user.id);
-
-    if (partsErr || !parts || parts.length === 0) {
-      setItems([]);
-      return;
-    }
-
-    // 2. Determine current vehicle odometer
-    const currentOdometer = (await getCurrentOdometer(u.user.id)) ?? 0;
-
+  const items: PartMaintenanceItem[] = useMemo(() => {
+    if (!parts || parts.length === 0) return [];
+    const odo = currentOdometer ?? 0;
     const alertItems: PartMaintenanceItem[] = [];
 
     for (const p of parts) {
@@ -47,15 +39,13 @@ export const PartMaintenanceAlert = () => {
       if (lifeKm <= 0) continue;
 
       const lastKm = Number(p.last_change_km);
-      let drivenKm = currentOdometer > lastKm ? currentOdometer - lastKm : 0;
+      let drivenKm = odo > lastKm ? odo - lastKm : 0;
 
       // Fallback: If odometer was not updated, estimate from routes distance_km since last_change_at
       if (drivenKm === 0 && p.last_change_at) {
-        const { data: routeList } = await supabase
-          .from('routes')
-          .select('distance_km')
-          .gte('occurred_at', p.last_change_at);
-        const sumDist = (routeList ?? []).reduce((acc, r: any) => acc + Number(r.distance_km || 0), 0);
+        const sumDist = routes
+          .filter((r) => r.occurred_at >= p.last_change_at)
+          .reduce((acc, r) => acc + Number(r.distance_km || 0), 0);
         drivenKm = sumDist;
       }
 
@@ -77,16 +67,11 @@ export const PartMaintenanceAlert = () => {
       }
     }
 
-    setItems(alertItems);
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
+    return alertItems;
+  }, [parts, currentOdometer, routes]);
 
   const handleReset = async (item: PartMaintenanceItem) => {
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
+    if (!user) return;
 
     const newKmStr = prompt(
       `Informe o odômetro (KM) no momento da troca de "${item.part_name}":`,
@@ -97,24 +82,21 @@ export const PartMaintenanceAlert = () => {
     const newKm = Number(newKmStr.replace(',', '.')) || Math.round(item.last_change_km + item.driven_km);
     setResettingId(item.id);
 
-    const now = new Date().toISOString();
-    const { error } = await supabase
-      .from('part_maintenance')
-      .update({
-        last_change_km: newKm,
-        last_change_at: now,
-      })
-      .eq('id', item.id);
-
-    setResettingId(null);
-
-    if (error) {
+    try {
+      const now = new Date().toISOString();
+      await updatePartMutation.mutateAsync({
+        id: item.id,
+        payload: {
+          last_change_km: newKm,
+          last_change_at: now,
+        },
+      });
+      toast.success(`Troca de "${item.part_name}" atualizada!`);
+    } catch {
       toast.error('Erro ao atualizar troca de peça');
-      return;
+    } finally {
+      setResettingId(null);
     }
-
-    toast.success(`Troca de "${item.part_name}" atualizada!`);
-    load();
   };
 
   if (items.length === 0) return null;

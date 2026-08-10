@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Wrench, 
@@ -6,28 +6,29 @@ import {
   CheckCircle2, 
   Clock, 
   Plus, 
-  Calendar, 
   Gauge, 
-  DollarSign, 
   Pencil, 
   Trash2, 
-  Info, 
-  ShieldCheck, 
-  History,
-  Check,
-  X,
-  Eye,
-  Save,
-  FolderPlus,
-  ChevronRight
+  History, 
+  X, 
+  Save, 
+  FolderPlus, 
+  ChevronRight 
 } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { QuickCombobox } from '@/components/QuickCombobox';
-import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOdometer } from '@/hooks/queries/useCurrentOdometer';
-import { getCurrentOdometer } from '@/api/odometer.api';
+import {
+  useOilChanges,
+  usePartMaintenance,
+  useCreateOilChange,
+  useUpdateOilChange,
+  useDeleteOilChange,
+  useUpsertPartMaintenance,
+} from '@/hooks/queries/useMaintenance';
 
 interface PartMaintenanceItem {
   id: string;
@@ -56,15 +57,22 @@ const DEFAULT_PARTS: { part_name: string; life_km: number }[] = [
 
 export const TrocasOleo = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const { data: cachedOdometer } = useCurrentOdometer();
-  const [currentOdometer, setCurrentOdometer] = useState<number | null>(null);
-  const [parts, setParts] = useState<PartMaintenanceItem[]>([]);
-  const [history, setHistory] = useState<Tables<'oil_changes'>[]>([]);
+  const { user } = useAuth();
+
+  const { data: currentOdometer = null } = useCurrentOdometer(user?.id);
+  const { data: history = [], isLoading: isHistoryLoading } = useOilChanges(user?.id);
+  const { data: dbParts = [], isLoading: isPartsLoading } = usePartMaintenance(user?.id);
+
+  const createOilChangeMutation = useCreateOilChange(user?.id);
+  const updateOilChangeMutation = useUpdateOilChange();
+  const deleteOilChangeMutation = useDeleteOilChange();
+  const upsertPartMutation = useUpsertPartMaintenance(user?.id);
+
+  const [localParts, setLocalParts] = useState<PartMaintenanceItem[]>([]);
+  const [hasInitializedParts, setHasInitializedParts] = useState(false);
 
   // Form para registrar nova troca/manutenção
   const [selectedPart, setSelectedPart] = useState('Óleo do Motor');
-  const [customPartName, setCustomPartName] = useState('');
   const [changeKm, setChangeKm] = useState('');
   const [lifeKm, setLifeKm] = useState('3000');
   const [cost, setCost] = useState('');
@@ -84,76 +92,46 @@ export const TrocasOleo = () => {
   const [editHistoryDate, setEditHistoryDate] = useState('');
   const [editHistoryNotes, setEditHistoryNotes] = useState('');
 
+  // Sincroniza odômetro inicial no formulário
   useEffect(() => {
-    if (cachedOdometer !== undefined) {
-      setCurrentOdometer(cachedOdometer);
-      if (cachedOdometer !== null && !changeKm) {
-        setChangeKm(String(cachedOdometer));
-      }
+    if (currentOdometer !== null && !changeKm) {
+      setChangeKm(String(currentOdometer));
     }
-  }, [cachedOdometer]);
+  }, [currentOdometer, changeKm]);
 
-  const loadData = async () => {
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-
-      // Buscar odômetro atual
-      const latestOdo = await getCurrentOdometer(u.user.id);
-      setCurrentOdometer(latestOdo);
-      if (latestOdo !== null) {
-        setChangeKm(String(latestOdo));
-      }
-
-      // Buscar histórico de trocas de óleo e serviços
-      const { data: oilData } = await supabase
-        .from('oil_changes')
-        .select('*')
-        .eq('user_id', u.user.id)
-        .order('changed_at', { ascending: false });
-
-      if (oilData) {
-        setHistory(oilData);
-      }
-
-      // Buscar peças cadastradas na tabela part_maintenance
-      const { data: partData } = await supabase
-        .from('part_maintenance')
-        .select('*')
-        .eq('user_id', u.user.id);
-
-      if (partData && partData.length > 0) {
-        setParts(partData.map((pd) => ({
-          id: pd.id,
-          part_name: pd.part_name,
-          life_km: Number(pd.life_km),
-          last_change_km: Number(pd.last_change_km),
-          last_change_date: pd.last_change_at,
-        })));
-        const firstPart = partData[0];
+  // Sincroniza peças do banco ou default
+  useEffect(() => {
+    if (dbParts.length > 0) {
+      const mapped = dbParts.map((pd) => ({
+        id: pd.id,
+        part_name: pd.part_name,
+        life_km: Number(pd.life_km),
+        last_change_km: Number(pd.last_change_km),
+        last_change_date: pd.last_change_at,
+      }));
+      setLocalParts(mapped);
+      if (!hasInitializedParts) {
+        const firstPart = dbParts[0];
         if (firstPart?.part_name) {
           setSelectedPart(firstPart.part_name);
           setLifeKm(String(firstPart.life_km || 3000));
         }
-      } else {
-        // Mock peças default com base no odômetro atual
-        const defaultList: PartMaintenanceItem[] = DEFAULT_PARTS.map((p, index) => ({
-          id: `def-${index}`,
-          part_name: p.part_name,
-          life_km: p.life_km,
-          last_change_km: Math.max(0, latestOdo - Math.floor(Math.random() * p.life_km * 0.8)),
-          last_change_date: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
-        }));
-        setParts(defaultList);
+        setHasInitializedParts(true);
       }
-    } catch (err) {
-      console.error('Erro ao carregar dados de manutenção:', err);
+    } else if (!isPartsLoading && !hasInitializedParts) {
+      const defaultList: PartMaintenanceItem[] = DEFAULT_PARTS.map((p, index) => ({
+        id: `def-${index}`,
+        part_name: p.part_name,
+        life_km: p.life_km,
+        last_change_km: Math.max(0, (currentOdometer ?? 0) - Math.floor(Math.random() * p.life_km * 0.8)),
+        last_change_date: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
+      }));
+      setLocalParts(defaultList);
+      setHasInitializedParts(true);
     }
-  };
+  }, [dbParts, isPartsLoading, hasInitializedParts, currentOdometer]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const parts = useMemo(() => localParts, [localParts]);
 
   // Quando o usuário seleciona uma peça do combobox, preenche a vida útil padrão ou cadastrada
   const handlePartSelect = (partName: string) => {
@@ -179,11 +157,11 @@ export const TrocasOleo = () => {
       id: `custom-${Date.now()}`,
       part_name: newPartNameInput.trim(),
       life_km: lifeNum,
-      last_change_km: currentOdometer,
+      last_change_km: currentOdometer ?? 0,
       last_change_date: new Date().toISOString(),
     };
 
-    setParts((prev) => [newPartObj, ...prev]);
+    setLocalParts((prev) => [newPartObj, ...prev]);
     setSelectedPart(newPartNameInput.trim());
     setLifeKm(String(lifeNum));
     setShowAddPartModal(false);
@@ -194,32 +172,24 @@ export const TrocasOleo = () => {
 
   const handleRegisterService = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!user) {
+      toast.error('Usuário não autenticado.');
+      return;
+    }
 
     try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) {
-        toast.error('Usuário não autenticado.');
-        setLoading(false);
-        return;
-      }
-
       const partName = selectedPart;
-      const kmNum = Number(changeKm) || currentOdometer;
+      const kmNum = Number(changeKm) || currentOdometer || 0;
       const lifeNum = Number(lifeKm) || 3000;
       const costNum = Number(cost) || 0;
 
       // 1. Salva no histórico de trocas de óleo / serviços
-      const { error: oilErr } = await supabase.from('oil_changes').insert({
-        user_id: u.user.id,
+      await createOilChangeMutation.mutateAsync({
+        user_id: user.id,
         changed_at: new Date(changeDate).toISOString(),
         km_at_change: kmNum,
         notes: `${partName} ${costNum ? `- R$ ${costNum}` : ''} ${workshop ? `(${workshop})` : ''} ${notes ? `- ${notes}` : ''}`,
       });
-
-      if (oilErr) {
-        console.error('Erro ao salvar historico:', oilErr);
-      }
 
       // 2. Atualiza a lista local de monitoramento de peças
       const updatedParts = [...parts];
@@ -248,11 +218,11 @@ export const TrocasOleo = () => {
         });
       }
 
-      setParts(updatedParts);
+      setLocalParts(updatedParts);
 
-      // Tenta atualizar no Supabase
-      await supabase.from('part_maintenance').upsert({
-        user_id: u.user.id,
+      // 3. Salva no Supabase via TanStack Query mutation
+      await upsertPartMutation.mutateAsync({
+        user_id: user.id,
         part_name: partName,
         life_km: lifeNum,
         last_change_km: kmNum,
@@ -263,13 +233,9 @@ export const TrocasOleo = () => {
       setCost('');
       setWorkshop('');
       setNotes('');
-      setCustomPartName('');
-      loadData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro';
       toast.error('Erro ao registrar manutenção: ' + msg);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -295,30 +261,22 @@ export const TrocasOleo = () => {
   // Salvar Edição do Histórico
   const handleSaveHistoryEdit = async () => {
     if (!viewHistoryItem) return;
-    setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from('oil_changes')
-        .update({
+      await updateOilChangeMutation.mutateAsync({
+        id: viewHistoryItem.id,
+        payload: {
           changed_at: new Date(editHistoryDate).toISOString(),
           km_at_change: Number(editHistoryKm) || 0,
           notes: editHistoryNotes || null,
-        })
-        .eq('id', viewHistoryItem.id);
+        },
+      });
 
-      if (error) {
-        toast.error('Erro ao atualizar: ' + error.message);
-      } else {
-        toast.success('Registro do histórico atualizado!');
-        setViewHistoryItem(null);
-        setIsEditingHistoryModal(false);
-        loadData();
-      }
+      toast.success('Registro do histórico atualizado!');
+      setViewHistoryItem(null);
+      setIsEditingHistoryModal(false);
     } catch {
       toast.error('Erro ao atualizar registro.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -326,14 +284,19 @@ export const TrocasOleo = () => {
     e.stopPropagation();
     if (!confirm('Deseja remover este registro do histórico?')) return;
     try {
-      await supabase.from('oil_changes').delete().eq('id', id);
+      await deleteOilChangeMutation.mutateAsync(id);
       toast.success('Registro removido com sucesso!');
       if (viewHistoryItem?.id === id) setViewHistoryItem(null);
-      loadData();
     } catch {
       toast.error('Erro ao remover registro.');
     }
   };
+
+  const isActionLoading =
+    createOilChangeMutation.isPending ||
+    updateOilChangeMutation.isPending ||
+    deleteOilChangeMutation.isPending ||
+    upsertPartMutation.isPending;
 
   return (
     <div className="bg-[#131313] text-[#e5e2e1] min-h-screen font-lexend pb-32">
@@ -556,11 +519,11 @@ export const TrocasOleo = () => {
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full min-h-[56px] bg-[#ff5f00] text-black font-extrabold text-base uppercase tracking-wider rounded-2xl shadow-xl hover:bg-[#ffb599] active:scale-98 transition flex items-center justify-center gap-2"
+              disabled={isActionLoading}
+              className="w-full min-h-[56px] bg-[#ff5f00] text-black font-extrabold text-base uppercase tracking-wider rounded-2xl shadow-xl hover:bg-[#ffb599] active:scale-98 transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <Wrench className="size-5" />
-              <span>{loading ? 'Registrando...' : 'Registrar Troca / Manutenção'}</span>
+              <span>{isActionLoading ? 'Registrando...' : 'Registrar Troca / Manutenção'}</span>
             </button>
           </form>
         </section>
@@ -576,7 +539,9 @@ export const TrocasOleo = () => {
             </h2>
           </div>
 
-          {history.length === 0 ? (
+          {isHistoryLoading ? (
+            <p className="text-center py-6 text-xs text-[#ab8a7d]">Carregando histórico…</p>
+          ) : history.length === 0 ? (
             <div className="text-center py-8 text-[#ab8a7d] bg-[#201f1f] rounded-2xl border border-stone-800">
               <p className="text-sm font-semibold">Nenhuma troca ou serviço registrado no histórico.</p>
             </div>
@@ -717,7 +682,6 @@ export const TrocasOleo = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Ícone de Edição dentro da Janela de Detalhes */}
                 {!isEditingHistoryModal && (
                   <button
                     onClick={() => setIsEditingHistoryModal(true)}
@@ -780,8 +744,8 @@ export const TrocasOleo = () => {
                   <button
                     type="button"
                     onClick={handleSaveHistoryEdit}
-                    disabled={loading}
-                    className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg flex items-center justify-center gap-2"
+                    disabled={isActionLoading}
+                    className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <Save className="size-4" />
                     <span>Salvar Alterações</span>

@@ -46,6 +46,36 @@ export async function createOilChange(payload: OilChangeInsert): Promise<OilChan
 }
 
 /**
+ * Updates an existing oil change record.
+ */
+export async function updateOilChange(
+  id: string,
+  payload: OilChangeUpdate
+): Promise<OilChange> {
+  const { data, error } = await supabase
+    .from("oil_changes")
+    .update(payload)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Deletes an oil change record.
+ */
+export async function deleteOilChange(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("oil_changes")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+/**
  * Fetches vehicle parts maintenance list.
  */
 export async function getPartMaintenance(userId?: string): Promise<PartMaintenance[]> {
@@ -81,4 +111,34 @@ export async function upsertPartMaintenanceRecord(
 
   if (error) throw error;
   return data;
+}
+
+/**
+ * Updates an existing part maintenance record.
+ */
+export async function updatePartMaintenanceRecord(
+  id: string,
+  payload: PartMaintenanceUpdate
+): Promise<PartMaintenance> {
+  const { data, error } = await supabase
+    .from("part_maintenance")
+    .update(payload)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Deletes a part maintenance record.
+ */
+export async function deletePartMaintenanceRecord(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("part_maintenance")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
 }

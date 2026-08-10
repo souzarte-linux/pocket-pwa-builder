@@ -2,8 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   getOilChanges,
   createOilChange,
+  updateOilChange,
+  deleteOilChange,
   getPartMaintenance,
   upsertPartMaintenanceRecord,
+  updatePartMaintenanceRecord,
+  deletePartMaintenanceRecord,
 } from "@/api/maintenance.api";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -22,6 +26,8 @@ function createQueryMock(data: unknown = []) {
     eq: vi.fn().mockImplementation(() => mockObj),
     order: vi.fn().mockImplementation(() => mockObj),
     insert: vi.fn().mockImplementation(() => mockObj),
+    update: vi.fn().mockImplementation(() => mockObj),
+    delete: vi.fn().mockImplementation(() => mockObj),
     upsert: vi.fn().mockImplementation(() => mockObj),
     single: vi.fn().mockImplementation(() =>
       Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data ?? null, error: null })
@@ -63,6 +69,19 @@ describe("maintenance.api - Maintenance Service Layer", () => {
     await expect(createOilChange(mockPayload)).resolves.toEqual(mockPayload);
   });
 
+  it("updateOilChange updates an existing record", async () => {
+    const mockUpdated: any = { id: "oc-1", km_at_change: 32000 };
+    vi.mocked(supabase.from).mockReturnValue(createQueryMock(mockUpdated) as any);
+
+    await expect(updateOilChange("oc-1", { km_at_change: 32000 })).resolves.toEqual(mockUpdated);
+  });
+
+  it("deleteOilChange deletes an oil change record", async () => {
+    vi.mocked(supabase.from).mockReturnValue(createQueryMock(null) as any);
+
+    await expect(deleteOilChange("oc-1")).resolves.toBeUndefined();
+  });
+
   it("getPartMaintenance returns part maintenance records", async () => {
     const mockList = [
       { id: "pm-1", part_name: "Pneu Dianteiro", life_km: 15000, last_change_km: 10000 },
@@ -85,5 +104,18 @@ describe("maintenance.api - Maintenance Service Layer", () => {
     vi.mocked(supabase.from).mockReturnValue(createQueryMock(mockPayload) as any);
 
     await expect(upsertPartMaintenanceRecord(mockPayload)).resolves.toEqual(mockPayload);
+  });
+
+  it("updatePartMaintenanceRecord updates a part record", async () => {
+    const mockUpdated: any = { id: "pm-1", last_change_km: 15000 };
+    vi.mocked(supabase.from).mockReturnValue(createQueryMock(mockUpdated) as any);
+
+    await expect(updatePartMaintenanceRecord("pm-1", { last_change_km: 15000 })).resolves.toEqual(mockUpdated);
+  });
+
+  it("deletePartMaintenanceRecord removes a part record", async () => {
+    vi.mocked(supabase.from).mockReturnValue(createQueryMock(null) as any);
+
+    await expect(deletePartMaintenanceRecord("pm-1")).resolves.toBeUndefined();
   });
 });
