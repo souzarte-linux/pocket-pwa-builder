@@ -40,8 +40,17 @@ export const queryKeys = {
   },
 
   /** Invoice Financial Adjustments (Descontos / Bonificações) */
-  financialAdjustments: (cycleId?: string) =>
-    ["financial_adjustments", { cycleId: cycleId ?? "all" }] as const,
+  financialAdjustments: (
+    params?: string | { cycleId?: string; since?: string; until?: string }
+  ) => {
+    if (typeof params === "string") {
+      return ["financial_adjustments", { cycleId: params }] as const;
+    }
+    if (params && typeof params === "object") {
+      return ["financial_adjustments", params] as const;
+    }
+    return ["financial_adjustments", { cycleId: "all" }] as const;
+  },
 
   /** Auxiliary Master Tables */
   auxiliary: (entity: "companies" | "card_brands" | "card_issuers" | "gas_stations") =>

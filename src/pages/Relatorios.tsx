@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import { supabase } from '@/integrations/supabase/client';
 import { formatBRL, formatKm, formatHours, getDaysInRange } from '@/lib/format';
 import {
   Bar,
@@ -36,6 +35,15 @@ import {
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-react';
+
+import { useAuth } from '@/hooks/useAuth';
+import { useRoutes } from '@/hooks/queries/useRoutes';
+import { useDailyTotals } from '@/hooks/queries/useDailyTotals';
+import { useExpenses } from '@/hooks/queries/useExpenses';
+import { usePlatforms } from '@/hooks/queries/usePlatforms';
+import { useBillingCycles } from '@/hooks/queries/useBillingCycles';
+import { useFinancialAdjustments } from '@/hooks/queries/useFinancialAdjustments';
+import { useOilChanges, usePartMaintenance } from '@/hooks/queries/useMaintenance';
 
 type Period = 'dia' | 'semana' | 'quinzena' | 'mes' | 'ano' | 'custom';
 
@@ -106,66 +114,6 @@ const daysAgoISO = (n: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-interface Route {
-  amount: number;
-  tip: number;
-  distance_km: number;
-  platform_id: string | null;
-  product_type: string;
-  origin: string | null;
-  destination: string | null;
-  occurred_at: string;
-  started_at: string | null;
-  ended_at: string | null;
-  break_minutes: number;
-  package_count: number | null;
-  package_unit_price: number | null;
-  small_packages_count?: number | null;
-  large_packages_count?: number | null;
-  large_packages_prices?: number[] | null;
-}
-interface DailyTotal {
-  amount: number;
-  distance_km: number | null;
-  platform_id: string | null;
-  product_type: string;
-  occurred_at: string;
-  subtract_routes: boolean;
-}
-interface Expense {
-  id: string;
-  amount: number;
-  category: string;
-  occurred_at: string;
-  title?: string | null;
-  liters?: number | null;
-  odometer_km?: number | null;
-  is_full_tank?: boolean | null;
-}
-interface Platform {
-  id: string;
-  name: string;
-  active?: boolean;
-}
-interface BillingCycle {
-  total_amount: number;
-  expected_payment_date: string;
-}
-interface OilChange {
-  changed_at: string;
-  km_at_change: number;
-}
-interface MaintProfile {
-  oil_change_km: number | null;
-  last_oil_change_at: string | null;
-}
-interface Adjustment {
-  amount: number;
-  type: string;
-  platform_id: string;
-  occurred_at: string;
-}
-
 const ADJUSTMENT_LABELS: Record<string, string> = {
   previdenciario: 'Previdenciário',
   extravio: 'Extravios',
@@ -189,23 +137,11 @@ const COLORS = [
 
 const Relatorios = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
   const [period, setPeriod] = useState<Period>('semana');
   const [customStart, setCustomStart] = useState<string>(daysAgoISO(7));
   const [customEnd, setCustomEnd] = useState<string>(todayISO());
-  const [routes, setRoutes] = useState<Route[]>([]);
-  const [dailies, setDailies] = useState<DailyTotal[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [platforms, setPlatforms] = useState<Platform[]>([]);
-  const [billingCycles, setBillingCycles] = useState<BillingCycle[]>([]);
-  const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
-  const [oilChanges, setOilChanges] = useState<OilChange[]>([]);
-  const [allMaintExpenses, setAllMaintExpenses] = useState<Expense[]>([]);
-  const [allFuelExpenses, setAllFuelExpenses] = useState<Expense[]>([]);
-  const [partMaintenanceData, setPartMaintenanceData] = useState<
-    { id?: string; part_name: string; life_km: number; last_change_km: number; last_change_at?: string }[]
-  >([]);
-  const [maxRouteKm, setMaxRouteKm] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [showPlatformDropdown, setShowPlatformDropdown] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
@@ -243,104 +179,94 @@ const Relatorios = () => {
     return { since: startOf(period), until: endOf(period) };
   }, [period, customStart, customEnd]);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const sinceISO = range.since.toISOString();
-      const untilISO = range.until.toISOString();
-      const { data: u } = await supabase.auth.getUser();
-      const userId = u.user?.id;
+  // TanStack Query Data Sources
+  const { data: allRoutes = [], isLoading: isRoutesLoading } = useRoutes();
+  const { data: allDailyTotals = [], isLoading: isDailyLoading } = useDailyTotals();
+  const { data: allExpenses = [], isLoading: isExpLoading } = useExpenses();
+  const { data: platforms = [], isLoading: isPlatformsLoading } = usePlatforms(false);
+  const { data: openBillingCycles = [], isLoading: isCyclesLoading } = useBillingCycles('open');
+  const { data: allAdjustments = [], isLoading: isAdjLoading } = useFinancialAdjustments();
+  const { data: oilChanges = [] } = useOilChanges(user?.id);
+  const { data: partMaintenance = [] } = usePartMaintenance(user?.id);
 
-      const [r, d, e, p, b, adj, partMaintRes] = await Promise.all([
-        supabase
-          .from('routes')
-          .select('amount, tip, distance_km, platform_id, product_type, origin, destination, occurred_at, package_count, package_unit_price, started_at, ended_at, break_minutes, small_packages_count, large_packages_count, large_packages_prices')
-          .gte('occurred_at', sinceISO)
-          .lte('occurred_at', untilISO),
-        supabase
-          .from('daily_totals')
-          .select('amount, distance_km, platform_id, product_type, occurred_at, subtract_routes')
-          .gte('occurred_at', sinceISO)
-          .lte('occurred_at', untilISO),
-        supabase.from('expenses').select('id, amount, category, occurred_at, title, liters, odometer_km, is_full_tank')
-          .gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
-        supabase.from('platforms').select('id, name, active'),
-        supabase.from('billing_cycles').select('id, expected_payment_date').eq('status', 'open').gte('expected_payment_date', todayISO()),
-        supabase.from('financial_adjustments').select('amount, type, platform_id, occurred_at').gte('occurred_at', sinceISO).lte('occurred_at', untilISO),
-        userId
-          ? supabase.from('part_maintenance').select('*').eq('user_id', userId)
-          : supabase.from('part_maintenance').select('*'),
-      ]);
-      setRoutes((r.data ?? []) as Route[]);
-      setDailies((d.data ?? []) as DailyTotal[]);
-      setExpenses((e.data ?? []) as Expense[]);
-      setPlatforms((p.data ?? []) as Platform[]);
-      setAdjustments((adj.data ?? []) as Adjustment[]);
-      if (partMaintRes?.data) {
-        setPartMaintenanceData(partMaintRes.data.map((pm) => ({
-          id: pm.id,
-          part_name: pm.part_name,
-          life_km: Number(pm.life_km),
-          last_change_km: Number(pm.last_change_km),
-          last_change_at: pm.last_change_at,
-        })));
-      }
-      const cycles = (b.data ?? []) as { id: string; expected_payment_date: string }[];
-      const cycleIds = cycles.map((c) => c.id);
-      const totalsByCycle: Record<string, number> = {};
-      if (cycleIds.length > 0) {
-        const rRes = await supabase.from('routes').select('amount, tip, billing_cycle_id').in('billing_cycle_id', cycleIds);
-        (rRes.data ?? []).forEach((row: { amount: number; tip: number | null; billing_cycle_id: string | null }) => {
-          if (!row.billing_cycle_id) return;
-          totalsByCycle[row.billing_cycle_id] = (totalsByCycle[row.billing_cycle_id] ?? 0) + Number(row.amount) + Number(row.tip ?? 0);
-        });
-      }
-      setBillingCycles(cycles.map((c) => ({ total_amount: totalsByCycle[c.id] ?? 0, expected_payment_date: c.expected_payment_date })));
-      setLoading(false);
-    };
-    load();
-  }, [range]);
+  const loading =
+    isRoutesLoading ||
+    isDailyLoading ||
+    isExpLoading ||
+    isPlatformsLoading ||
+    isCyclesLoading ||
+    isAdjLoading;
 
-  // Load maintenance-related historical data (once on mount)
-  useEffect(() => {
-    const loadMaint = async () => {
-      const { data: u } = await supabase.auth.getUser();
-      const userId = u.user?.id;
+  // Period-filtered collections
+  const routes = useMemo(() => {
+    const s = range.since.toISOString();
+    const u = range.until.toISOString();
+    return allRoutes.filter((r) => r.occurred_at >= s && r.occurred_at <= u);
+  }, [allRoutes, range]);
 
-      const [oilRes, expAllRes, routesAllRes, partMaintRes] = await Promise.all([
-        supabase.from('oil_changes').select('changed_at, km_at_change').order('changed_at', { ascending: false }),
-        supabase.from('expenses').select('id, amount, category, occurred_at, title, liters, odometer_km, is_full_tank')
-          .in('category', ['combustivel', 'manutencao']),
-        supabase.from('routes').select('end_km, start_km'),
-        userId
-          ? supabase.from('part_maintenance').select('*').eq('user_id', userId)
-          : supabase.from('part_maintenance').select('*'),
-      ]);
-      const oc = (oilRes.data ?? []) as OilChange[];
-      setOilChanges(oc);
-      const allExp = (expAllRes.data ?? []) as Expense[];
-      setAllFuelExpenses(allExp.filter((e) => e.category === 'combustivel'));
-      setAllMaintExpenses(allExp.filter((e) => e.category === 'manutencao'));
-      if (partMaintRes?.data) {
-        setPartMaintenanceData(partMaintRes.data.map((pm) => ({
-          id: pm.id,
-          part_name: pm.part_name,
-          life_km: Number(pm.life_km),
-          last_change_km: Number(pm.last_change_km),
-          last_change_at: pm.last_change_at,
-        })));
-      }
-      let maxKm = 0;
-      (routesAllRes.data ?? []).forEach((r: { end_km: number | null; start_km: number | null }) => {
-        const v = Math.max(Number(r.end_km ?? 0), Number(r.start_km ?? 0));
-        if (v > maxKm) maxKm = v;
-      });
-      setMaxRouteKm(maxKm);
-    };
-    loadMaint();
-  }, []);
+  const dailies = useMemo(() => {
+    const s = range.since.toISOString();
+    const u = range.until.toISOString();
+    return allDailyTotals.filter((d) => d.occurred_at >= s && d.occurred_at <= u);
+  }, [allDailyTotals, range]);
 
+  const expenses = useMemo(() => {
+    const s = range.since.toISOString();
+    const u = range.until.toISOString();
+    return allExpenses.filter((e) => e.occurred_at >= s && e.occurred_at <= u);
+  }, [allExpenses, range]);
 
+  const adjustments = useMemo(() => {
+    const s = range.since.toISOString();
+    const u = range.until.toISOString();
+    return allAdjustments.filter((a) => a.occurred_at >= s && a.occurred_at <= u);
+  }, [allAdjustments, range]);
+
+  // All-time categories for fuel and maintenance metrics
+  const allFuelExpenses = useMemo(
+    () => allExpenses.filter((e) => e.category === 'combustivel'),
+    [allExpenses]
+  );
+  const allMaintExpenses = useMemo(
+    () => allExpenses.filter((e) => e.category === 'manutencao'),
+    [allExpenses]
+  );
+
+  const maxRouteKm = useMemo(
+    () =>
+      allRoutes.reduce(
+        (max, r) => Math.max(max, Number(r.end_km ?? 0), Number(r.start_km ?? 0)),
+        0
+      ),
+    [allRoutes]
+  );
+
+  const partMaintenanceData = useMemo(() => {
+    return partMaintenance.map((pm) => ({
+      id: pm.id,
+      part_name: pm.part_name,
+      life_km: Number(pm.life_km),
+      last_change_km: Number(pm.last_change_km),
+      last_change_at: pm.last_change_at,
+    }));
+  }, [partMaintenance]);
+
+  const billingCycles = useMemo(() => {
+    const today = todayISO();
+    const futureCycles = openBillingCycles.filter(
+      (c) => c.expected_payment_date && c.expected_payment_date >= today
+    );
+    const totalsByCycle: Record<string, number> = {};
+    allRoutes.forEach((r) => {
+      if (!r.billing_cycle_id) return;
+      totalsByCycle[r.billing_cycle_id] =
+        (totalsByCycle[r.billing_cycle_id] ?? 0) + Number(r.amount) + Number(r.tip ?? 0);
+    });
+    return futureCycles.map((c) => ({
+      total_amount: totalsByCycle[c.id] ?? 0,
+      expected_payment_date: c.expected_payment_date ?? '',
+    }));
+  }, [openBillingCycles, allRoutes]);
 
   const platformName = (id: string | null) =>
     (id && platforms.find((p) => p.id === id)?.name) || 'Sem plataforma';
@@ -414,13 +340,9 @@ const Relatorios = () => {
         ? filteredRoutes.reduce((s, r) => s + Number(r.amount), 0) / totalPackages
         : 0,
     };
-  }, [routes, dailies, expenses, selectedPlatform, range.since, range.until, platformName]);
+  }, [routes, dailies, expenses, selectedPlatform, range.since, range.until]);
 
   // Real fuel consumption (km/L) — tank-to-tank method.
-  // For each pair of consecutive FULL-TANK fills, km traveled = odometer delta,
-  // liters consumed = sum of all fills (partial + the full) AFTER the previous full
-  // up to and including the current full. We attribute the segment to the current
-  // full-tank fill date and include it when that date falls in the selected period.
   const realConsumption = useMemo(() => {
     const fills = allFuelExpenses
       .filter((e) => Number(e.liters ?? 0) > 0 && Number(e.odometer_km ?? 0) > 0)
@@ -455,8 +377,7 @@ const Relatorios = () => {
 
     if (totalLiters > 0) return totalKm / totalLiters;
 
-    // Fallback: latest tank-to-tank segment overall (ignoring period) so the user
-    // still sees a meaningful number when the period has no closed segment.
+    // Fallback: latest tank-to-tank segment overall (ignoring period)
     let lastKm = 0;
     let lastLit = 0;
     prevFullIdx = -1;
@@ -551,8 +472,6 @@ const Relatorios = () => {
     });
   }, [partMaintenanceData, currentOdometer, allMaintExpenses]);
 
-
-
   // Per platform aggregates (active platforms only)
   const byPlatform = useMemo(() => {
     const activePlatformIds = new Set(
@@ -564,7 +483,6 @@ const Relatorios = () => {
       { name: string; revenue: number; km: number; ms: number }
     >();
 
-    // Filter routes and dailies based on selected platform AND active platforms
     const filteredRoutes = routes.filter((r) => {
       if (selectedPlatform !== 'all' && r.platform_id !== selectedPlatform) return false;
       if (r.platform_id && !activePlatformIds.has(r.platform_id)) return false;
@@ -614,7 +532,7 @@ const Relatorios = () => {
         revPerHour: v.ms > 0 ? Number((v.revenue / (v.ms / 3600000)).toFixed(2)) : 0,
       }))
       .sort((a, b) => b.receita - a.receita);
-  }, [routes, dailies, platforms, selectedPlatform, range.since, range.until, platformName]);
+  }, [routes, dailies, platforms, selectedPlatform, range.since, range.until]);
 
   // Bonificações e Descontos por plataforma (ativas)
   const bonificacoesByPlatform = useMemo(() => {
@@ -694,7 +612,7 @@ const Relatorios = () => {
     return result.sort(
       (a, b) => b.acrescimosTotal + b.descontosTotal - (a.acrescimosTotal + a.descontosTotal)
     );
-  }, [adjustments, platforms, selectedPlatform, platformName]);
+  }, [adjustments, platforms, selectedPlatform]);
 
   // Categories (product type) - monetary value & quantity delivered
   const byCategory = useMemo(() => {
@@ -855,7 +773,7 @@ const Relatorios = () => {
 
   const futureCashFlow = useMemo(() => {
     const map = new Map<string, number>();
-    billingCycles.forEach(b => {
+    billingCycles.forEach((b) => {
       const date = b.expected_payment_date;
       if (!date) return;
       map.set(date, (map.get(date) ?? 0) + Number(b.total_amount));
@@ -864,8 +782,10 @@ const Relatorios = () => {
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([date, amount]) => ({
         date,
-        label: new Date(`${date}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase(),
-        amount: Number(amount.toFixed(2))
+        label: new Date(`${date}T12:00:00`)
+          .toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+          .toUpperCase(),
+        amount: Number(amount.toFixed(2)),
       }));
   }, [billingCycles]);
 
@@ -875,7 +795,6 @@ const Relatorios = () => {
   return (
     <AppShell title={'RELATÓRIOS\nINSIGHTS'}>
       <div className="space-y-4">
-
         {/* Time Filter */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -892,7 +811,7 @@ const Relatorios = () => {
               className="w-full rounded-xl bg-surface border border-border/40 p-3 flex items-center justify-between hover:bg-surface-high transition-colors"
             >
               <span className="font-semibold text-sm">
-                {PERIODS.find(p => p.id === period)?.label}
+                {PERIODS.find((p) => p.id === period)?.label}
               </span>
               {showTimeDropdown ? (
                 <ChevronUp className="size-4 text-muted-foreground" />
@@ -933,7 +852,7 @@ const Relatorios = () => {
               className="w-full rounded-xl bg-surface border border-border/40 p-3 flex items-center justify-between hover:bg-surface-high transition-colors"
             >
               <span className="font-semibold text-sm">
-                {selectedPlatform === 'all' ? 'Todas as Plataformas' : platforms.find(p => p.id === selectedPlatform)?.name || 'Todas as Plataformas'}
+                {selectedPlatform === 'all' ? 'Todas as Plataformas' : platforms.find((p) => p.id === selectedPlatform)?.name || 'Todas as Plataformas'}
               </span>
               {showPlatformDropdown ? (
                 <ChevronUp className="size-4 text-muted-foreground" />
@@ -990,23 +909,6 @@ const Relatorios = () => {
           </div>
         </div>
 
-        {/* Period selector - hidden as it's now in dropdown */}
-        {/* <div className="rounded-xl bg-surface border border-border/40 p-1.5 grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-          {PERIODS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setPeriod(p.id)}
-              className={`rounded-xl px-2 py-2 text-[11px] font-bold uppercase tracking-wide transition text-center ${
-                period === p.id
-                  ? 'bg-primary text-primary-foreground shadow-fab'
-                  : 'bg-surface-high text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div> */}
-
         {period === 'custom' && (
           <div className="rounded-xl bg-surface border border-border/40 p-3 grid grid-cols-2 gap-3">
             <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
@@ -1032,6 +934,7 @@ const Relatorios = () => {
             </label>
           </div>
         )}
+
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-3">
           <Kpi
@@ -1219,7 +1122,6 @@ const Relatorios = () => {
         </Section>
 
         {/* Revenue x Expense x Profit timeline */}
-
         <Section title="DESEMPENHO NO PERÍODO">
           {series.length === 0 ? (
             <Empty />
@@ -1565,7 +1467,6 @@ const Kpi = ({
     </div>
   );
 };
-
 
 const Section = ({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) => (
   <section className="rounded-xl bg-surface border border-border/40 p-4 shadow-card">
