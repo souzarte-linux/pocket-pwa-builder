@@ -55,6 +55,38 @@ export type Database = {
           },
         ]
       }
+      card_brand_operators: {
+        Row: {
+          brand_name: string
+          created_at: string
+          id: string
+          operator_id: string
+          user_id: string
+        }
+        Insert: {
+          brand_name: string
+          created_at?: string
+          id?: string
+          operator_id: string
+          user_id: string
+        }
+        Update: {
+          brand_name?: string
+          created_at?: string
+          id?: string
+          operator_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_brand_operators_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "card_operators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       card_operators: {
         Row: {
           card_due_day: number | null
@@ -452,21 +484,45 @@ export type Database = {
       }
       parts_catalog: {
         Row: {
+          brand: string | null
+          category: string | null
           created_at: string
+          default_life_km: number | null
           id: string
+          manufacturer: string | null
+          model: string | null
           name: string
+          notes: string | null
+          sku: string | null
+          unit: string | null
           user_id: string
         }
         Insert: {
+          brand?: string | null
+          category?: string | null
           created_at?: string
+          default_life_km?: number | null
           id?: string
+          manufacturer?: string | null
+          model?: string | null
           name: string
+          notes?: string | null
+          sku?: string | null
+          unit?: string | null
           user_id: string
         }
         Update: {
+          brand?: string | null
+          category?: string | null
           created_at?: string
+          default_life_km?: number | null
           id?: string
+          manufacturer?: string | null
+          model?: string | null
           name?: string
+          notes?: string | null
+          sku?: string | null
+          unit?: string | null
           user_id?: string
         }
         Relationships: []
@@ -539,6 +595,7 @@ export type Database = {
           gender: string | null
           has_bag: boolean | null
           id: string
+          initial_odometer_km: number | null
           last_oil_change_at: string | null
           monthly_goal: number | null
           oil_change_km: number | null
@@ -565,6 +622,7 @@ export type Database = {
           gender?: string | null
           has_bag?: boolean | null
           id: string
+          initial_odometer_km?: number | null
           last_oil_change_at?: string | null
           monthly_goal?: number | null
           oil_change_km?: number | null
@@ -591,6 +649,7 @@ export type Database = {
           gender?: string | null
           has_bag?: boolean | null
           id?: string
+          initial_odometer_km?: number | null
           last_oil_change_at?: string | null
           monthly_goal?: number | null
           oil_change_km?: number | null
