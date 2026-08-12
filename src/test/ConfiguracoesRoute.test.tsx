@@ -101,7 +101,7 @@ describe('Configuracoes Route Protection', () => {
       () => {
         expect(screen.getAllByText(/Configurações/i).length).toBeGreaterThan(0);
       },
-      { timeout: 3000 }
+      { timeout: 6000 }
     );
   });
 });

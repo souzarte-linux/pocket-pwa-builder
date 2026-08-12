@@ -88,8 +88,9 @@ describe('NovaRota - Critical Flow & Validation Tests', () => {
     });
 
     // Check that startKm was pre-filled with 15400
-    const startKmInput = screen.getByDisplayValue('15400') as HTMLInputElement;
-    expect(startKmInput).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('15400')).toBeDefined();
+    });
   });
 
   it('automatically calculates distance when startKm and endKm are entered', async () => {
