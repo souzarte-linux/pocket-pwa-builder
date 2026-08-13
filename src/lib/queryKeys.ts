@@ -52,9 +52,13 @@ export const queryKeys = {
     return ["financial_adjustments", { cycleId: "all" }] as const;
   },
 
+  /** Parts Catalog (Catálogo Centralizado de Peças) */
+  partsCatalog: (userId?: string | null) => ["parts_catalog", userId ?? null] as const,
+
   /** Auxiliary Master Tables */
-  auxiliary: (entity: "companies" | "card_brands" | "card_issuers" | "gas_stations") =>
-    ["auxiliary", entity] as const,
+  auxiliary: (
+    entity: "companies" | "card_brands" | "card_issuers" | "gas_stations" | "parts_catalog"
+  ) => ["auxiliary", entity] as const,
 } as const;
 
 export type QueryKeys = typeof queryKeys;

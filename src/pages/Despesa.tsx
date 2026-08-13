@@ -10,6 +10,7 @@ import { formatBRL, parseCurrencyInput, toLocalInput } from '@/lib/format';
 import { toast } from 'sonner';
 import { CreditCard, QrCode, Banknote, Plus, Trash2, History } from 'lucide-react';
 import { useGasStations } from '@/hooks/queries/useAuxiliary';
+import { usePartsCatalog } from '@/hooks/queries/usePartsCatalog';
 import { useExpenseMutations } from '@/hooks/mutations/useExpenseMutations';
 import { getExpenseById } from '@/api/expenses.api';
 
@@ -62,6 +63,8 @@ const Despesa = () => {
 
   const currentTitleObj = titles[cat] ?? titles.manutencao;
   const navigate = useNavigate();
+
+  const { data: catalogParts = [] } = usePartsCatalog();
 
   const [title, setTitle] = useState('');
   const [vendor, setVendor] = useState('');
@@ -162,11 +165,30 @@ const Despesa = () => {
     }
   }, [cat, editId, isEdit]);
 
-  // sugestão automática de vida útil a partir do nome da peça
+  // sugestão automática de vida útil e metadados a partir do catálogo centralizado de peças
   useEffect(() => {
-    if (cat !== 'manutencao' || lifeTouched) return;
-    setLifeKm(suggestLife(title));
-  }, [title, cat, lifeTouched]);
+    if (cat !== 'manutencao') return;
+    const cleanTitle = title.trim().toLowerCase();
+    if (!cleanTitle) return;
+
+    const matched = catalogParts.find(
+      (cp) => cp.name.toLowerCase() === cleanTitle
+    );
+
+    if (matched) {
+      if (!lifeTouched && matched.default_life_km) {
+        setLifeKm(String(matched.default_life_km));
+      }
+      if (!partBrand && (matched.brand || matched.manufacturer)) {
+        setPartBrand(matched.brand || matched.manufacturer || '');
+      }
+      if (!partModel && matched.model) {
+        setPartModel(matched.model);
+      }
+    } else if (!lifeTouched) {
+      setLifeKm(suggestLife(title));
+    }
+  }, [title, cat, lifeTouched, catalogParts, partBrand, partModel]);
 
   // histórico da mesma peça/serviço (debounced — estado local de busca auxiliar)
   useEffect(() => {
