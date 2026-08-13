@@ -1,20 +1,24 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
-import { MetasFinanceiras } from '@/pages/MetasFinanceiras';
+import { Configuracoes } from '@/pages/Configuracoes';
 import { supabase } from '@/integrations/supabase/client';
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from: vi.fn(),
     auth: {
-      getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-goals' } } }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-config-123' } } }),
     },
   },
 }));
 
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({ user: { id: 'test-user-goals' } }),
+  useAuth: () => ({ user: { id: 'user-config-123' } }),
+}));
+
+vi.mock('@/components/layout/AppHeader', () => ({
+  AppHeader: ({ title }: { title: string }) => <div>{title}</div>,
 }));
 
 vi.mock('sonner', () => ({
@@ -22,10 +26,6 @@ vi.mock('sonner', () => ({
     success: vi.fn(),
     error: vi.fn(),
   },
-}));
-
-vi.mock('@/components/layout/AppHeader', () => ({
-  AppHeader: ({ title }: { title: string }) => <div>{title}</div>,
 }));
 
 function createQueryMock(data: unknown = null) {
@@ -43,51 +43,61 @@ function createQueryMock(data: unknown = null) {
   return mockObj;
 }
 
-describe('MetasFinanceiras Page — Centralização de Metas Financeiras', () => {
+describe('Configuracoes Page — System Settings & Profile Configuration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders title and input fields pre-filled with goals', async () => {
-    const mockData = {
-      daily_goal: 250,
-      weekly_goal: 1500,
-      monthly_goal: 6000,
+  it('renders settings title and form pre-filled with profile data', async () => {
+    const mockProfile = {
+      id: 'user-config-123',
+      full_name: 'Carlos Oliveira',
+      gender: 'masculino',
+      daily_goal: 300,
+      weekly_goal: 1800,
+      monthly_goal: 7000,
+      vehicle: 'moto',
+      vehicle_brand: 'Yamaha',
+      vehicle_model: 'Factor 150',
+      vehicle_year: 2023,
+      plate: 'XYZ9876',
     };
-    vi.mocked(supabase.from).mockReturnValue(createQueryMock(mockData) as any);
+
+    vi.mocked(supabase.from).mockReturnValue(createQueryMock(mockProfile) as any);
 
     render(
       <BrowserRouter>
-        <MetasFinanceiras />
+        <Configuracoes />
       </BrowserRouter>
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText('Metas Financeiras').length).toBeGreaterThan(0);
+      expect(screen.getByText('CONFIGURAÇÕES')).toBeDefined();
+      expect(screen.getByDisplayValue('Carlos Oliveira')).toBeDefined();
     });
   });
 
-  it('allows updating financial goals and submitting the form', async () => {
-    const updateSpy = vi.fn().mockImplementation(() => createQueryMock({ daily_goal: 400, weekly_goal: 2400, monthly_goal: 9000 }));
+  it('submits updated profile settings safely via TanStack Query mutation', async () => {
+    const updateSpy = vi.fn().mockImplementation(() => createQueryMock({ id: 'user-config-123' }));
 
     vi.mocked(supabase.from).mockImplementation(() => {
       return {
-        select: vi.fn().mockReturnValue(createQueryMock({ daily_goal: 250, weekly_goal: 1500, monthly_goal: 6000 })),
+        select: vi.fn().mockReturnValue(createQueryMock({ id: 'user-config-123', full_name: 'Carlos Oliveira' })),
         update: updateSpy,
       } as any;
     });
 
     render(
       <BrowserRouter>
-        <MetasFinanceiras />
+        <Configuracoes />
       </BrowserRouter>
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Salvar')).toBeDefined();
+      expect(screen.getByDisplayValue('Carlos Oliveira')).toBeDefined();
     });
 
-    const submitBtn = screen.getByText('Salvar');
+    const submitBtn = screen.getByText('SALVAR');
     fireEvent.click(submitBtn);
 
     await waitFor(() => {

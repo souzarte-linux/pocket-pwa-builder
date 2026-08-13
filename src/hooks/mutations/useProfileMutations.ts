@@ -21,6 +21,7 @@ export function useProfileMutations() {
         updateProfile(userId, updates),
       onSuccess: (data, variables) => {
         client.invalidateQueries({ queryKey: queryKeys.profile(variables.userId) });
+        client.invalidateQueries({ queryKey: queryKeys.financialGoals(variables.userId) });
         client.invalidateQueries({ queryKey: queryKeys.odometer.current() });
         client.setQueryData(queryKeys.profile(variables.userId), data);
       },
@@ -34,6 +35,7 @@ export function useProfileMutations() {
         upsertProfile(userId, payload),
       onSuccess: (data, variables) => {
         client.invalidateQueries({ queryKey: queryKeys.profile(variables.userId) });
+        client.invalidateQueries({ queryKey: queryKeys.financialGoals(variables.userId) });
         client.invalidateQueries({ queryKey: queryKeys.odometer.current() });
         client.setQueryData(queryKeys.profile(variables.userId), data);
       },

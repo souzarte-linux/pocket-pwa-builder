@@ -59,7 +59,7 @@ describe('Manutencao Page — Módulo Unificado de Manutenção & Trocas de Óle
     );
 
     expect(screen.getByText('MANUTENÇÃO & TROCAS DE ÓLEO')).toBeDefined();
-    expect(screen.getByText('Novo Lançamento de Manutenção')).toBeDefined();
+    expect(screen.getByText('Registrar Nova Troca / Manutenção')).toBeDefined();
   });
 
   it('allows registering a new oil change / part maintenance', async () => {
