@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom"],
+    "allowImportingTsExtensions": true
+  },
+  "imports": {
+    "npm:@lovable.dev/mcp-js@0.26.1": "npm:@lovable.dev/mcp-js@0.26.1",
+    "npm:zod@^4.4.3": "npm:zod@^4.4.3",
+    "npm:@supabase/supabase-js@^2.105.1": "npm:@supabase/supabase-js@^2.105.1"
+  }
+}
