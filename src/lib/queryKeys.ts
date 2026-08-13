@@ -55,9 +55,12 @@ export const queryKeys = {
   /** Parts Catalog (Catálogo Centralizado de Peças) */
   partsCatalog: (userId?: string | null) => ["parts_catalog", userId ?? null] as const,
 
+  /** Card Brand <-> Operator Relations */
+  cardBrandOperators: (userId?: string | null) => ["card_brand_operators", userId ?? null] as const,
+
   /** Auxiliary Master Tables */
   auxiliary: (
-    entity: "companies" | "card_brands" | "card_issuers" | "gas_stations" | "parts_catalog"
+    entity: "companies" | "card_brands" | "card_issuers" | "gas_stations" | "parts_catalog" | "card_brand_operators"
   ) => ["auxiliary", entity] as const,
 } as const;
 

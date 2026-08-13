@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   CreditCard, 
@@ -11,191 +11,126 @@ import {
   Building,
   Check,
   Save,
-  Power
+  Power,
+  Loader2,
+  Building2
 } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useCardBrandOperators } from '@/hooks/queries/useCardBrandOperators';
+import { useCardBrandOperatorMutations } from '@/hooks/mutations/useCardBrandOperatorMutations';
+import { useCardOperators } from '@/hooks/queries/useAuxiliary';
 import { toast } from 'sonner';
 
-interface CardBrand {
+interface CardBrandItem {
   id: string;
   name: string;
   type: 'Crédito' | 'Débito' | 'Voucher / Alimentação' | 'Múltiplo';
-  issuer?: string;
   active: boolean;
 }
 
-const DEFAULT_BRANDS: CardBrand[] = [
-  { id: '1', name: 'Visa', type: 'Múltiplo', issuer: 'Todas as instituições', active: true },
-  { id: '2', name: 'Mastercard', type: 'Múltiplo', issuer: 'Todas as instituições', active: true },
-  { id: '3', name: 'Elo', type: 'Múltiplo', issuer: 'Bancos Brasileiros (Bradesco, BB, Caixa)', active: true },
-  { id: '4', name: 'Hipercard', type: 'Crédito', issuer: 'Itaú Unibanco', active: true },
-  { id: '5', name: 'American Express', type: 'Crédito', issuer: 'Bradesco / Santander', active: true },
-  { id: '6', name: 'Alelo', type: 'Voucher / Alimentação', issuer: 'Alelo Benefícios', active: true },
-  { id: '7', name: 'Ticket', type: 'Voucher / Alimentação', issuer: 'Ticket Serviços', active: true },
-  { id: '8', name: 'VR Benefícios', type: 'Voucher / Alimentação', issuer: 'VR', active: true },
-  { id: '9', name: 'Sodexo / Pluxee', type: 'Voucher / Alimentação', issuer: 'Pluxee', active: false },
+const DEFAULT_BRANDS: CardBrandItem[] = [
+  { id: '1', name: 'Visa', type: 'Múltiplo', active: true },
+  { id: '2', name: 'Mastercard', type: 'Múltiplo', active: true },
+  { id: '3', name: 'Elo', type: 'Múltiplo', active: true },
+  { id: '4', name: 'Hipercard', type: 'Crédito', active: true },
+  { id: '5', name: 'American Express', type: 'Crédito', active: true },
+  { id: '6', name: 'Alelo', type: 'Voucher / Alimentação', active: true },
+  { id: '7', name: 'Ticket', type: 'Voucher / Alimentação', active: true },
+  { id: '8', name: 'VR Benefícios', type: 'Voucher / Alimentação', active: true },
+  { id: '9', name: 'Sodexo / Pluxee', type: 'Voucher / Alimentação', active: false },
+  { id: '10', name: 'Diners Club', type: 'Crédito', active: true },
 ];
-
-const getErrorMessage = (err: unknown): string => {
-  if (err instanceof Error) return err.message;
-  if (typeof err === 'object' && err !== null && 'message' in err) {
-    return String((err as { message: unknown }).message);
-  }
-  return 'Erro inesperado';
-};
 
 export const Bandeiras = () => {
   const navigate = useNavigate();
-  const [brands, setBrands] = useState<CardBrand[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { data: relations = [], isLoading: isRelLoading } = useCardBrandOperators(user?.id);
+  const { data: operators = [], isLoading: isOpsLoading } = useCardOperators(user?.id);
+  const { addBrandToOperator, removeBrandFromOperator } = useCardBrandOperatorMutations(user?.id);
+
+  const [brands, setBrands] = useState<CardBrandItem[]>(DEFAULT_BRANDS);
   const [showAddModal, setShowAddModal] = useState(false);
   const [name, setName] = useState('');
-  const [type, setType] = useState<CardBrand['type']>('Crédito');
-  const [issuer, setIssuer] = useState('');
+  const [type, setType] = useState<CardBrandItem['type']>('Crédito');
 
-  // Edição
-  const [editingItem, setEditingItem] = useState<CardBrand | null>(null);
+  // Modal para associar/gerenciar emissores da bandeira
+  const [editingBrand, setEditingBrand] = useState<CardBrandItem | null>(null);
 
-  const fetchBrands = async () => {
-    setLoading(true);
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
+  // Mapeia para cada bandeira quais emissores a suportam
+  const brandOperatorsMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
 
-      const { data, error } = await supabase
-        .from('card_operators')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-
-      if (data) {
-        setBrands(
-          data.map((row) => ({
-            id: row.id,
-            name: row.name,
-            type: 'Crédito',
-            issuer: 'Emissor Geral',
-            active: true,
-          }))
-        );
+    relations.forEach((r) => {
+      const bKey = r.brand_name.toLowerCase();
+      const opName = r.card_operators?.name;
+      if (opName) {
+        if (!map[bKey]) map[bKey] = [];
+        if (!map[bKey].includes(opName)) map[bKey].push(opName);
       }
-    } catch (err: unknown) {
-      const msg = getErrorMessage(err);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
 
-  useEffect(() => {
-    fetchBrands();
-  }, []);
+    return map;
+  }, [relations]);
 
-  const handleAddBrand = async (e: React.FormEvent) => {
+  const handleAddBrand = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
+    const cleanName = name.trim();
+    if (!cleanName) {
       toast.error('Informe o nome da bandeira de cartão.');
       return;
     }
 
-    const brandName = name.trim();
-    setLoading(true);
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) {
-        toast.error('Usuário não autenticado.');
-        return;
-      }
-
-      const { error } = await supabase
-        .from('card_operators')
-        .insert({
-          user_id: u.user.id,
-          name: brandName,
-        });
-
-      if (error) throw error;
-
-      setShowAddModal(false);
-      setName('');
-      setIssuer('');
-      setType('Crédito');
-      toast.success(`Bandeira "${brandName}" cadastrada com sucesso!`);
-      await fetchBrands();
-    } catch (err: unknown) {
-      const msg = getErrorMessage(err);
-      toast.error(`Erro ao cadastrar bandeira: ${msg}`);
-    } finally {
-      setLoading(false);
+    if (brands.some((b) => b.name.toLowerCase() === cleanName.toLowerCase())) {
+      toast.error('Esta bandeira já está cadastrada.');
+      return;
     }
+
+    const newBrand: CardBrandItem = {
+      id: `b-${Date.now()}`,
+      name: cleanName,
+      type,
+      active: true,
+    };
+
+    setBrands((prev) => [...prev, newBrand]);
+    setShowAddModal(false);
+    setName('');
+    toast.success(`Bandeira "${cleanName}" adicionada com sucesso!`);
   };
 
-  const handleEditBrand = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingItem) return;
-
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('card_operators')
-        .update({
-          name: editingItem.name.trim(),
-        })
-        .eq('id', editingItem.id);
-
-      if (error) throw error;
-
-      setEditingItem(null);
-      toast.success('Bandeira atualizada com sucesso!');
-      await fetchBrands();
-    } catch (err: unknown) {
-      const msg = getErrorMessage(err);
-      toast.error(`Erro ao atualizar bandeira: ${msg}`);
-    } finally {
-      setLoading(false);
+  const toggleBrandIssuerRelation = async (operatorId: string, brandName: string) => {
+    if (!user) {
+      toast.error('Usuário não autenticado.');
+      return;
     }
-  };
 
-  const handleDeleteBrand = async (id: string, brandName: string) => {
-    if (!confirm(`Deseja remover a bandeira "${brandName}"?`)) return;
-
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('card_operators')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast.success('Bandeira removida com sucesso!');
-      await fetchBrands();
-    } catch (err: unknown) {
-      const msg = getErrorMessage(err);
-      toast.error(`Erro ao remover bandeira: ${msg}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleStatus = (id: string) => {
-    setBrands((prev) =>
-      prev.map((b) => {
-        if (b.id === id) {
-          const nextState = !b.active;
-          toast.info(`Bandeira "${b.name}" ${nextState ? 'HABILITADA (Em Uso)' : 'DESABILITADA'}`);
-          return { ...b, active: nextState };
-        }
-        return b;
-      })
+    const existingRel = relations.find(
+      (r) => r.operator_id === operatorId && r.brand_name.toLowerCase() === brandName.toLowerCase()
     );
+
+    try {
+      if (existingRel) {
+        await removeBrandFromOperator({ operatorId, brandName });
+        toast.info(`Associação removida.`);
+      } else {
+        await addBrandToOperator({
+          user_id: user.id,
+          operator_id: operatorId,
+          brand_name: brandName,
+        });
+        toast.success(`Associação adicionada.`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao alterar associação';
+      toast.error(msg);
+    }
   };
 
   return (
     <div className="bg-[#131313] text-[#e5e2e1] min-h-screen font-lexend pb-32">
-      <AppHeader title="BANDEIRAS DE CARTÃO" subtitle="Cartões de Crédito, Débito e Benefícios Cadastrados" back />
+      <AppHeader title="BANDEIRAS DE CARTÃO" subtitle="Bandeiras e Administradoras Suportadas" back />
 
       <main className="px-5 pt-6 max-w-3xl mx-auto space-y-6">
         {/* Banner Superior */}
@@ -205,123 +140,90 @@ export const Bandeiras = () => {
               <CreditCard className="size-7" />
             </div>
             <div>
-              <h2 className="font-extrabold text-lg text-white">Bandeiras Cadastradas</h2>
+              <h2 className="font-extrabold text-lg text-white">Bandeiras Suportadas</h2>
               <p className="text-xs text-[#ab8a7d] font-medium">
-                Utilize os botões Liga/Desliga para habilitar apenas as bandeiras em uso.
+                Visualize as instituições emissoras associadas a cada bandeira de cartão.
               </p>
             </div>
           </div>
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="h-12 px-4 rounded-2xl bg-[#ff5f00] text-black font-extrabold flex items-center justify-center gap-2 shrink-0 hover:bg-[#ffb599] active:scale-95 transition shadow-lg"
+            className="size-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold flex items-center justify-center shrink-0 hover:bg-[#ffb599] active:scale-95 transition shadow-lg"
             title="Cadastrar Nova Bandeira"
           >
-            <Plus className="size-5 stroke-[3]" />
-            <span className="text-xs uppercase">Nova Bandeira</span>
+            <Plus className="size-6 stroke-[3]" />
           </button>
         </div>
 
-        {/* Estado Vazio */}
-        {brands.length === 0 && !loading && (
-          <div className="text-center py-12 px-4 rounded-3xl bg-[#1c1b1b] border-2 border-stone-800 space-y-4">
-            <div className="size-16 rounded-full bg-[#ff5f00]/20 text-[#ff5f00] flex items-center justify-center mx-auto">
-              <CreditCard className="size-8" />
-            </div>
-            <h3 className="font-extrabold text-lg text-white">Nenhuma bandeira cadastrada</h3>
-            <p className="text-xs text-[#ab8a7d] max-w-sm mx-auto">
-              Cadastre suas bandeiras e cartões para organizar seus pagamentos e despesas com cartões.
-            </p>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-6 py-3 bg-[#ff5f00] text-black font-extrabold text-sm uppercase rounded-2xl transition hover:bg-[#ff7a29] active:scale-95 shadow-lg shadow-[#ff5f00]/20"
-            >
-              Cadastrar Primeira Bandeira
-            </button>
-          </div>
-        )}
-
-        {/* Lista de Bandeiras em Grid */}
+        {/* Lista de Bandeiras */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {brands.map((b) => (
-            <div
-              key={b.id}
-              className={`p-5 rounded-3xl border-2 transition-all space-y-4 relative ${
-                b.active
-                  ? 'bg-[#1c1b1b] border-stone-800 hover:border-[#ff5f00]/50'
-                  : 'bg-[#161515] border-stone-900 opacity-60'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-2xl shrink-0 font-extrabold transition-colors ${
-                    b.active ? 'bg-[#ff5f00]/20 text-[#ff5f00]' : 'bg-[#201f1f] text-stone-500'
-                  }`}>
-                    <CreditCard className="size-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-lg text-white">{b.name}</h3>
-                    <p className="text-xs text-[#ab8a7d] font-medium">{b.issuer || 'Emissor Geral'}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setEditingItem(b)}
-                    className="p-2 text-stone-400 hover:text-[#ff5f00] hover:bg-[#ff5f00]/15 rounded-xl transition"
-                    title="Editar Bandeira"
-                  >
-                    <Pencil className="size-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteBrand(b.id, b.name)}
-                    className="p-2 text-stone-500 hover:text-red-400 hover:bg-red-950/40 rounded-xl transition"
-                    title="Remover Bandeira"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Linha Inferior com Tag do Tipo + Botão Liga/Desliga (Toggle Switch) */}
-              <div className="flex items-center justify-between pt-3 border-t border-stone-800/80">
-                <span className="px-3 py-1 rounded-full bg-[#201f1f] text-[#ffb599] font-bold text-xs border border-stone-800">
-                  {b.type}
-                </span>
-
-                {/* Botão Liga / Desliga (Toggle Switch) */}
-                <div className="flex items-center gap-2.5">
-                  <span className={`text-xs font-extrabold uppercase transition-colors ${
-                    b.active ? 'text-[#ff5f00]' : 'text-stone-500'
-                  }`}>
-                    {b.active ? 'Em Uso' : 'Desligado'}
-                  </span>
-
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={b.active}
-                    onClick={() => toggleStatus(b.id)}
-                    className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none shadow-inner ${
-                      b.active ? 'bg-[#ff5f00]' : 'bg-[#353534]'
-                    }`}
-                    title={b.active ? 'Clique para desativar (Desligar)' : 'Clique para ativar (Ligar)'}
-                  >
-                    <span className="sr-only">Habilitar bandeira</span>
-                    <span
-                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-black shadow-md ring-0 transition duration-200 ease-in-out ${
-                        b.active ? 'translate-x-7' : 'translate-x-0 bg-stone-400'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
+          {isRelLoading || isOpsLoading ? (
+            <div className="col-span-2 text-center py-10 text-[#ab8a7d] bg-[#1c1b1b] rounded-3xl border border-stone-800 flex items-center justify-center gap-2">
+              <Loader2 className="size-5 text-[#ff5f00] animate-spin" />
+              <span className="text-xs font-semibold">Carregando bandeiras e associações...</span>
             </div>
-          ))}
+          ) : (
+            brands.map((b) => {
+              const matchedIssuers = brandOperatorsMap[b.name.toLowerCase()] || [];
+
+              return (
+                <div
+                  key={b.id}
+                  className="bg-[#1c1b1b] p-5 rounded-3xl border-2 border-stone-800 hover:border-[#ff5f00]/40 transition space-y-3 shadow-md relative group"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-[#201f1f] text-[#ff5f00] rounded-2xl shrink-0 border border-stone-800">
+                        <CreditCard className="size-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-base text-white">{b.name}</h3>
+                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#201f1f] text-[#ffb599] font-bold text-[10px] uppercase mt-0.5">
+                          {b.type}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setEditingBrand(b)}
+                      className="p-2 text-stone-400 hover:text-[#ff5f00] hover:bg-[#ff5f00]/15 rounded-xl transition"
+                      title="Gerenciar Emissores para esta Bandeira"
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                  </div>
+
+                  {/* Emissores associados */}
+                  <div className="pt-2 border-t border-stone-800/60 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#ab8a7d] uppercase">
+                      <Building2 className="size-3 text-[#ff5f00]" />
+                      Emissores Vinculados ({matchedIssuers.length})
+                    </div>
+
+                    {matchedIssuers.length === 0 ? (
+                      <p className="text-xs text-stone-500 italic">Disponível para todas as instituições</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {matchedIssuers.map((iss) => (
+                          <span
+                            key={iss}
+                            className="px-2 py-0.5 rounded-full bg-[#201f1f] border border-stone-800 text-stone-200 font-bold text-[10px]"
+                          >
+                            {iss}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </main>
 
-      {/* Modal Adicionar Bandeira */}
+      {/* Modal Nova Bandeira */}
       {showAddModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 font-lexend">
           <div className="w-full max-w-md bg-[#1c1b1b] border-2 border-[#ff5f00]/50 rounded-3xl p-6 shadow-2xl space-y-5 text-[#e5e2e1] relative">
@@ -337,8 +239,8 @@ export const Bandeiras = () => {
                 <CreditCard className="size-6" />
               </div>
               <div>
-                <h3 className="font-extrabold text-lg text-white uppercase tracking-tight">Cadastrar Nova Bandeira</h3>
-                <p className="text-xs text-[#ab8a7d]">Informe o nome e categoria da bandeira de cartão.</p>
+                <h3 className="font-extrabold text-lg text-white uppercase tracking-tight">Nova Bandeira</h3>
+                <p className="text-xs text-[#ab8a7d]">Cadastre uma nova bandeira de cartão.</p>
               </div>
             </div>
 
@@ -349,35 +251,24 @@ export const Bandeiras = () => {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Sodexo, Caju, Hiper"
+                  placeholder="Ex: JCB / Discover"
                   className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Tipo do Cartão</label>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Tipo de Operação</label>
                 <select
                   value={type}
-                  onChange={(e) => setType(e.target.value as CardBrand['type'])}
+                  onChange={(e) => setType(e.target.value as CardBrandItem['type'])}
                   className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
                 >
                   <option value="Crédito">Crédito</option>
                   <option value="Débito">Débito</option>
-                  <option value="Voucher / Alimentação">Voucher / Alimentação / Refeição</option>
-                  <option value="Múltiplo">Múltiplo (Crédito & Débito)</option>
+                  <option value="Múltiplo">Múltiplo</option>
+                  <option value="Voucher / Alimentação">Voucher / Alimentação</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Instituição / Emissor (Opcional)</label>
-                <input
-                  type="text"
-                  value={issuer}
-                  onChange={(e) => setIssuer(e.target.value)}
-                  placeholder="Ex: Itaú, Bradesco, Ticket Benefícios"
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
-                />
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -392,7 +283,7 @@ export const Bandeiras = () => {
                   type="submit"
                   className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg"
                 >
-                  Cadastrar Bandeira
+                  Cadastrar
                 </button>
               </div>
             </form>
@@ -400,12 +291,12 @@ export const Bandeiras = () => {
         </div>
       )}
 
-      {/* Modal Editar Bandeira */}
-      {editingItem && (
+      {/* Modal Gerenciar Emissores da Bandeira */}
+      {editingBrand && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 font-lexend">
-          <div className="w-full max-w-md bg-[#1c1b1b] border-2 border-[#ff5f00]/50 rounded-3xl p-6 shadow-2xl space-y-5 text-[#e5e2e1] relative">
+          <div className="w-full max-w-md bg-[#1c1b1b] border-2 border-[#ff5f00]/50 rounded-3xl p-6 shadow-2xl space-y-5 text-[#e5e2e1] relative max-h-[90vh] overflow-y-auto">
             <button
-              onClick={() => setEditingItem(null)}
+              onClick={() => setEditingBrand(null)}
               className="absolute top-4 right-4 p-2 text-[#ab8a7d] hover:text-white rounded-full bg-[#201f1f] transition"
             >
               <X className="size-5" />
@@ -413,67 +304,55 @@ export const Bandeiras = () => {
 
             <div className="flex items-center gap-3">
               <div className="p-3 bg-[#ff5f00]/20 text-[#ff5f00] rounded-2xl shrink-0 font-extrabold">
-                <Pencil className="size-6" />
+                <Building2 className="size-6" />
               </div>
               <div>
-                <h3 className="font-extrabold text-lg text-white uppercase tracking-tight">Editar Bandeira</h3>
-                <p className="text-xs text-[#ab8a7d]">Altere as informações da bandeira selecionada.</p>
+                <h3 className="font-extrabold text-lg text-white uppercase tracking-tight">
+                  Emissores da Bandeira "{editingBrand.name}"
+                </h3>
+                <p className="text-xs text-[#ab8a7d]">Marque quais instituições suportam a bandeira {editingBrand.name}.</p>
               </div>
             </div>
 
-            <form onSubmit={handleEditBrand} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Nome da Bandeira</label>
-                <input
-                  type="text"
-                  value={editingItem.name}
-                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
-                  required
-                />
-              </div>
+            <div className="space-y-3">
+              {operators.length === 0 ? (
+                <p className="text-xs text-[#ab8a7d] text-center py-4">Nenhuma instituição emissora cadastrada.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 max-h-[50vh] overflow-y-auto pr-1">
+                  {operators.map((op) => {
+                    const isLinked = relations.some(
+                      (r) => r.operator_id === op.id && r.brand_name.toLowerCase() === editingBrand.name.toLowerCase()
+                    );
 
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Tipo do Cartão</label>
-                <select
-                  value={editingItem.type}
-                  onChange={(e) => setEditingItem({ ...editingItem, type: e.target.value as CardBrand['type'] })}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
-                >
-                  <option value="Crédito">Crédito</option>
-                  <option value="Débito">Débito</option>
-                  <option value="Voucher / Alimentação">Voucher / Alimentação / Refeição</option>
-                  <option value="Múltiplo">Múltiplo (Crédito & Débito)</option>
-                </select>
-              </div>
+                    return (
+                      <button
+                        key={op.id}
+                        type="button"
+                        onClick={() => toggleBrandIssuerRelation(op.id, editingBrand.name)}
+                        className={`p-3.5 rounded-2xl text-xs font-extrabold text-left transition border flex items-center justify-between ${
+                          isLinked
+                            ? 'bg-[#ff5f00] text-black border-[#ff5f00]'
+                            : 'bg-[#201f1f] text-[#e5e2e1] border-stone-800 hover:border-stone-700'
+                        }`}
+                      >
+                        <span className="truncate">{op.name}</span>
+                        {isLinked && <Check className="size-4 shrink-0 stroke-[3]" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Emissor / Instituição</label>
-                <input
-                  type="text"
-                  value={editingItem.issuer || ''}
-                  onChange={(e) => setEditingItem({ ...editingItem, issuer: e.target.value })}
-                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingItem(null)}
-                  className="flex-1 h-12 rounded-2xl bg-[#201f1f] text-[#e5e2e1] font-bold text-sm hover:bg-[#252424] transition"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg flex items-center justify-center gap-2"
-                >
-                  <Save className="size-4" />
-                  <span>Salvar Alterações</span>
-                </button>
-              </div>
-            </form>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingBrand(null)}
+                className="w-full h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg"
+              >
+                Concluído
+              </button>
+            </div>
           </div>
         </div>
       )}
