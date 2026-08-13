@@ -58,9 +58,12 @@ export const queryKeys = {
   /** Card Brand <-> Operator Relations */
   cardBrandOperators: (userId?: string | null) => ["card_brand_operators", userId ?? null] as const,
 
+  /** Financial Goals (Metas Financeiras) */
+  financialGoals: (userId?: string | null) => ["financial_goals", userId ?? null] as const,
+
   /** Auxiliary Master Tables */
   auxiliary: (
-    entity: "companies" | "card_brands" | "card_issuers" | "gas_stations" | "parts_catalog" | "card_brand_operators"
+    entity: "companies" | "card_brands" | "card_issuers" | "gas_stations" | "parts_catalog" | "card_brand_operators" | "financial_goals"
   ) => ["auxiliary", entity] as const,
 } as const;
 
