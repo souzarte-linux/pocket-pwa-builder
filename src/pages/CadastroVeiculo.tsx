@@ -22,6 +22,7 @@ export const CadastroVeiculo = () => {
     modelo: '',
     ano: '',
     placa: '',
+    odometroInicial: '',
     tanque: '',
     consumo: '',
     trocaOleo: '',
@@ -39,6 +40,7 @@ export const CadastroVeiculo = () => {
         modelo: profile.vehicle_model ?? 'CB 500X',
         ano: profile.vehicle_year ? String(profile.vehicle_year) : '2024',
         placa: profile.plate ?? 'ABC-1234',
+        odometroInicial: profile.initial_odometer_km != null ? String(profile.initial_odometer_km) : '',
         tanque: profile.tank_size_l ? String(profile.tank_size_l) : '17',
         consumo: profile.avg_consumption_kml ? String(profile.avg_consumption_kml) : '25.5',
         trocaOleo: profile.oil_change_km ? String(profile.oil_change_km) : '5000',
@@ -73,11 +75,19 @@ export const CadastroVeiculo = () => {
         return;
       }
 
+      const odoInicialNum = form.odometroInicial ? Number(form.odometroInicial.replace(',', '.')) : null;
+      if (odoInicialNum !== null && (isNaN(odoInicialNum) || odoInicialNum < 0)) {
+        toast.error('O odômetro inicial deve ser um número válido e não negativo.');
+        setLoading(false);
+        return;
+      }
+
       const payload = {
         vehicle_brand: form.marca.trim() || null,
         vehicle_model: form.modelo.trim() || null,
         vehicle_year: form.ano ? Number(form.ano) : null,
         plate: form.placa.trim().toUpperCase() || null,
+        initial_odometer_km: odoInicialNum,
         tank_size_l: form.tanque ? Number(form.tanque.replace(',', '.')) : null,
         avg_consumption_kml: form.consumo ? Number(form.consumo.replace(',', '.')) : null,
         oil_change_km: form.trocaOleo ? Number(form.trocaOleo.replace(',', '.')) : null,
@@ -212,7 +222,19 @@ export const CadastroVeiculo = () => {
               <span className="material-symbols-outlined text-2xl">settings_suggest</span>
               <h2 className="text-xl font-semibold text-white">Especificações Técnicas</h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Odômetro Inicial (KM)</label>
+                <input
+                  value={form.odometroInicial}
+                  onChange={(e) => setField('odometroInicial', e.target.value)}
+                  className="bg-[#201f1f] border border-[#333333] rounded-full px-4 py-2.5 text-white placeholder-[#393939] outline-none focus:ring-2 focus:ring-[#ff5f00]/40 transition-all text-sm"
+                  placeholder="Ex: 85000"
+                  type="number"
+                  min="0"
+                  step="any"
+                />
+              </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs uppercase font-medium tracking-wider text-[#e4bfb1] px-3">Capacidade do Tanque (L)</label>
                 <input

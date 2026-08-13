@@ -2,11 +2,30 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Calculates the current real odometer reading for the vehicle.
- * Rule: MAX(routes.end_km, expenses.odometer_km, oil_changes.km_at_change)
+ * Rule: MAX(profiles.initial_odometer_km, routes.end_km, expenses.odometer_km, oil_changes.km_at_change)
  * Strict Requirement: If no reading exists or max <= 0, returns null (NEVER a fake fallback like 45.000).
  */
 export async function getCurrentOdometer(userId?: string): Promise<number | null> {
   try {
+    const fetchProfileInitial = async () => {
+      try {
+        const fromProfile = supabase.from("profiles");
+        if (!fromProfile || typeof fromProfile.select !== "function") return 0;
+        let q = fromProfile.select("initial_odometer_km");
+        if (userId && typeof (q as any)?.eq === "function") {
+          q = (q as any).eq("id", userId);
+        }
+        if (typeof (q as any)?.limit === "function") {
+          q = (q as any).limit(1);
+        }
+        const res = await q;
+        const val = res?.data?.[0]?.initial_odometer_km;
+        return val != null ? Number(val) : 0;
+      } catch {
+        return 0;
+      }
+    };
+
     const fetchExp = async () => {
       try {
         const fromExp = supabase.from("expenses");
@@ -79,13 +98,15 @@ export async function getCurrentOdometer(userId?: string): Promise<number | null
       }
     };
 
-    const [odoExp, odoOil, odoRoute] = await Promise.all([
+    const [odoInitial, odoExp, odoOil, odoRoute] = await Promise.all([
+      fetchProfileInitial(),
       fetchExp(),
       fetchOil(),
       fetchRoute(),
     ]);
 
     const maxReading = Math.max(
+      isNaN(odoInitial) ? 0 : odoInitial,
       isNaN(odoExp) ? 0 : odoExp,
       isNaN(odoOil) ? 0 : odoOil,
       isNaN(odoRoute) ? 0 : odoRoute

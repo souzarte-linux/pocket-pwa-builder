@@ -34,8 +34,73 @@ describe("odometer.api - Vehicle Odometer Calculation", () => {
     expect(odo).toBeNull();
   });
 
-  it("calculates MAX correctly between expenses, oil_changes and routes", async () => {
+  // Cenário A — Veículo novo com apenas initial_odometer_km
+  it("Cenário A: returns initial_odometer_km for new vehicle with no other readings", async () => {
     vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "profiles") {
+        return createQueryMock([{ initial_odometer_km: 10000 }]) as any;
+      }
+      return createQueryMock([]) as any;
+    });
+
+    const odo = await getCurrentOdometer("user-1");
+    expect(odo).toBe(10000);
+  });
+
+  // Cenário B — Rotas superiores ao odômetro inicial
+  it("Cenário B: returns routes.end_km when it is greater than initial_odometer_km", async () => {
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "profiles") {
+        return createQueryMock([{ initial_odometer_km: 10000 }]) as any;
+      }
+      if (table === "routes") {
+        return createQueryMock([{ end_km: 12000 }]) as any;
+      }
+      return createQueryMock([]) as any;
+    });
+
+    const odo = await getCurrentOdometer("user-1");
+    expect(odo).toBe(12000);
+  });
+
+  // Cenário C — Despesa superior ao odômetro inicial
+  it("Cenário C: returns expenses.odometer_km when it is greater than initial_odometer_km", async () => {
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "profiles") {
+        return createQueryMock([{ initial_odometer_km: 10000 }]) as any;
+      }
+      if (table === "expenses") {
+        return createQueryMock([{ odometer_km: 13000 }]) as any;
+      }
+      return createQueryMock([]) as any;
+    });
+
+    const odo = await getCurrentOdometer("user-1");
+    expect(odo).toBe(13000);
+  });
+
+  // Cenário D — Troca de óleo superior ao odômetro inicial
+  it("Cenário D: returns oil_changes.km_at_change when it is greater than initial_odometer_km", async () => {
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "profiles") {
+        return createQueryMock([{ initial_odometer_km: 10000 }]) as any;
+      }
+      if (table === "oil_changes") {
+        return createQueryMock([{ km_at_change: 14000 }]) as any;
+      }
+      return createQueryMock([]) as any;
+    });
+
+    const odo = await getCurrentOdometer("user-1");
+    expect(odo).toBe(14000);
+  });
+
+  // Cenário E — Mistura de fontes: calcula o MAX correto entre todas as 4 fontes
+  it("Cenário E: calculates MAX correctly across initial_odometer_km, expenses, oil_changes and routes", async () => {
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "profiles") {
+        return createQueryMock([{ initial_odometer_km: 10000 }]) as any;
+      }
       if (table === "expenses") {
         return createQueryMock([{ odometer_km: 15000 }]) as any;
       }
@@ -50,6 +115,22 @@ describe("odometer.api - Vehicle Odometer Calculation", () => {
 
     const odo = await getCurrentOdometer("user-1");
     expect(odo).toBe(18500);
+  });
+
+  // Cenário F — Veículo legado (initial_odometer_km = null)
+  it("Cenário F: works properly for legacy vehicles where initial_odometer_km is null", async () => {
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "profiles") {
+        return createQueryMock([{ initial_odometer_km: null }]) as any;
+      }
+      if (table === "routes") {
+        return createQueryMock([{ end_km: 8450 }]) as any;
+      }
+      return createQueryMock([]) as any;
+    });
+
+    const odo = await getCurrentOdometer("user-1");
+    expect(odo).toBe(8450);
   });
 
   it("never returns fake 45.000 KM on error or empty data", async () => {
