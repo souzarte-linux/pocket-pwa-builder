@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Field, Input, TextArea, SubmitButton } from '@/components/forms/Form';
 import { formatPhoneMask, formatCepMask, formatCnpjMask, validateCNPJ, unformatPhone } from '@/lib/format';
 import { supabase } from '@/integrations/supabase/client';
+import { queryKeys } from '@/lib/queryKeys';
+import { queryClient } from '@/lib/queryClient';
 import { MessageCircle, Share, Building2, MapPin, FileText, Globe, Search, Loader2, Hash, FileEdit } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -148,6 +150,7 @@ export const CompanyDialog: React.FC<CompanyDialogProps> = ({
       }
 
       toast.success(isDuplicate ? 'Empresa selecionada!' : 'Empresa cadastrada!');
+      queryClient.invalidateQueries({ queryKey: queryKeys.auxiliary('companies') });
       onCompanyCreated(cleanName);
       onOpenChange(false);
 

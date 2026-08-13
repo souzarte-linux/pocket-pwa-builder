@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   getCompanies,
   createCompany,
+  updateCompany,
+  deleteCompany,
   getCardOperators,
   createCardOperator,
   updateCardOperator,
@@ -50,12 +52,21 @@ describe("auxiliary.api - Master Auxiliary Tables Layer", () => {
       expect(res).toEqual(mockList);
     });
 
-    it("createCompany inserts and returns new company", async () => {
-      const mockItem = { id: "c2", name: "Empresa Nova", user_id: "u1" };
+    it("updateCompany updates and returns company", async () => {
+      const mockItem = { id: "c1", name: "Empresa Atualizada", user_id: "u1" };
       vi.mocked(supabase.from).mockReturnValue(createQueryMock(mockItem) as any);
 
-      const res = await createCompany({ name: "Empresa Nova", user_id: "u1" });
+      const res = await updateCompany("c1", { name: "Empresa Atualizada" });
       expect(res).toEqual(mockItem);
+    });
+
+    it("deleteCompany deletes company by id", async () => {
+      const mockObj = createQueryMock();
+      vi.mocked(supabase.from).mockReturnValue(mockObj as any);
+
+      await expect(deleteCompany("c1")).resolves.toBeUndefined();
+      expect(mockObj.delete).toHaveBeenCalled();
+      expect(mockObj.eq).toHaveBeenCalledWith("id", "c1");
     });
   });
 

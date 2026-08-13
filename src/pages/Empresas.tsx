@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useMemo } from 'react';
 import { 
   Building2, 
   Wrench, 
@@ -10,22 +9,23 @@ import {
   Trash2, 
   Phone, 
   MapPin, 
-  CheckCircle2, 
   X, 
   Search,
   Save,
   ShoppingBag,
   Store,
   SlidersHorizontal,
-  ArrowUpDown,
-  Filter,
   RotateCcw,
   Check,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useCompanies } from '@/hooks/queries/useCompanies';
+import { useCompanyMutations } from '@/hooks/mutations/useCompanyMutations';
 import { toast } from 'sonner';
 import { formatPhoneMask, unformatPhone } from '@/lib/format';
 
@@ -37,6 +37,7 @@ interface EmpresaItem {
   address?: string;
   total_services?: number;
   last_service_date?: string;
+  cnpj?: string;
 }
 
 const DEFAULT_CATEGORIES = [
@@ -46,54 +47,6 @@ const DEFAULT_CATEGORIES = [
   'Peças & Acessórios',
   'Posto de Combustível',
 ].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-
-const DEFAULT_EMPRESAS: EmpresaItem[] = [
-  {
-    id: 'emp-1',
-    name: 'Auto Elétrica & Mecânica Silva',
-    category: 'Oficina Mecânica',
-    phone: '11987654321',
-    address: 'Av. das Nações Unidas, 1200 - SP',
-    total_services: 4,
-    last_service_date: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'emp-2',
-    name: 'Restaurante & Churrascaria Motoqueiro',
-    category: 'Alimentação / Restaurante',
-    phone: '11976543210',
-    address: 'Rua Vergueiro, 450 - SP',
-    total_services: 12,
-    last_service_date: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'emp-3',
-    name: 'Posto Shell Express Central',
-    category: 'Posto de Combustível',
-    phone: '1133445566',
-    address: 'Av. Paulista, 800 - SP',
-    total_services: 18,
-    last_service_date: new Date().toISOString(),
-  },
-  {
-    id: 'emp-4',
-    name: 'MotoPeças & Pneus Fast',
-    category: 'Peças & Acessórios',
-    phone: '11912345678',
-    address: 'Rua Clélia, 310 - SP',
-    total_services: 3,
-    last_service_date: new Date(Date.now() - 15 * 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'emp-5',
-    name: 'Oficina MotoCenter Revisões',
-    category: 'Oficina Mecânica',
-    phone: '11998877665',
-    address: 'Rua Conselheiro Nébias, 190 - SP',
-    total_services: 6,
-    last_service_date: new Date(Date.now() - 8 * 24 * 3600 * 1000).toISOString(),
-  },
-];
 
 // Componente para Card Deslizável (Swipe Right = Editar, Swipe Left = Excluir)
 interface SwipeableCardProps {
@@ -131,7 +84,6 @@ const SwipeableEmpresaCard: React.FC<SwipeableCardProps> = ({
     if (Math.abs(diff) > 10) {
       hasSwipedRef.current = true;
     }
-    // Limita a distância visual do deslize
     const clamped = Math.max(-140, Math.min(140, diff));
     setTranslateX(clamped);
   };
@@ -140,23 +92,18 @@ const SwipeableEmpresaCard: React.FC<SwipeableCardProps> = ({
     if (!isSwiping) return;
     setIsSwiping(false);
     const diff = currentXRef.current - startXRef.current;
-
-    // Reseta o deslocamento visual do card
     setTranslateX(0);
 
     if (diff > 45) {
-      // Deslize da Esquerda para a Direita -> ENTRAR EM MODO DE EDIÇÃO DO REGISTRO
       hasSwipedRef.current = true;
       onEdit(emp);
     } else if (diff < -45) {
-      // Deslize da Direita para a Esquerda -> EXCLUIR REGISTRO
       hasSwipedRef.current = true;
       onDelete(emp.id, emp.name);
     }
   };
 
-  const handleClick = (e: React.MouseEvent) => {
-    // Só entra no modo de visualização se NÃO houve gesto de deslizar (swipe)
+  const handleClick = () => {
     if (!hasSwipedRef.current) {
       onView(emp);
     }
@@ -259,8 +206,10 @@ const SwipeableEmpresaCard: React.FC<SwipeableCardProps> = ({
 };
 
 export const Empresas = () => {
-  const navigate = useNavigate();
-  const [empresas, setEmpresas] = useState<EmpresaItem[]>(DEFAULT_EMPRESAS);
+  const { user } = useAuth();
+  const { data: dbCompanies = [], isLoading, isError, refetch } = useCompanies(user?.id);
+  const { createCompany, updateCompany, deleteCompany, isCreating, isUpdating } = useCompanyMutations();
+
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [filterCategory, setFilterCategory] = useState<string>('Todas');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -284,95 +233,90 @@ export const Empresas = () => {
   const [viewingItem, setViewingItem] = useState<EmpresaItem | null>(null);
   const [editingItem, setEditingItem] = useState<EmpresaItem | null>(null);
 
-  useEffect(() => {
-    // Carregar oficinas e estabelecimentos dos históricos de despesas e manutenção
-    (async () => {
-      try {
-        const { data: u } = await supabase.auth.getUser();
-        if (!u.user) return;
+  // Mapeia registros reais de public.companies para EmpresaItem
+  const empresas: EmpresaItem[] = useMemo(() => {
+    return dbCompanies.map((c) => {
+      const fullAddr = [c.address, c.number, c.complement, c.cep].filter(Boolean).join(', ') || c.address || undefined;
+      return {
+        id: c.id,
+        name: c.name,
+        category: c.category || 'Outros',
+        phone: c.phone || undefined,
+        address: fullAddr,
+        cnpj: c.cnpj || undefined,
+        last_service_date: c.created_at,
+        total_services: 1,
+      };
+    });
+  }, [dbCompanies]);
 
-        const { data: oilData } = await supabase
-          .from('oil_changes')
-          .select('notes, changed_at')
-          .eq('user_id', u.user.id);
+  // Atualiza categorias dinamicamente com as categorias existentes no banco
+  useMemo(() => {
+    const existingCats = dbCompanies.map((c) => c.category).filter((cat): cat is string => Boolean(cat));
+    const merged = Array.from(new Set([...DEFAULT_CATEGORIES, ...existingCats])).sort((a, b) =>
+      a.localeCompare(b, 'pt-BR')
+    );
+    setCategories(merged);
+  }, [dbCompanies]);
 
-        if (oilData && oilData.length > 0) {
-          // Extrai nomes de empresas/oficinas de observações
-          const extracted: EmpresaItem[] = [...DEFAULT_EMPRESAS];
-          oilData.forEach((row, idx: number) => {
-            if (row.notes && row.notes.includes('(') && row.notes.includes(')')) {
-              const matches = row.notes.match(/\(([^)]+)\)/);
-              if (matches && matches[1]) {
-                const compName = matches[1].trim();
-                if (!extracted.some((e) => e.name.toLowerCase() === compName.toLowerCase())) {
-                  extracted.push({
-                    id: `ext-${idx}`,
-                    name: compName,
-                    category: 'Oficina Mecânica',
-                    phone: '11900000000',
-                    address: 'Endereço registrado via manutenção',
-                    total_services: 1,
-                    last_service_date: row.changed_at,
-                  });
-                }
-              }
-            }
-          });
-          setEmpresas(extracted);
-        }
-      } catch (err) {
-        console.error('Erro ao carregar empresas:', err);
-      }
-    })();
-  }, []);
-
-  const handleAddEmpresa = (e: React.FormEvent) => {
+  const handleAddEmpresa = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       toast.error('Informe o nome da prestadora de serviços.');
       return;
     }
 
+    if (!user) {
+      toast.error('Usuário não autenticado.');
+      return;
+    }
+
     const rawDigits = unformatPhone(phone);
 
-    const newEmpresa: EmpresaItem = {
-      id: `emp-${Date.now()}`,
-      name: name.trim(),
-      category,
-      phone: rawDigits || undefined,
-      address: address.trim() || undefined,
-      total_services: 1,
-      last_service_date: new Date().toISOString(),
-    };
+    try {
+      await createCompany({
+        user_id: user.id,
+        name: name.trim(),
+        category,
+        phone: rawDigits || null,
+        address: address.trim() || null,
+      });
 
-    setEmpresas((prev) => [newEmpresa, ...prev]);
-    setShowAddModal(false);
-    setName('');
-    setPhone('');
-    setAddress('');
-    setCategory('Oficina Mecânica');
-    toast.success(`Prestadora de serviço "${newEmpresa.name}" cadastrada!`);
+      setShowAddModal(false);
+      setName('');
+      setPhone('');
+      setAddress('');
+      setCategory('Oficina Mecânica');
+      toast.success(`Prestadora de serviço "${name.trim()}" cadastrada!`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao salvar';
+      toast.error(`Erro ao cadastrar empresa: ${msg}`);
+    }
   };
 
-  const handleEditEmpresa = (e: React.FormEvent) => {
+  const handleEditEmpresa = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
 
-    // Quando for armazenado no banco de dados, é enviada apenas a numeração (SEM a máscara)
-    const rawDigits = editingItem.phone ? unformatPhone(editingItem.phone) : undefined;
-    const updatedItem: EmpresaItem = {
-      ...editingItem,
-      name: editingItem.name.trim(),
-      phone: rawDigits || undefined,
-      address: editingItem.address ? editingItem.address.trim() : undefined,
-    };
+    const rawDigits = editingItem.phone ? unformatPhone(editingItem.phone) : null;
 
-    setEmpresas((prev) =>
-      prev.map((eItem) => (eItem.id === editingItem.id ? updatedItem : eItem))
-    );
+    try {
+      await updateCompany({
+        id: editingItem.id,
+        payload: {
+          name: editingItem.name.trim(),
+          category: editingItem.category,
+          phone: rawDigits,
+          address: editingItem.address ? editingItem.address.trim() : null,
+        },
+      });
 
-    setEditingItem(null);
-    toast.success('Informações da empresa atualizadas!');
+      setEditingItem(null);
+      toast.success('Informações da empresa atualizadas!');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao atualizar';
+      toast.error(`Erro ao atualizar empresa: ${msg}`);
+    }
   };
 
   const handleAddCategory = (e: React.FormEvent) => {
@@ -403,10 +347,15 @@ export const Empresas = () => {
     toast.success(`Nova categoria "${trimmed}" adicionada com sucesso!`);
   };
 
-  const handleDeleteEmpresa = (id: string, empName: string) => {
+  const handleDeleteEmpresa = async (id: string, empName: string) => {
     if (!confirm(`Deseja remover "${empName}"?`)) return;
-    setEmpresas((prev) => prev.filter((eItem) => eItem.id !== id));
-    toast.success('Prestadora de serviços removida.');
+    try {
+      await deleteCompany(id);
+      toast.success('Prestadora de serviços removida.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao remover';
+      toast.error(`Erro ao remover empresa: ${msg}`);
+    }
   };
 
   const handleResetFilters = () => {
@@ -426,40 +375,42 @@ export const Empresas = () => {
     onlyWithAddress;
 
   // Filtragem e Ordenação da Lista de Empresas
-  const filteredList = empresas
-    .filter((emp) => {
-      const matchesCat = filterCategory === 'Todas' || emp.category === filterCategory;
-      const matchesSearch =
-        !searchTerm.trim() ||
-        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (emp.address && emp.address.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredList = useMemo(() => {
+    return empresas
+      .filter((emp) => {
+        const matchesCat = filterCategory === 'Todas' || emp.category === filterCategory;
+        const matchesSearch =
+          !searchTerm.trim() ||
+          emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          emp.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (emp.address && emp.address.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      const matchesAddress =
-        !filterAddress.trim() ||
-        (emp.address && emp.address.toLowerCase().includes(filterAddress.toLowerCase()));
+        const matchesAddress =
+          !filterAddress.trim() ||
+          (emp.address && emp.address.toLowerCase().includes(filterAddress.toLowerCase()));
 
-      const matchesOnlyAddress = !onlyWithAddress || Boolean(emp.address && emp.address.trim());
+        const matchesOnlyAddress = !onlyWithAddress || Boolean(emp.address && emp.address.trim());
 
-      return matchesCat && matchesSearch && matchesAddress && matchesOnlyAddress;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'name-asc') {
-        return a.name.localeCompare(b.name, 'pt-BR');
-      }
-      if (sortBy === 'name-desc') {
-        return b.name.localeCompare(a.name, 'pt-BR');
-      }
-      if (sortBy === 'services-desc') {
-        return (b.total_services ?? 0) - (a.total_services ?? 0);
-      }
-      if (sortBy === 'recent') {
-        const dateA = a.last_service_date ? new Date(a.last_service_date).getTime() : 0;
-        const dateB = b.last_service_date ? new Date(b.last_service_date).getTime() : 0;
-        return dateB - dateA;
-      }
-      return 0;
-    });
+        return matchesCat && matchesSearch && matchesAddress && matchesOnlyAddress;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'name-asc') {
+          return a.name.localeCompare(b.name, 'pt-BR');
+        }
+        if (sortBy === 'name-desc') {
+          return b.name.localeCompare(a.name, 'pt-BR');
+        }
+        if (sortBy === 'services-desc') {
+          return (b.total_services ?? 0) - (a.total_services ?? 0);
+        }
+        if (sortBy === 'recent') {
+          const dateA = a.last_service_date ? new Date(a.last_service_date).getTime() : 0;
+          const dateB = b.last_service_date ? new Date(b.last_service_date).getTime() : 0;
+          return dateB - dateA;
+        }
+        return 0;
+      });
+  }, [empresas, filterCategory, searchTerm, filterAddress, onlyWithAddress, sortBy]);
 
   const getCategoryIcon = (cat: EmpresaItem['category']) => {
     switch (cat) {
@@ -534,8 +485,6 @@ export const Empresas = () => {
             </button>
           </div>
 
-
-
           {/* Dica de Uso com Deslize (Slide Gesture) */}
           <div className="flex flex-col items-center justify-center text-center text-xs py-1 space-y-1 font-bold">
             <span className="text-[#ffb599] flex items-center justify-center gap-1.5">
@@ -549,33 +498,70 @@ export const Empresas = () => {
           </div>
         </div>
 
+        {/* Estado de Carregamento */}
+        {isLoading && (
+          <div className="text-center py-12 text-[#ab8a7d] bg-[#1c1b1b] rounded-3xl border border-stone-800 flex flex-col items-center justify-center gap-3">
+            <Loader2 className="size-8 text-[#ff5f00] animate-spin" />
+            <p className="text-sm font-semibold">Carregando prestadoras de serviços...</p>
+          </div>
+        )}
+
+        {/* Estado de Erro */}
+        {isError && (
+          <div className="text-center py-10 text-[#ab8a7d] bg-[#1c1b1b] rounded-3xl border border-red-900/40 p-6 space-y-3">
+            <AlertCircle className="size-8 text-red-400 mx-auto" />
+            <p className="text-sm font-semibold text-white">Falha ao carregar prestadoras de serviços.</p>
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-[#ff5f00] text-black font-extrabold text-xs rounded-xl hover:bg-[#ffb599] transition"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
         {/* Lista de Empresas (com Função Slide / Touch Swipe) */}
-        <div className="space-y-4">
-          {filteredList.length === 0 ? (
-            <div className="text-center py-10 text-[#ab8a7d] bg-[#1c1b1b] rounded-3xl border border-stone-800 space-y-2">
-              <p className="text-sm font-semibold">Nenhuma prestadora de serviços encontrada.</p>
-              {isFilterActive && (
-                <button
-                  onClick={handleResetFilters}
-                  className="text-xs text-[#ff5f00] font-bold underline hover:text-[#ffb599]"
-                >
-                  Limpar todos os filtros
-                </button>
-              )}
-            </div>
-          ) : (
-            filteredList.map((emp) => (
-              <SwipeableEmpresaCard
-                key={emp.id}
-                emp={emp}
-                onView={setViewingItem}
-                onEdit={setEditingItem}
-                onDelete={handleDeleteEmpresa}
-                getCategoryIcon={getCategoryIcon}
-              />
-            ))
-          )}
-        </div>
+        {!isLoading && !isError && (
+          <div className="space-y-4">
+            {filteredList.length === 0 ? (
+              <div className="text-center py-12 text-[#ab8a7d] bg-[#1c1b1b] rounded-3xl border border-stone-800 space-y-4 p-6">
+                <Building2 className="size-10 text-stone-600 mx-auto" />
+                <p className="text-sm font-semibold text-white">
+                  {empresas.length === 0
+                    ? 'Nenhuma prestadora de serviços cadastrada ainda.'
+                    : 'Nenhuma prestadora encontrada com os filtros selecionados.'}
+                </p>
+                {isFilterActive && empresas.length > 0 ? (
+                  <button
+                    onClick={handleResetFilters}
+                    className="text-xs text-[#ff5f00] font-bold underline hover:text-[#ffb599]"
+                  >
+                    Limpar todos os filtros
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="px-5 py-3 bg-[#ff5f00] text-black font-extrabold text-xs rounded-2xl hover:bg-[#ffb599] transition shadow-lg inline-flex items-center gap-2"
+                  >
+                    <Plus className="size-4 stroke-[3]" />
+                    <span>Cadastrar Primeira Prestadora</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              filteredList.map((emp) => (
+                <SwipeableEmpresaCard
+                  key={emp.id}
+                  emp={emp}
+                  onView={setViewingItem}
+                  onEdit={setEditingItem}
+                  onDelete={handleDeleteEmpresa}
+                  getCategoryIcon={getCategoryIcon}
+                />
+              ))
+            )}
+          </div>
+        )}
       </main>
 
       {/* Modal de Filtros Avançados e Ordenação */}
@@ -785,9 +771,11 @@ export const Empresas = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg"
+                  disabled={isCreating}
+                  className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg flex items-center justify-center gap-2"
                 >
-                  Cadastrar
+                  {isCreating ? <Loader2 className="size-4 animate-spin" /> : null}
+                  <span>{isCreating ? 'Cadastrando...' : 'Cadastrar'}</span>
                 </button>
               </div>
             </form>
@@ -884,10 +872,11 @@ export const Empresas = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={isUpdating}
                   className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg flex items-center justify-center gap-2"
                 >
-                  <Save className="size-4" />
-                  <span>Salvar Alterações</span>
+                  {isUpdating ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                  <span>{isUpdating ? 'Salvando...' : 'Salvar Alterações'}</span>
                 </button>
               </div>
             </form>
@@ -899,7 +888,6 @@ export const Empresas = () => {
       {viewingItem && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 font-lexend">
           <div className="w-full max-w-md bg-[#1c1b1b] border-2 border-[#ff5f00]/50 rounded-3xl p-6 shadow-2xl space-y-6 text-[#e5e2e1] relative">
-            
             {/* Cabeçalho do Modal: Título, Categoria e Botão de Edição no Topo */}
             <div className="flex items-start justify-between gap-4 pb-4 border-b border-stone-800">
               <div className="flex items-center gap-3">
@@ -980,29 +968,6 @@ export const Empresas = () => {
                   </span>
                 </div>
               </div>
-
-              {/* Resumo de Serviços e Histórico */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
-                  <span className="text-[10px] font-extrabold text-[#ab8a7d] uppercase block mb-0.5">
-                    Total de Serviços
-                  </span>
-                  <span className="text-lg font-extrabold text-[#ffb599]">
-                    {viewingItem.total_services ?? 1}x realizados
-                  </span>
-                </div>
-
-                <div className="bg-[#201f1f] p-3.5 rounded-2xl border border-stone-800">
-                  <span className="text-[10px] font-extrabold text-[#ab8a7d] uppercase block mb-0.5">
-                    Último Serviço
-                  </span>
-                  <span className="text-xs font-bold text-white mt-1 block truncate">
-                    {viewingItem.last_service_date
-                      ? new Date(viewingItem.last_service_date).toLocaleDateString('pt-BR')
-                      : 'Recente'}
-                  </span>
-                </div>
-              </div>
             </div>
 
             {/* Ações do Rodapé */}
@@ -1027,7 +992,6 @@ export const Empresas = () => {
                 <span>Alterar Dados</span>
               </button>
             </div>
-
           </div>
         </div>
       )}

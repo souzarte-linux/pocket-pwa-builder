@@ -31,9 +31,34 @@ export function useCompanyMutations() {
     client
   );
 
+  const updateMutation = useMutation(
+    {
+      mutationFn: ({ id, payload }: { id: string; payload: TablesUpdate<"companies"> }) =>
+        updateCompany(id, payload),
+      onSuccess: () => {
+        client.invalidateQueries({ queryKey: queryKeys.auxiliary("companies") });
+      },
+    },
+    client
+  );
+
+  const deleteMutation = useMutation(
+    {
+      mutationFn: (id: string) => deleteCompany(id),
+      onSuccess: () => {
+        client.invalidateQueries({ queryKey: queryKeys.auxiliary("companies") });
+      },
+    },
+    client
+  );
+
   return {
     createCompany: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
+    updateCompany: updateMutation.mutateAsync,
+    isUpdating: updateMutation.isPending,
+    deleteCompany: deleteMutation.mutateAsync,
+    isDeleting: deleteMutation.isPending,
   };
 }
 

@@ -36,6 +36,25 @@ export async function createCompany(
   return data;
 }
 
+export async function updateCompany(
+  id: string,
+  payload: TablesUpdate<"companies">
+): Promise<Tables<"companies">> {
+  const { data, error } = await (supabase.from("companies") as any)
+    .update(payload)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteCompany(id: string): Promise<void> {
+  const { error } = await supabase.from("companies").delete().eq("id", id);
+  if (error) throw error;
+}
+
 /**
  * Card Operators / Brands API
  */
