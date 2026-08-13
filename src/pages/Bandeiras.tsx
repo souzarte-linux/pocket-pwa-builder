@@ -55,7 +55,7 @@ export const Bandeiras = () => {
   const [name, setName] = useState('');
   const [type, setType] = useState<CardBrandItem['type']>('Crédito');
 
-  // Modal para associar/gerenciar emissores da bandeira
+  // Modal para editar detalhes / emissores da bandeira
   const [editingBrand, setEditingBrand] = useState<CardBrandItem | null>(null);
 
   // Mapeia para cada bandeira quais emissores a suportam
@@ -74,7 +74,7 @@ export const Bandeiras = () => {
     return map;
   }, [relations]);
 
-  const handleAddBrand = (e: React.FormEvent) => {
+  const handleAddBrand = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanName = name.trim();
     if (!cleanName) {
@@ -87,8 +87,18 @@ export const Bandeiras = () => {
       return;
     }
 
+    let createdId = `b-${Date.now()}`;
+    if (user) {
+      const { data, error } = await supabase
+        .from('card_operators')
+        .insert({ user_id: user.id, name: cleanName } as any)
+        .select()
+        .single();
+      if (!error && data) createdId = data.id;
+    }
+
     const newBrand: CardBrandItem = {
-      id: `b-${Date.now()}`,
+      id: createdId,
       name: cleanName,
       type,
       active: true,
@@ -98,6 +108,42 @@ export const Bandeiras = () => {
     setShowAddModal(false);
     setName('');
     toast.success(`Bandeira "${cleanName}" adicionada com sucesso!`);
+  };
+
+  const handleEditBrandSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBrand) return;
+
+    const cleanName = editingBrand.name.trim();
+    if (!cleanName) {
+      toast.error('Informe o nome da bandeira.');
+      return;
+    }
+
+    if (user && !editingBrand.id.startsWith('b-')) {
+      await supabase
+        .from('card_operators')
+        .update({ name: cleanName } as any)
+        .eq('id', editingBrand.id);
+    }
+
+    setBrands((prev) =>
+      prev.map((b) => (b.id === editingBrand.id ? { ...editingBrand, name: cleanName } : b))
+    );
+
+    setEditingBrand(null);
+    toast.success('Bandeira atualizada com sucesso!');
+  };
+
+  const handleDeleteBrand = async (id: string, brandName: string) => {
+    if (!confirm(`Deseja remover a bandeira "${brandName}"?`)) return;
+
+    if (user && !id.startsWith('b-')) {
+      await supabase.from('card_operators').delete().eq('id', id);
+    }
+
+    setBrands((prev) => prev.filter((b) => b.id !== id));
+    toast.success('Bandeira removida com sucesso!');
   };
 
   const toggleBrandIssuerRelation = async (operatorId: string, brandName: string) => {
@@ -185,13 +231,23 @@ export const Bandeiras = () => {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => setEditingBrand(b)}
-                      className="p-2 text-stone-400 hover:text-[#ff5f00] hover:bg-[#ff5f00]/15 rounded-xl transition"
-                      title="Gerenciar Emissores para esta Bandeira"
-                    >
-                      <Pencil className="size-4" />
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => setEditingBrand(b)}
+                        className="p-2 text-stone-400 hover:text-[#ff5f00] hover:bg-[#ff5f00]/15 rounded-xl transition"
+                        title="Editar Bandeira"
+                      >
+                        <Pencil className="size-4" />
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteBrand(b.id, b.name)}
+                        className="p-2 text-stone-500 hover:text-red-400 hover:bg-red-950/40 rounded-xl transition"
+                        title="Remover Bandeira"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Emissores associados */}
@@ -291,7 +347,7 @@ export const Bandeiras = () => {
         </div>
       )}
 
-      {/* Modal Gerenciar Emissores da Bandeira */}
+      {/* Modal Editar Bandeira & Gerenciar Emissores */}
       {editingBrand && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 font-lexend">
           <div className="w-full max-w-md bg-[#1c1b1b] border-2 border-[#ff5f00]/50 rounded-3xl p-6 shadow-2xl space-y-5 text-[#e5e2e1] relative max-h-[90vh] overflow-y-auto">
@@ -304,55 +360,78 @@ export const Bandeiras = () => {
 
             <div className="flex items-center gap-3">
               <div className="p-3 bg-[#ff5f00]/20 text-[#ff5f00] rounded-2xl shrink-0 font-extrabold">
-                <Building2 className="size-6" />
+                <Pencil className="size-6" />
               </div>
               <div>
                 <h3 className="font-extrabold text-lg text-white uppercase tracking-tight">
-                  Emissores da Bandeira "{editingBrand.name}"
+                  Editar Bandeira
                 </h3>
-                <p className="text-xs text-[#ab8a7d]">Marque quais instituições suportam a bandeira {editingBrand.name}.</p>
+                <p className="text-xs text-[#ab8a7d]">Altere o nome e selecione as instituições emissoras associadas.</p>
               </div>
             </div>
 
-            <div className="space-y-3">
-              {operators.length === 0 ? (
-                <p className="text-xs text-[#ab8a7d] text-center py-4">Nenhuma instituição emissora cadastrada.</p>
-              ) : (
-                <div className="grid grid-cols-1 gap-2 max-h-[50vh] overflow-y-auto pr-1">
-                  {operators.map((op) => {
-                    const isLinked = relations.some(
-                      (r) => r.operator_id === op.id && r.brand_name.toLowerCase() === editingBrand.name.toLowerCase()
-                    );
+            <form onSubmit={handleEditBrandSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-1.5">Nome da Bandeira</label>
+                <input
+                  type="text"
+                  value={editingBrand.name}
+                  onChange={(e) => setEditingBrand({ ...editingBrand, name: e.target.value })}
+                  className="w-full h-14 px-4 bg-[#201f1f] border-2 border-stone-800 focus:border-[#ff5f00] rounded-2xl text-white font-semibold text-sm outline-none transition"
+                  required
+                />
+              </div>
 
-                    return (
-                      <button
-                        key={op.id}
-                        type="button"
-                        onClick={() => toggleBrandIssuerRelation(op.id, editingBrand.name)}
-                        className={`p-3.5 rounded-2xl text-xs font-extrabold text-left transition border flex items-center justify-between ${
-                          isLinked
-                            ? 'bg-[#ff5f00] text-black border-[#ff5f00]'
-                            : 'bg-[#201f1f] text-[#e5e2e1] border-stone-800 hover:border-stone-700'
-                        }`}
-                      >
-                        <span className="truncate">{op.name}</span>
-                        {isLinked && <Check className="size-4 shrink-0 stroke-[3]" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#ab8a7d] mb-2">
+                  Instituições Emissoras Suportadas
+                </label>
+                {operators.length === 0 ? (
+                  <p className="text-xs text-[#ab8a7d] text-center py-4">Nenhuma instituição emissora cadastrada.</p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 max-h-[35vh] overflow-y-auto pr-1">
+                    {operators.map((op) => {
+                      const isLinked = relations.some(
+                        (r) => r.operator_id === op.id && r.brand_name.toLowerCase() === editingBrand.name.toLowerCase()
+                      );
 
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => setEditingBrand(null)}
-                className="w-full h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg"
-              >
-                Concluído
-              </button>
-            </div>
+                      return (
+                        <button
+                          key={op.id}
+                          type="button"
+                          onClick={() => toggleBrandIssuerRelation(op.id, editingBrand.name)}
+                          className={`p-3 rounded-2xl text-xs font-extrabold text-left transition border flex items-center justify-between ${
+                            isLinked
+                              ? 'bg-[#ff5f00] text-black border-[#ff5f00]'
+                              : 'bg-[#201f1f] text-[#e5e2e1] border-stone-800 hover:border-stone-700'
+                          }`}
+                        >
+                          <span className="truncate">{op.name}</span>
+                          {isLinked && <Check className="size-4 shrink-0 stroke-[3]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingBrand(null)}
+                  className="flex-1 h-12 rounded-2xl bg-[#201f1f] text-[#e5e2e1] font-bold text-sm hover:bg-[#252424] transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 h-12 rounded-2xl bg-[#ff5f00] text-black font-extrabold text-sm hover:bg-[#ffb599] transition shadow-lg flex items-center justify-center gap-2"
+                >
+                  <Save className="size-4" />
+                  <span>Salvar Alterações</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -165,7 +165,7 @@ describe('ManutencaoFlows - Vehicle Parts Life and Maintenance Cycles', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('MONITORAMENTO DE PEÇAS')).toBeDefined();
+      expect(screen.getByText('MANUTENÇÃO & TROCAS DE ÓLEO')).toBeDefined();
     });
   });
 });

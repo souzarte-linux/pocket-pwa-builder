@@ -63,7 +63,7 @@ describe('TrocasOleo Page (Maintenance)', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('MONITORAMENTO DE PEÇAS')).toBeInTheDocument();
+      expect(screen.getByText('MANUTENÇÃO & TROCAS DE ÓLEO')).toBeInTheDocument();
     });
   });
 });

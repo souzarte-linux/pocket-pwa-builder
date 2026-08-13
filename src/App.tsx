@@ -26,6 +26,7 @@ const PerfilMotorista = lazyWithRetry(() => import("./pages/PerfilMotorista"));
 const MetasFinanceiras = lazyWithRetry(() => import("./pages/MetasFinanceiras"));
 const Configuracoes = lazyWithRetry(() => import("./pages/Configuracoes"));
 const TrocasOleo = lazyWithRetry(() => import("./pages/TrocasOleo"));
+const Manutencao = lazyWithRetry(() => import("./pages/Manutencao"));
 const VidaUtilPecas = lazyWithRetry(() => import("./pages/VidaUtilPecas"));
 const Faturas = lazyWithRetry(() => import("./pages/Faturas"));
 const NovaFatura = lazyWithRetry(() => import("./pages/NovaFatura"));
@@ -215,6 +216,16 @@ const App = () => (
               <RequireAuth>
                 <Suspense fallback={<RouteLoadingFallback />}>
                   <TrocasOleo />
+                </Suspense>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/manutencao"
+            element={
+              <RequireAuth>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <Manutencao />
                 </Suspense>
               </RequireAuth>
             }
