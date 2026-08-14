@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Bandeiras } from '@/pages/Bandeiras';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +28,8 @@ function createQueryMock(data: unknown = []) {
   const mockObj: Record<string, unknown> = {
     then: (resolve: (v: { data: unknown; error: null }) => unknown, reject?: (r: unknown) => unknown) => promise.then(resolve, reject),
     catch: (reject: (r: unknown) => unknown) => promise.catch(reject),
+    select: vi.fn().mockImplementation(() => mockObj),
+    single: vi.fn().mockImplementation(() => Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data ?? null, error: null })),
     eq: vi.fn().mockImplementation(() => mockObj),
     neq: vi.fn().mockImplementation(() => mockObj),
     in: vi.fn().mockImplementation(() => mockObj),
@@ -37,7 +39,6 @@ function createQueryMock(data: unknown = []) {
     or: vi.fn().mockImplementation(() => mockObj),
     order: vi.fn().mockImplementation(() => mockObj),
     limit: vi.fn().mockImplementation(() => mockObj),
-    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data ?? null, error: null })),
   };
   return mockObj;
 }
@@ -48,20 +49,15 @@ describe('Bandeiras Page - CRUD & Real Database Persistence', () => {
     vi.mocked(supabase.auth.getUser).mockResolvedValue({
       data: { user: { id: 'user-brands-123' } },
     } as any);
-  });
 
-  it('renders empty state with CTA when no brands are saved in DB', async () => {
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'card_operators') {
-        return {
-          select: vi.fn().mockReturnValue(createQueryMock([])),
-        } as any;
-      }
+    vi.mocked(supabase.from).mockImplementation(() => {
       return {
         select: vi.fn().mockReturnValue(createQueryMock([])),
       } as any;
     });
+  });
 
+  it('renders header, banner and default supported card brands', async () => {
     render(
       <BrowserRouter>
         <Bandeiras />
@@ -69,29 +65,17 @@ describe('Bandeiras Page - CRUD & Real Database Persistence', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Nenhuma bandeira cadastrada')).toBeDefined();
+      expect(screen.getByText('BANDEIRAS DE CARTÃO')).toBeDefined();
+      expect(screen.getByText('Bandeiras Suportadas')).toBeDefined();
+      expect(screen.getByText('Visa')).toBeDefined();
+      expect(screen.getByText('Mastercard')).toBeDefined();
     });
 
-    expect(screen.getByText('Cadastrar Primeira Bandeira')).toBeDefined();
+    expect(screen.getByTitle('Cadastrar Nova Bandeira')).toBeDefined();
+    expect(screen.getAllByTitle('Remover Bandeira').length).toBeGreaterThan(0);
   });
 
-  it('loads and lists persisted brands from database', async () => {
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'card_operators') {
-        return {
-          select: vi.fn().mockReturnValue(
-            createQueryMock([
-              { id: 'b-1', name: 'Mastercard Black', card_due_day: 15, user_id: 'user-brands-123' },
-              { id: 'b-2', name: 'Visa Infinite', card_due_day: 10, user_id: 'user-brands-123' },
-            ])
-          ),
-        } as any;
-      }
-      return {
-        select: vi.fn().mockReturnValue(createQueryMock([])),
-      } as any;
-    });
-
+  it('loads and lists supported brands with issuer information', async () => {
     render(
       <BrowserRouter>
         <Bandeiras />
@@ -99,13 +83,20 @@ describe('Bandeiras Page - CRUD & Real Database Persistence', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Mastercard Black')).toBeDefined();
-      expect(screen.getByText('Visa Infinite')).toBeDefined();
+      expect(screen.getByText('Mastercard')).toBeDefined();
+      expect(screen.getByText('Visa')).toBeDefined();
+      expect(screen.getByText('Elo')).toBeDefined();
+      expect(screen.getByText('Hipercard')).toBeDefined();
     });
+
+    expect(screen.getAllByTitle('Editar Bandeira').length).toBe(10);
+    expect(screen.getAllByTitle('Remover Bandeira').length).toBe(10);
   });
 
   it('creates new brand and persists to card_operators', async () => {
-    const insertSpy = vi.fn().mockResolvedValue({ error: null });
+    const singleMock = vi.fn().mockResolvedValue({ data: { id: 'b-new-123' }, error: null });
+    const selectMock = vi.fn().mockReturnValue({ single: singleMock });
+    const insertSpy = vi.fn().mockReturnValue({ select: selectMock });
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'card_operators') {
@@ -126,15 +117,15 @@ describe('Bandeiras Page - CRUD & Real Database Persistence', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Nova Bandeira')).toBeDefined();
+      expect(screen.getByTitle('Cadastrar Nova Bandeira')).toBeDefined();
     });
 
-    fireEvent.click(screen.getByText('Nova Bandeira'));
+    fireEvent.click(screen.getByTitle('Cadastrar Nova Bandeira'));
 
-    const nameInput = screen.getByPlaceholderText('Ex: Sodexo, Caju, Hiper');
+    const nameInput = screen.getByPlaceholderText('Ex: JCB / Discover');
     fireEvent.change(nameInput, { target: { value: 'Elo Nanquim' } });
 
-    fireEvent.click(screen.getByText('Cadastrar Bandeira'));
+    fireEvent.click(screen.getByText('Cadastrar'));
 
     await waitFor(() => {
       expect(insertSpy).toHaveBeenCalledWith(
@@ -143,57 +134,39 @@ describe('Bandeiras Page - CRUD & Real Database Persistence', () => {
           user_id: 'user-brands-123',
         })
       );
-      expect(toast.success).toHaveBeenCalledWith('Bandeira "Elo Nanquim" cadastrada com sucesso!');
+      expect(toast.success).toHaveBeenCalledWith('Bandeira "Elo Nanquim" adicionada com sucesso!');
+      expect(screen.getByText('Elo Nanquim')).toBeDefined();
     });
   });
 
-  it('handles creation error gracefully', async () => {
-    const insertSpy = vi.fn().mockResolvedValue({ error: { message: 'Database connection failed' } });
-
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'card_operators') {
-        return {
-          select: vi.fn().mockReturnValue(createQueryMock([])),
-          insert: insertSpy,
-        } as any;
-      }
-      return {
-        select: vi.fn().mockReturnValue(createQueryMock([])),
-      } as any;
-    });
-
+  it('validates duplicate brand name and prevents duplicate creation', async () => {
     render(
       <BrowserRouter>
         <Bandeiras />
       </BrowserRouter>
     );
 
-    await waitFor(() => screen.getByText('Nova Bandeira'));
-    fireEvent.click(screen.getByText('Nova Bandeira'));
+    await waitFor(() => screen.getByTitle('Cadastrar Nova Bandeira'));
+    fireEvent.click(screen.getByTitle('Cadastrar Nova Bandeira'));
 
-    const nameInput = screen.getByPlaceholderText('Ex: Sodexo, Caju, Hiper');
-    fireEvent.change(nameInput, { target: { value: 'Elo Nanquim' } });
+    const nameInput = screen.getByPlaceholderText('Ex: JCB / Discover');
+    fireEvent.change(nameInput, { target: { value: 'Mastercard' } });
 
-    fireEvent.click(screen.getByText('Cadastrar Bandeira'));
+    fireEvent.click(screen.getByText('Cadastrar'));
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Erro ao cadastrar bandeira: Database connection failed');
+      expect(toast.error).toHaveBeenCalledWith('Esta bandeira já está cadastrada.');
     });
   });
 
   it('edits existing brand and updates Supabase', async () => {
-    const updateSpy = vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    });
+    const eqSpy = vi.fn().mockResolvedValue({ error: null });
+    const updateSpy = vi.fn().mockReturnValue({ eq: eqSpy });
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'card_operators') {
         return {
-          select: vi.fn().mockReturnValue(
-            createQueryMock([
-              { id: 'b-1', name: 'Mastercard', card_due_day: 10, user_id: 'user-brands-123' },
-            ])
-          ),
+          select: vi.fn().mockReturnValue(createQueryMock([])),
           update: updateSpy,
         } as any;
       }
@@ -210,8 +183,8 @@ describe('Bandeiras Page - CRUD & Real Database Persistence', () => {
 
     await waitFor(() => screen.getByText('Mastercard'));
 
-    const editBtn = screen.getByTitle('Editar Bandeira');
-    fireEvent.click(editBtn);
+    const editButtons = screen.getAllByTitle('Editar Bandeira');
+    fireEvent.click(editButtons[1]); 
 
     const editModal = screen.getByText('Editar Bandeira');
     expect(editModal).toBeDefined();
@@ -227,24 +200,21 @@ describe('Bandeiras Page - CRUD & Real Database Persistence', () => {
           name: 'Mastercard Platinum',
         })
       );
+      expect(eqSpy).toHaveBeenCalledWith('id', '2');
       expect(toast.success).toHaveBeenCalledWith('Bandeira atualizada com sucesso!');
+      expect(screen.getByText('Mastercard Platinum')).toBeDefined();
     });
   });
 
   it('deletes brand and removes from Supabase', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const deleteSpy = vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    });
+    const eqSpy = vi.fn().mockResolvedValue({ error: null });
+    const deleteSpy = vi.fn().mockReturnValue({ eq: eqSpy });
 
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'card_operators') {
         return {
-          select: vi.fn().mockReturnValue(
-            createQueryMock([
-              { id: 'b-1', name: 'Mastercard', card_due_day: 10, user_id: 'user-brands-123' },
-            ])
-          ),
+          select: vi.fn().mockReturnValue(createQueryMock([])),
           delete: deleteSpy,
         } as any;
       }
@@ -261,12 +231,15 @@ describe('Bandeiras Page - CRUD & Real Database Persistence', () => {
 
     await waitFor(() => screen.getByText('Mastercard'));
 
-    const deleteBtn = screen.getByTitle('Remover Bandeira');
+    const card = screen.getByText('Mastercard').closest('.bg-\\[\\#1c1b1b\\]')!;
+    const deleteBtn = within(card as HTMLElement).getByTitle('Remover Bandeira');
     fireEvent.click(deleteBtn);
 
     await waitFor(() => {
       expect(deleteSpy).toHaveBeenCalled();
+      expect(eqSpy).toHaveBeenCalledWith('id', '2');
       expect(toast.success).toHaveBeenCalledWith('Bandeira removida com sucesso!');
+      expect(screen.queryByText('Mastercard')).toBeNull();
     });
   });
 });
