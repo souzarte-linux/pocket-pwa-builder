@@ -23,20 +23,34 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("node_modules")) {
-            if (id.includes("recharts") || id.includes("d3-") || id.includes("victory-vendor")) {
+          const normalizedId = id.replace(/\\/g, "/");
+          if (normalizedId.includes("/node_modules/")) {
+            if (
+              normalizedId.includes("/node_modules/recharts/") ||
+              normalizedId.includes("/node_modules/d3-") ||
+              normalizedId.includes("/node_modules/victory-vendor/")
+            ) {
               return "vendor-charts";
             }
-            if (id.includes("@supabase")) {
+            if (normalizedId.includes("/node_modules/@supabase/")) {
               return "vendor-supabase";
             }
-            if (id.includes("framer-motion")) {
+            if (normalizedId.includes("/node_modules/framer-motion/")) {
               return "vendor-motion";
             }
-            if (id.includes("@tanstack/react-query") || id.includes("@tanstack/query-core")) {
+            if (
+              normalizedId.includes("/node_modules/@tanstack/react-query/") ||
+              normalizedId.includes("/node_modules/@tanstack/query-core/")
+            ) {
               return "vendor-query";
             }
-            if (id.includes("react") || id.includes("react-dom") || id.includes("react-router")) {
+            if (
+              normalizedId.includes("/node_modules/react/") ||
+              normalizedId.includes("/node_modules/react-dom/") ||
+              normalizedId.includes("/node_modules/react-router/") ||
+              normalizedId.includes("/node_modules/react-router-dom/") ||
+              normalizedId.includes("/node_modules/scheduler/")
+            ) {
               return "vendor-react";
             }
           }
